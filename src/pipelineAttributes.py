@@ -26,17 +26,24 @@ class pipelineConfiguration:
   # Open a configuration file and store the contents of the file in the
   # configuration dictionary.
   def readConfigurationFile(self, filename):
+    fileExists = False
+    jsonError  = False
+    errorText  = ''
+
     try: jsonData = open(filename)
-    except: return False
+    except: return fileExists, jsonError, errorText
+    fileExists    = True
     self.filename = filename
 
     try: self.configuration = json.load(jsonData)
     except:
       exc_type, exc_value, exc_traceback = sys.exc_info()
-      self.jsonError = exc_value
-      return False
+      errorText = exc_value
+      return fileExists, jsonError, errorText
 
-    return True
+    jsonError = True
+
+    return fileExists, jsonError, errorText
 
   #TODO
   # Check that the pipeline configuration file is valid.  If so, put all the information in
