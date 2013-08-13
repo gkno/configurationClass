@@ -21,7 +21,6 @@ class pipelineConfiguration:
   def __init__(self):
     self.configurationData = {}
     self.filename          = ''
-    self.jsonError         = ''
 
   # Open a configuration file and store the contents of the file in the
   # configuration dictionary.
