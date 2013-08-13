@@ -19,9 +19,9 @@ class nodeAttributes:
 
 class pipelineConfiguration:
   def __init__(self):
-    self.configuration   = {}
-    self.filename        = ''
-    self.jsonError       = ''
+    self.configurationData = {}
+    self.filename          = ''
+    self.jsonError         = ''
 
   # Open a configuration file and store the contents of the file in the
   # configuration dictionary.
@@ -35,7 +35,7 @@ class pipelineConfiguration:
     fileExists    = True
     self.filename = filename
 
-    try: self.configuration = json.load(jsonData)
+    try: self.configurationData = json.load(jsonData)
     except:
       exc_type, exc_value, exc_traceback = sys.exc_info()
       errorText = exc_value
@@ -55,22 +55,22 @@ class pipelineConfiguration:
   def addNodesAndEdges(self, graph):
 
     # Set the pipeline arguments.
-    for argument in self.configuration['arguments']:
+    for argument in self.configurationData['arguments']:
 
       # Each new node ID must be unique.  Throw an error if this node ID has been seen before.
-      nodeID = self.configuration['arguments'][argument]['ID']
+      nodeID = self.configurationData['arguments'][argument]['ID']
       if graph.has_node(nodeID):
         print('non-unique argument node: ', nodeID)
         exit(1)
 
       attributes             = nodeAttributes()
       attributes.nodeType    = 'data'
-      attributes.description = self.configuration['arguments'][argument]['description']
-      attributes.shortForm   = self.configuration['arguments'][argument]['short form']
+      attributes.description = self.configurationData['arguments'][argument]['description']
+      attributes.shortForm   = self.configurationData['arguments'][argument]['short form']
       graph.add_node(nodeID, attributes = attributes)
 
     # Loop through all of the tasks and store all the information about the edges.
-    for task in self.configuration['tasks']:
+    for task in self.configurationData['tasks']:
 
       # Each new node ID must be unique.  Throw an error if this node ID has been seen before.
       if graph.has_node(task):
@@ -80,9 +80,9 @@ class pipelineConfiguration:
       # Create the new node and attach the relevant information to it.
       attributes          = nodeAttributes()
       attributes.nodeType = 'task'
-      attributes.tool     = self.configuration['tasks'][task]['tool']
-      for inputNode in self.configuration['tasks'][task]['input nodes']: 
-        attributes.inputNodes[inputNode] = self.configuration['tasks'][task]['input nodes'][inputNode]
+      attributes.tool     = self.configurationData['tasks'][task]['tool']
+      for inputNode in self.configurationData['tasks'][task]['input nodes']: 
+        attributes.inputNodes[inputNode] = self.configurationData['tasks'][task]['input nodes'][inputNode]
 
         # If the input node is not already in the graph, add it.
         if not graph.has_node(inputNode):
@@ -94,7 +94,7 @@ class pipelineConfiguration:
         graph.add_edge(inputNode, task, argument = attributes.inputNodes[inputNode])
 
       # Now add output nodes and draw connections.
-      for outputNode in self.configuration['tasks'][task]['output nodes']:
+      for outputNode in self.configurationData['tasks'][task]['output nodes']:
         attributes.outputNodes.append(outputNode)
 
         # If the input node is not already in the graph, add it.
@@ -108,7 +108,7 @@ class pipelineConfiguration:
 
       graph.add_node(task, attributes = attributes)
 
-    self.configuration = {}
+    self.configurationData = {}
 
   # Generate the task workflow from the topologically sorted pipeline graph.
   def generateWorkflow(self, graph):
