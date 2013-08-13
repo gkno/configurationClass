@@ -36,18 +36,25 @@ class toolConfiguration:
 
   # Open a configuration file and store the contents of the file in the
   # configuration dictionary.
-  def readConfiguration(self, filename):
+  def readConfigurationFile(self, filename):
+    fileExists = False
+    jsonError  = True
+    errorText  = ''
+
     try: jsonData = open(filename)
-    except: return False
+    except: return fileExists, jsonError, errorText
+    fileExists    = True
     self.filename = filename
 
-    try: self.configuration = json.load(jsonData)
+    try: self.configurationData = json.load(jsonData)
     except:
       exc_type, exc_value, exc_traceback = sys.exc_info()
-      self.jsonError = exc_value
-      return False
+      errorText = exc_value
+      return fileExists, jsonError, errorText
 
-    return True
+    jsonError = False
+
+    return fileExists, jsonError, errorText
 
   # Validate the data from the tools configuration file and assuming that everything is valid,
   # put all the data in the tools data structures.
@@ -70,16 +77,16 @@ class toolConfiguration:
 
     # Set the general tool attributes.
     self.attributes             = toolAttributes()
-    self.attributes.description = self.configuration['tools'][toolName]['description']
-    self.attributes.executable  = self.configuration['tools'][toolName]['executable']
-    self.attributes.modifier    = self.configuration['tools'][toolName]['modifier'] if 'modifier' in self.configuration['tools'][toolName] else ''
-    self.attributes.path        = self.configuration['tools'][toolName]['path']
-    self.attributes.precommand  = self.configuration['tools'][toolName]['precommand'] if 'precommand' in self.configuration['tools'][toolName] else ''
+    self.attributes.description = self.configurationData['tools'][toolName]['description']
+    self.attributes.executable  = self.configurationData['tools'][toolName]['executable']
+    self.attributes.modifier    = self.configurationData['tools'][toolName]['modifier'] if 'modifier' in self.configurationData['tools'][toolName] else ''
+    self.attributes.path        = self.configurationData['tools'][toolName]['path']
+    self.attributes.precommand  = self.configurationData['tools'][toolName]['precommand'] if 'precommand' in self.configurationData['tools'][toolName] else ''
 
     # Set the tool argument information.
-    for argument in self.configuration['tools'][toolName]['arguments']:
+    for argument in self.configurationData['tools'][toolName]['arguments']:
       if argument not in self.arguments: self.arguments[argument] = toolArguments()
-      contents   = self.configuration['tools'][toolName]['arguments'][argument]
+      contents   = self.configurationData['tools'][toolName]['arguments'][argument]
 
       # If multiple extensions are allowed, they will be separated by pipes in the configuration
       # file.  Add all allowed extensions to the list.
@@ -97,7 +104,7 @@ class toolConfiguration:
       self.arguments[argument].isRequired               = contents['required']
       if 'short form' in contents: self.arguments[argument].shortForm = contents['short form']
 
-    self.configuration = {}
+    self.configurationData = {}
 
   # Extract and return a list of all of the arguments required by a tool.
   def getRequiredArguments(self):

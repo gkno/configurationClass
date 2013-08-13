@@ -26,7 +26,7 @@ class pipelineConfiguration:
   # configuration dictionary.
   def readConfigurationFile(self, filename):
     fileExists = False
-    jsonError  = False
+    jsonError  = True
     errorText  = ''
 
     try: jsonData = open(filename)
@@ -40,7 +40,7 @@ class pipelineConfiguration:
       errorText = exc_value
       return fileExists, jsonError, errorText
 
-    jsonError = True
+    jsonError = False
 
     return fileExists, jsonError, errorText
 
