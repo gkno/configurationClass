@@ -10,6 +10,7 @@ import sys
 
 class toolAttributes:
   def __init__(self):
+    self.arguments   = {}
     self.description = ''
     self.executable  = ''
     self.modifier    = ''
@@ -29,7 +30,8 @@ class toolArguments:
 
 class toolConfiguration:
   def __init__(self):
-    self.arguments            = {}
+    self.attributes           = {}
+    self.availableTools       = {}
     self.filename             = ''
     self.jsonError            = ''
     self.setRequiredArguments = False
@@ -46,7 +48,7 @@ class toolConfiguration:
     fileExists    = True
     self.filename = filename
 
-    try: self.configurationData = json.load(jsonData)
+    try: configurationData = json.load(jsonData)
     except:
       exc_type, exc_value, exc_traceback = sys.exc_info()
       errorText = exc_value
@@ -54,57 +56,57 @@ class toolConfiguration:
 
     jsonError = False
 
-    return fileExists, jsonError, errorText
-
-  # Validate the data from the tools configuration file and assuming that everything is valid,
-  # put all the data in the tools data structures.
-  def getConfigurationData(self, toolName):
-
-    # TODO Validate the data.  This includes checking that information for the specific tool
-    # exists in the supplied configuration file.
-    success = self.validateConfiguration()
-
-    # Populate the data structures.
-    self.setDataStructures(toolName)
+    return fileExists, jsonError, errorText, configurationData
 
   #TODO
   # Validate the contents of the tool configuration file.
-  def validateConfiguration(self):
+  def processConfigurationFile(self, data, toolFile):
+
+    # First validate the contents of the data structure.
+    success = self.validateConfigurationData(data)
+    if not success: return False
+
+    # Now put all of the data into data structures.
+    for toolName in data['tools']:
+      if toolName in self.availableTools:
+        print('Non-unique tool name error:', toolName)
+        return False
+
+      self.availableTools[toolName] = toolFile
+      self.attributes[toolName]     = toolAttributes()
+
+      # Set the general tool attributes.
+      self.attributes[toolName]             = toolAttributes()
+      self.attributes[toolName].description = data['tools'][toolName]['description']
+      self.attributes[toolName].executable  = data['tools'][toolName]['executable']
+      self.attributes[toolName].modifier    = data['tools'][toolName]['modifier'] if 'modifier' in data['tools'][toolName] else ''
+      self.attributes[toolName].path        = data['tools'][toolName]['path']
+      self.attributes[toolName].precommand  = data['tools'][toolName]['precommand'] if 'precommand' in data['tools'][toolName] else ''
+  
+      # Set the tool argument information.
+      for argument in data['tools'][toolName]['arguments']:
+        if argument not in self.attributes[toolName].arguments: self.attributes[toolName].arguments[argument] = toolArguments()
+        contents = data['tools'][toolName]['arguments'][argument]
+  
+        # If multiple extensions are allowed, they will be separated by pipes in the configuration
+        # file.  Add all allowed extensions to the list.
+        extension = contents['extension']
+        if '|' in extension:
+          extensions = extension.split('|')
+          for extension in extensions: self.attributes[toolName].arguments[argument].allowedExtensions.append(extension)
+        else: self.attributes[toolName].arguments[argument].allowedExtensions.append(extension)
+  
+        if 'allow multiple definitions' in contents: self.attributes[toolName].arguments[argument].allowMultipleDefinitions = contents['allow multiple definitions']
+        self.attributes[toolName].arguments[argument].description              = contents['description']
+        self.attributes[toolName].arguments[argument].hasType                  = contents['type']
+        self.attributes[toolName].arguments[argument].isInput                  = contents['input']
+        self.attributes[toolName].arguments[argument].isOutput                 = contents['output']
+        self.attributes[toolName].arguments[argument].isRequired               = contents['required']
+        if 'short form' in contents: self.attributes[toolName].arguments[argument].shortForm = contents['short form']
+
+  # Validate the contents of the tool configuration file.
+  def validateConfigurationData(self, data):
     return True
-
-  # Populate the tool specific data structures.
-  def setDataStructures(self, toolName):
-
-    # Set the general tool attributes.
-    self.attributes             = toolAttributes()
-    self.attributes.description = self.configurationData['tools'][toolName]['description']
-    self.attributes.executable  = self.configurationData['tools'][toolName]['executable']
-    self.attributes.modifier    = self.configurationData['tools'][toolName]['modifier'] if 'modifier' in self.configurationData['tools'][toolName] else ''
-    self.attributes.path        = self.configurationData['tools'][toolName]['path']
-    self.attributes.precommand  = self.configurationData['tools'][toolName]['precommand'] if 'precommand' in self.configurationData['tools'][toolName] else ''
-
-    # Set the tool argument information.
-    for argument in self.configurationData['tools'][toolName]['arguments']:
-      if argument not in self.arguments: self.arguments[argument] = toolArguments()
-      contents   = self.configurationData['tools'][toolName]['arguments'][argument]
-
-      # If multiple extensions are allowed, they will be separated by pipes in the configuration
-      # file.  Add all allowed extensions to the list.
-      extension = contents['extension']
-      if '|' in extension:
-        extensions = extension.split('|')
-        for extension in extensions: self.arguments[argument].allowedExtensions.append(extension)
-      else: self.arguments[argument].allowedExtensions.append(extension)
-
-      if 'allow multiple definitions' in contents: self.arguments[argument].allowMultipleDefinitions = contents['allow multiple definitions']
-      self.arguments[argument].description              = contents['description']
-      self.arguments[argument].hasType                  = contents['type']
-      self.arguments[argument].isInput                  = contents['input']
-      self.arguments[argument].isOutput                 = contents['output']
-      self.arguments[argument].isRequired               = contents['required']
-      if 'short form' in contents: self.arguments[argument].shortForm = contents['short form']
-
-    self.configurationData = {}
 
   # Extract and return a list of all of the arguments required by a tool.
   def getRequiredArguments(self):
