@@ -13,6 +13,7 @@ class toolAttributes:
     self.arguments   = {}
     self.description = ''
     self.executable  = ''
+    self.isHidden    = ''
     self.modifier    = ''
     self.path        = ''
     self.precommand  = ''
@@ -79,6 +80,7 @@ class toolConfiguration:
       self.attributes[toolName]             = toolAttributes()
       self.attributes[toolName].description = data['tools'][toolName]['description']
       self.attributes[toolName].executable  = data['tools'][toolName]['executable']
+      if 'hide tool' in data['tools'][toolName]: self.attributes[toolName].isHidden  = data['tools'][toolName]['hide tool']
       self.attributes[toolName].modifier    = data['tools'][toolName]['modifier'] if 'modifier' in data['tools'][toolName] else ''
       self.attributes[toolName].path        = data['tools'][toolName]['path']
       self.attributes[toolName].precommand  = data['tools'][toolName]['precommand'] if 'precommand' in data['tools'][toolName] else ''

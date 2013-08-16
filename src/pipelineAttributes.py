@@ -10,6 +10,7 @@ import sys
 
 class nodeAttributes:
   def __init__(self):
+    self.argument           = ''
     self.description        = 'No description provided'
     self.hasValue           = False
     self.nodeType           = ''
@@ -69,10 +70,11 @@ class pipelineConfiguration:
         exit(1)
 
       attributes                    = nodeAttributes()
-      attributes.nodeType           = 'data'
+      attributes.argument           = argument
       attributes.description        = self.configurationData['arguments'][argument]['description']
-      attributes.required           = False
       attributes.isPipelineArgument = True
+      attributes.nodeType           = 'data'
+      attributes.required           = False
       if 'required' in self.configurationData['arguments'][argument]: attributes.isRequired = self.configurationData['arguments'][argument]['required'] 
       attributes.shortForm   = self.configurationData['arguments'][argument]['short form']
       graph.add_node(nodeID, attributes = attributes)
@@ -157,6 +159,14 @@ class pipelineConfiguration:
             isRequired = toolData.attributes[associatedTool].arguments[toolArgument].isRequired
             if isRequired: graph.node[node]['attributes'].isRequired = True
             break
+
+  def setTaskNodes(self, graph, toolData):
+
+    # Loop over all task nodes.
+    for node in graph.nodes(data = False):
+      if graph.node[node]['attributes'].nodeType == 'task':
+        associatedTool = graph.node[node]['attributes'].tool
+        graph.node[node]['attributes'].description = toolData.attributes[associatedTool].description
 
   # Check that all of the supplied edges (tool arguments) are present in the graph.
   def checkRequiredTaskConnections(self, graph, toolData):
