@@ -10,12 +10,18 @@ import sys
 
 class nodeAttributes:
   def __init__(self):
-    self.description = ''
-    self.inputNodes  = {}
-    self.nodeType    = ''
-    self.outputNodes = []
-    self.shortForm   = ''
-    self.tool        = ''
+    self.description        = 'No description provided'
+    self.hasValue           = False
+    self.nodeType           = ''
+    self.isPipelineArgument = False
+    self.isRequired         = False
+    self.shortForm          = ''
+    self.tool               = ''
+
+class edgeAttributes:
+  def __init__(self):
+    self.argument = ''
+    self.isRequired = False
 
 class pipelineConfiguration:
   def __init__(self):
@@ -62,9 +68,12 @@ class pipelineConfiguration:
         print('non-unique argument node: ', nodeID)
         exit(1)
 
-      attributes             = nodeAttributes()
-      attributes.nodeType    = 'data'
-      attributes.description = self.configurationData['arguments'][argument]['description']
+      attributes                    = nodeAttributes()
+      attributes.nodeType           = 'data'
+      attributes.description        = self.configurationData['arguments'][argument]['description']
+      attributes.required           = False
+      attributes.isPipelineArgument = True
+      if 'required' in self.configurationData['arguments'][argument]: attributes.isRequired = self.configurationData['arguments'][argument]['required'] 
       attributes.shortForm   = self.configurationData['arguments'][argument]['short form']
       graph.add_node(nodeID, attributes = attributes)
 
@@ -81,7 +90,6 @@ class pipelineConfiguration:
       attributes.nodeType = 'task'
       attributes.tool     = self.configurationData['tasks'][task]['tool']
       for inputNode in self.configurationData['tasks'][task]['input nodes']: 
-        attributes.inputNodes[inputNode] = self.configurationData['tasks'][task]['input nodes'][inputNode]
 
         # If the input node is not already in the graph, add it.
         if not graph.has_node(inputNode):
@@ -90,11 +98,12 @@ class pipelineConfiguration:
           graph.add_node(inputNode, attributes = dataNodeAttributes)
 
         # Add an edge from the input node to the task.
-        graph.add_edge(inputNode, task, argument = attributes.inputNodes[inputNode])
+        edge = edgeAttributes()
+        edge.argument = self.configurationData['tasks'][task]['input nodes'][inputNode]
+        graph.add_edge(inputNode, task, attributes = edge)
 
       # Now add output nodes and draw connections.
       for outputNode in self.configurationData['tasks'][task]['output nodes']:
-        attributes.outputNodes.append(outputNode)
 
         # If the input node is not already in the graph, add it.
         if not graph.has_node(outputNode):
@@ -103,7 +112,9 @@ class pipelineConfiguration:
           graph.add_node(outputNode, attributes = dataNodeAttibutes)
 
         # Add an edge from the input node to the task.
-        graph.add_edge(task, outputNode, argument = 'dummy')
+        edge = edgeAttributes()
+        edge.argument = 'dummy'
+        graph.add_edge(task, outputNode, attributes = edge)
 
       graph.add_node(task, attributes = attributes)
 
@@ -128,23 +139,60 @@ class pipelineConfiguration:
 
     return tools
 
+  # Check each data node and detemine if a value is required.  This can be determined in one of two
+  # ways.  If any of the edges beginning at the data node correspond to a tool argument that is
+  # listed as required by the tool, or if the node corresponds to a command line argument that is
+  # listed as required.  If the node is a required pipeline argument, it has already been tagged as
+  # required.
+  def setRequiredNodes(self, graph, toolData):
+
+    # Loop over all data nodes.
+    for node in graph.nodes(data = False):
+      if graph.node[node]['attributes'].nodeType == 'data':
+        for edge in graph.edges(node):
+          task           = edge[1]
+          associatedTool = graph.node[task]['attributes'].tool
+          toolArgument   = graph[node][task]['attributes'].argument
+          if toolArgument != 'dummy':
+            isRequired = toolData.attributes[associatedTool].arguments[toolArgument].isRequired
+            if isRequired: graph.node[node]['attributes'].isRequired = True
+            break
+
   # Check that all of the supplied edges (tool arguments) are present in the graph.
-  def checkRequiredTaskConnections(self, graph, task, requiredEdges):
+  def checkRequiredTaskConnections(self, graph, toolData):
     missingEdges = []
 
-    for edge in requiredEdges:
-      edgeIsDefined = False
+    # Loop over all task nodes and find the required edges.
+    for node in graph.nodes(data = False):
+      if graph.node[node]['attributes'].nodeType == 'task':
+        task           = node
+        associatedTool = graph.node[task]['attributes'].tool
 
-      # Loop over the input and output nodes of this task and check that an edge corresponding to
-      # the required edge exists.
-      neigbours = nx.all_neighbors(graph, task)
-      for node in neigbours:
-        isInputNode = True if node in graph.node[task]['attributes'].inputNodes else False
-        graphEdge   = graph[node][task]['argument'] if isInputNode else graph[task][node]['argument']
-        if graphEdge == edge:
-          edgeIsDefined = True
-          break
+        # Loop over all edges for this tool.
+        for edge in toolData.attributes[associatedTool].arguments:
 
-      if not edgeIsDefined: missingEdges.append(edge)
+          # Only consider required edges.
+          if toolData.attributes[associatedTool].arguments[edge].isRequired:
+            edgeIsDefined = False
+  
+            # Loop over the input and output nodes of this task and check that an edge corresponding to
+            # the required edge exists.  First deal with input nodes.
+            predecessorNodes = graph.predecessors(task)
+            for predecessorNode in predecessorNodes:
+              graphEdge = graph[predecessorNode][task]['attributes'].argument
+              if graphEdge == edge:
+                edgeIsDefined = True
+                break
+  
+            # Now loop over the output nodes.
+            successorNodes = graph.successors(task)
+            for successorNode in successorNodes:
+              graphEdge = graph[task][successorNode]['attributes'].argument 
+              if graphEdge == edge:
+                edgeIsDefined = True
+                break
+  
+            if not edgeIsDefined: missingEdges.append((task, edge))
 
     return missingEdges
+

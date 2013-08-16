@@ -107,12 +107,3 @@ class toolConfiguration:
   # Validate the contents of the tool configuration file.
   def validateConfigurationData(self, data):
     return True
-
-  # Extract and return a list of all of the arguments required by a tool.
-  def getRequiredArguments(self):
-    requiredArguments         = []
-    self.setRequiredArguments = True
-    for argument in self.arguments:
-      if self.arguments[argument].isRequired: requiredArguments.append(argument)
-
-    return requiredArguments
