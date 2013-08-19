@@ -10,14 +10,17 @@ import sys
 
 class nodeAttributes:
   def __init__(self):
-    self.argument           = ''
-    self.description        = 'No description provided'
-    self.hasValue           = False
-    self.nodeType           = ''
-    self.isPipelineArgument = False
-    self.isRequired         = False
-    self.shortForm          = ''
-    self.tool               = ''
+    self.allowMultipleArguments = False
+    self.argument               = ''
+    self.description            = 'No description provided'
+    self.hasValue               = False
+    self.hasMultipleValues      = False
+    self.isGreedy               = True
+    self.isPipelineArgument     = False
+    self.isRequired             = False
+    self.nodeType               = ''
+    self.shortForm              = ''
+    self.tool                   = ''
 
 class edgeAttributes:
   def __init__(self):
@@ -27,7 +30,9 @@ class edgeAttributes:
 class pipelineConfiguration:
   def __init__(self):
     self.configurationData = {}
+    self.description       = 'No description provided'
     self.filename          = ''
+    self.pipelineName      = ''
 
   # Open a configuration file and store the contents of the file in the
   # configuration dictionary.
@@ -55,6 +60,8 @@ class pipelineConfiguration:
   # Check that the pipeline configuration file is valid.  If so, put all the information in
   # the pipeline data structures.
   def validateConfigurationData(self, filename):
+    self.description = self.configurationData['description']
+
     return True
 
   # Transfer all of the information from the configuration file into data structures.
