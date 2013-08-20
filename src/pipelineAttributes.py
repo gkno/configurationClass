@@ -12,6 +12,7 @@ class nodeAttributes:
   def __init__(self):
     self.allowMultipleArguments = False
     self.argument               = ''
+    self.dataType               = ''
     self.description            = 'No description provided'
     self.hasValue               = False
     self.hasMultipleValues      = False
