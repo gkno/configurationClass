@@ -131,20 +131,23 @@ class pipelineConfiguration:
     # Loop through all of the tasks and store all the information about the edges.
     for task in self.configurationData['tasks']:
 
+      inputNodes[task]  = []
+      outputNodes[task] = []
+
       # Each new node ID must be unique.  Throw an error if this node ID has been seen before.
       if graph.has_node(task):
         print('non-unique task node: ', task)
         exit(1)
 
       # Create the new node and attach the relevant information to it.
-      attributes          = taskNodeAttributes()
-      attributes.tool     = self.configurationData['tasks'][task]['tool']
+      attributes      = taskNodeAttributes()
+      attributes.tool = self.configurationData['tasks'][task]['tool']
       graph.add_node(task, attributes = attributes)
 
       # Put all of the input and output nodes into a list, then add all of them to the
       # graph.
-      for inputNode in self.configurationData['tasks'][task]['input nodes']: inputNodes[inputNode] = task
-      for outputNode in self.configurationData['tasks'][task]['output nodes']: outputNodes[outputNode] = task
+      for inputNode in self.configurationData['tasks'][task]['input nodes']: inputNodes[task].append(inputNode)
+      for outputNode in self.configurationData['tasks'][task]['output nodes']: outputNodes[task].append(outputNode)
 
     self.addInputOutputNodes(graph, toolData, inputNodes, 'input nodes')
     self.addInputOutputNodes(graph, toolData, outputNodes, 'output nodes')
@@ -152,35 +155,35 @@ class pipelineConfiguration:
   # Add the nodes listed in the 'input nodes' and 'output nodes' section of the pipeline
   # configuration file to the graph.
   def addInputOutputNodes(self, graph, toolData, nodes, nodesListID):
-    for node in nodes:
+    for task in nodes:
+      for node in nodes[task]:
 
-      # Determine the tool that is used to execute this task.  When parsing the input nodes, we
-      # will need to identify the data associated with the node (e.g. a file or an option) in
-      # order to add a node with the correct attributes data structure.
-      task           = nodes[node]
-      associatedTool = self.getNodeAttribute(graph, task, 'tool')
+        # Determine the tool that is used to execute this task.  When parsing the input nodes, we
+        # will need to identify the data associated with the node (e.g. a file or an option) in
+        # order to add a node with the correct attributes data structure.
+        associatedTool = self.getNodeAttribute(graph, task, 'tool')
 
-      # If the input node is not already in the graph, add it.
-      if not graph.has_node(node):
+        # If the input node is not already in the graph, add it.
+        if not graph.has_node(node):
 
-        # Identify the argument associated with this node.
-        if nodesListID == 'input nodes': argument = self.configurationData['tasks'][task]['input nodes'][node]
-        else: argument = 'dummy'
-        isFile = toolData.isArgumentAFile(associatedTool, argument)
-        if isFile:
-          nodeAttributes = fileNodeAttributes()
+          # Identify the argument associated with this node.
+          if nodesListID == 'input nodes': argument = self.configurationData['tasks'][task]['input nodes'][node]
+          else: argument = 'dummy'
+          isFile = toolData.isArgumentAFile(associatedTool, argument)
+          if isFile:
+            nodeAttributes = fileNodeAttributes()
+          else:
+            nodeAttributes = optionNodeAttributes()
+          graph.add_node(node, attributes = nodeAttributes)
+
+        # Add an edge from the input node to the task.
+        edge = edgeAttributes()
+        if nodesListID == 'input nodes':
+          edge.argument = self.configurationData['tasks'][task][nodesListID][node]
+          graph.add_edge(node, task, attributes = edge)
         else:
-          nodeAttributes = optionNodeAttributes()
-        graph.add_node(node, attributes = nodeAttributes)
-
-      # Add an edge from the input node to the task.
-      edge = edgeAttributes()
-      if nodesListID == 'input nodes':
-        edge.argument = self.configurationData['tasks'][task][nodesListID][node]
-        graph.add_edge(node, task, attributes = edge)
-      else:
-        edge.argument = 'dummy'
-        graph.add_edge(task, node, attributes = edge)
+          edge.argument = 'dummy'
+          graph.add_edge(task, node, attributes = edge)
 
   # Erase all of the data contained in the self.configurationData structure.
   def eraseConfigurationData(self):
