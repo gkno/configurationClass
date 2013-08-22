@@ -4,24 +4,49 @@ from __future__ import print_function
 import networkx as nx
 from copy import deepcopy
 
+import errors
+from errors import *
+
 import json
 import os
 import sys
 
-class nodeAttributes:
+# Define a class for holding attributes for task nodes.
+class taskNodeAttributes:
+  def __init__(self):
+    self.description            = 'No description provided'
+    self.isGreedy               = True
+    self.nodeType               = 'task'
+    self.tool                   = ''
+
+# Define a class for holding attributes for options nodes.  These are nodes that
+# hold option data, but are not files.
+class optionNodeAttributes:
   def __init__(self):
     self.allowMultipleArguments = False
-    self.argument               = ''
     self.dataType               = ''
     self.description            = 'No description provided'
-    self.hasValue               = False
     self.hasMultipleValues      = False
-    self.isGreedy               = True
+    self.hasValue               = False
     self.isPipelineArgument     = False
     self.isRequired             = False
-    self.nodeType               = ''
+    self.nodeType               = 'option'
+    self.pipelineArgument       = ''
     self.shortForm              = ''
-    self.tool                   = ''
+
+# Define a class for holding attributes for file nodes.  These are nodes that
+# hold information about files.
+class fileNodeAttributes:
+  def __init__(self):
+    self.allowMultipleArguments = False
+    self.description            = 'No description provided'
+    self.hasMultipleValues      = False
+    self.hasValue               = False
+    self.isPipelineArgument     = False
+    self.isRequired             = False
+    self.nodeType               = 'file'
+    self.pipelineArgument       = ''
+    self.shortForm              = ''
 
 class edgeAttributes:
   def __init__(self):
@@ -32,6 +57,7 @@ class pipelineConfiguration:
   def __init__(self):
     self.configurationData = {}
     self.description       = 'No description provided'
+    self.errors            = errors()
     self.filename          = ''
     self.pipelineName      = ''
 
@@ -66,7 +92,9 @@ class pipelineConfiguration:
     return True
 
   # Transfer all of the information from the configuration file into data structures.
-  def addNodesAndEdges(self, graph):
+  def addNodesAndEdges(self, graph, toolData):
+    inputNodes  = {}
+    outputNodes = {}
 
     # Set the pipeline arguments.
     for argument in self.configurationData['arguments']:
@@ -77,14 +105,27 @@ class pipelineConfiguration:
         print('non-unique argument node: ', nodeID)
         exit(1)
 
-      attributes                    = nodeAttributes()
-      attributes.argument           = argument
-      attributes.description        = self.configurationData['arguments'][argument]['description']
-      attributes.isPipelineArgument = True
-      attributes.nodeType           = 'data'
-      attributes.required           = False
-      if 'required' in self.configurationData['arguments'][argument]: attributes.isRequired = self.configurationData['arguments'][argument]['required'] 
-      attributes.shortForm   = self.configurationData['arguments'][argument]['short form']
+      # Determine if this argument is for a file or an option.  If it is for a file, attach the
+      # fileNodeAttributes structure to the node.
+      if self.configurationData['arguments'][argument]['file']:
+        attributes                    = fileNodeAttributes()
+        attributes.argument           = argument
+        attributes.description        = self.configurationData['arguments'][argument]['description']
+        attributes.isPipelineArgument = True
+        if 'required' in self.configurationData['arguments'][argument]: attributes.isRequired = self.configurationData['arguments'][argument]['required'] 
+        attributes.shortForm          = self.configurationData['arguments'][argument]['short form']
+
+      # If the argument defines an option, attach the optionNodeAttributes data structure to the
+      #node.
+      else:
+        attributes                    = optionNodeAttributes()
+        attributes.argument           = argument
+        attributes.description        = self.configurationData['arguments'][argument]['description']
+        attributes.isPipelineArgument = True
+        if 'required' in self.configurationData['arguments'][argument]: attributes.isRequired = self.configurationData['arguments'][argument]['required'] 
+        attributes.shortForm          = self.configurationData['arguments'][argument]['short form']
+
+      # Add the node to the graph.
       graph.add_node(nodeID, attributes = attributes)
 
     # Loop through all of the tasks and store all the information about the edges.
@@ -96,46 +137,93 @@ class pipelineConfiguration:
         exit(1)
 
       # Create the new node and attach the relevant information to it.
-      attributes          = nodeAttributes()
-      attributes.nodeType = 'task'
+      attributes          = taskNodeAttributes()
       attributes.tool     = self.configurationData['tasks'][task]['tool']
-      for inputNode in self.configurationData['tasks'][task]['input nodes']: 
-
-        # If the input node is not already in the graph, add it.
-        if not graph.has_node(inputNode):
-          dataNodeAttributes                   = nodeAttributes()
-          dataNodeAttributes.nodeType          = 'data'
-          graph.add_node(inputNode, attributes = dataNodeAttributes)
-
-        # Add an edge from the input node to the task.
-        edge = edgeAttributes()
-        edge.argument = self.configurationData['tasks'][task]['input nodes'][inputNode]
-        graph.add_edge(inputNode, task, attributes = edge)
-
-      # Now add output nodes and draw connections.
-      for outputNode in self.configurationData['tasks'][task]['output nodes']:
-
-        # If the input node is not already in the graph, add it.
-        if not graph.has_node(outputNode):
-          dataNodeAttibutes                     = nodeAttributes()
-          dataNodeAttibutes.nodeType            = 'data'
-          graph.add_node(outputNode, attributes = dataNodeAttibutes)
-
-        # Add an edge from the input node to the task.
-        edge = edgeAttributes()
-        edge.argument = 'dummy'
-        graph.add_edge(task, outputNode, attributes = edge)
-
       graph.add_node(task, attributes = attributes)
 
+      # Put all of the input and output nodes into a list, then add all of them to the
+      # graph.
+      for inputNode in self.configurationData['tasks'][task]['input nodes']: inputNodes[inputNode] = task
+      for outputNode in self.configurationData['tasks'][task]['output nodes']: outputNodes[outputNode] = task
+
+    self.addInputOutputNodes(graph, toolData, inputNodes, 'input nodes')
+    self.addInputOutputNodes(graph, toolData, outputNodes, 'output nodes')
+
+  # Add the nodes listed in the 'input nodes' and 'output nodes' section of the pipeline
+  # configuration file to the graph.
+  def addInputOutputNodes(self, graph, toolData, nodes, nodesListID):
+    for node in nodes:
+
+      # Determine the tool that is used to execute this task.  When parsing the input nodes, we
+      # will need to identify the data associated with the node (e.g. a file or an option) in
+      # order to add a node with the correct attributes data structure.
+      task           = nodes[node]
+      associatedTool = self.getNodeAttribute(graph, task, 'tool')
+
+      # If the input node is not already in the graph, add it.
+      if not graph.has_node(node):
+
+        # Identify the argument associated with this node.
+        if nodesListID == 'input nodes': argument = self.configurationData['tasks'][task]['input nodes'][node]
+        else: argument = 'dummy'
+        isFile = toolData.isArgumentAFile(associatedTool, argument)
+        if isFile:
+          nodeAttributes = fileNodeAttributes()
+        else:
+          nodeAttributes = optionNodeAttributes()
+        graph.add_node(node, attributes = nodeAttributes)
+
+      # Add an edge from the input node to the task.
+      edge = edgeAttributes()
+      if nodesListID == 'input nodes':
+        edge.argument = self.configurationData['tasks'][task][nodesListID][node]
+        graph.add_edge(node, task, attributes = edge)
+      else:
+        edge.argument = 'dummy'
+        graph.add_edge(task, node, attributes = edge)
+
+  # Erase all of the data contained in the self.configurationData structure.
+  def eraseConfigurationData(self):
     self.configurationData = {}
+
+  # Get an attribute from the nodes data structure.  Check to ensure that the requested attribute is
+  # available for the type of node.  If not, terminate with an error.
+  def getNodeAttribute(self, graph, node, attribute):
+    try:
+      value = getattr(graph.node[node]['attributes'], attribute)
+      return value
+
+    # If there is an error, determine if the node exists in the graph.  If the node exists, the problem
+    # lies with the attribute.  Determine if the attribute belongs to any of the node data structures,
+    # then terminate.
+    except:
+      if node not in graph.nodes():
+        self.errors.missingNodeInAttributeRequest(node)
+
+      # If no attributes have been attached to the node.
+      elif 'attributes' not in graph.node[node]:
+        self.errors.noAttributesInAttributeRequest(node)
+
+      # If the attribute is not associated with the node.
+      else:
+        inTaskNode    = False
+        inFileNode    = False
+        inOptionsNode = False
+        if hasattr(taskNodeAttributes(), attribute): inTaskNode      = True
+        if hasattr(fileNodeAttributes(), attribute): inFileNode      = True
+        if hasattr(optionNodeAttributes(), attribute): inOptionsNode = True
+        if graph.node[node]['attributes'].nodeType == 'task': nodeType = 'task node'
+        if graph.node[node]['attributes'].nodeType == 'file': nodeType = 'file node'
+        if graph.node[node]['attributes'].nodeType == 'option': nodeType = 'options node'
+        self.errors.attributeNotAssociatedWithNode(node, attribute, nodeType, inTaskNode, inFileNode, inOptionsNode)
 
   # Generate the task workflow from the topologically sorted pipeline graph.
   def generateWorkflow(self, graph):
     workflow  = []
     topolSort = nx.topological_sort(graph)
     for node in topolSort:
-      if graph.node[node]['attributes'].nodeType == 'task': workflow.append(node)
+      nodeType = self.getNodeAttribute(graph, node, 'nodeType')
+      if nodeType == 'task': workflow.append(node)
 
     return workflow
 
