@@ -4,8 +4,8 @@ from __future__ import print_function
 import networkx as nx
 from copy import deepcopy
 
-import errors
-from errors import *
+import configurationClassErrors
+from configurationClassErrors import *
 
 import json
 import os
@@ -36,7 +36,7 @@ class toolConfiguration:
   def __init__(self):
     self.attributes           = {}
     self.availableTools       = {}
-    self.errors               = errors()
+    self.errors               = configurationClassErrors()
     self.filename             = ''
     self.jsonError            = ''
     self.setRequiredArguments = False

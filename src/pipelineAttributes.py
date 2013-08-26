@@ -4,8 +4,8 @@ from __future__ import print_function
 import networkx as nx
 from copy import deepcopy
 
-import errors
-from errors import *
+import configurationClassErrors
+from configurationClassErrors import *
 
 import json
 import os
@@ -26,6 +26,7 @@ class optionNodeAttributes:
     self.allowMultipleArguments = False
     self.dataType               = ''
     self.description            = 'No description provided'
+    self.hasMultipleDataSets    = False
     self.hasMultipleValues      = False
     self.hasValue               = False
     self.isPipelineArgument     = False
@@ -33,6 +34,7 @@ class optionNodeAttributes:
     self.nodeType               = 'option'
     self.pipelineArgument       = ''
     self.shortForm              = ''
+    self.values                 = {}
 
 # Define a class for holding attributes for file nodes.  These are nodes that
 # hold information about files.
@@ -40,6 +42,7 @@ class fileNodeAttributes:
   def __init__(self):
     self.allowMultipleArguments = False
     self.description            = 'No description provided'
+    self.hasMultipleDataSets    = False
     self.hasMultipleValues      = False
     self.hasValue               = False
     self.isPipelineArgument     = False
@@ -47,6 +50,7 @@ class fileNodeAttributes:
     self.nodeType               = 'file'
     self.pipelineArgument       = ''
     self.shortForm              = ''
+    self.values                 = {}
 
 class edgeAttributes:
   def __init__(self):
@@ -57,7 +61,7 @@ class pipelineConfiguration:
   def __init__(self):
     self.configurationData = {}
     self.description       = 'No description provided'
-    self.errors            = errors()
+    self.errors            = configurationClassErrors()
     self.filename          = ''
     self.pipelineName      = ''
 
@@ -194,7 +198,6 @@ class pipelineConfiguration:
   def getNodeAttribute(self, graph, node, attribute):
     try:
       value = getattr(graph.node[node]['attributes'], attribute)
-      return value
 
     # If there is an error, determine if the node exists in the graph.  If the node exists, the problem
     # lies with the attribute.  Determine if the attribute belongs to any of the node data structures,
@@ -220,6 +223,40 @@ class pipelineConfiguration:
         if graph.node[node]['attributes'].nodeType == 'option': nodeType = 'options node'
         self.errors.attributeNotAssociatedWithNode(node, attribute, nodeType, inTaskNode, inFileNode, inOptionsNode)
 
+    return value
+
+  # Set an attribute from the nodes data structure.  Check to ensure that the requested attribute is
+  # available for the type of node.  If not, terminate with an error.
+  def setNodeAttribute(self, graph, node, attribute, value):
+    try:
+      test = getattr(graph.node[node]['attributes'], attribute)
+
+    # If there is an error, determine if the node exists in the graph.  If the node exists, the problem
+    # lies with the attribute.  Determine if the attribute belongs to any of the node data structures,
+    # then terminate.
+    except:
+      if node not in graph.nodes():
+        self.errors.missingNodeInAttributeSet(node)
+
+      # If no attributes have been attached to the node.
+      elif 'attributes' not in graph.node[node]:
+        self.errors.noAttributesInAttributeSet(node)
+
+      # If the attribute is not associated with the node.
+      else:
+        inTaskNode    = False
+        inFileNode    = False
+        inOptionsNode = False
+        if hasattr(taskNodeAttributes(), attribute): inTaskNode      = True
+        if hasattr(fileNodeAttributes(), attribute): inFileNode      = True
+        if hasattr(optionNodeAttributes(), attribute): inOptionsNode = True
+        if graph.node[node]['attributes'].nodeType == 'task': nodeType = 'task node'
+        if graph.node[node]['attributes'].nodeType == 'file': nodeType = 'file node'
+        if graph.node[node]['attributes'].nodeType == 'option': nodeType = 'options node'
+        self.errors.attributeNotAssociatedWithNodeInSet(node, attribute, nodeType, inTaskNode, inFileNode, inOptionsNode)
+
+    setattr(graph.node[node]['attributes'], attribute, value)
+
   # Generate the task workflow from the topologically sorted pipeline graph.
   def generateWorkflow(self, graph):
     workflow  = []
@@ -236,11 +273,14 @@ class pipelineConfiguration:
     for node in graph.nodes(data = False):
 
       # Find the tool used by this task.
-      if graph.node[node]['attributes'].nodeType == 'task': tools.append(graph.node[node]['attributes'].tool)
+      nodeType = self.getNodeAttribute(graph, node, 'nodeType')
+      if nodeType == 'task':
+        tool = self.getNodeAttribute(graph, node, 'tool')
+        tools.append(tool)
 
     return tools
 
-  # Check each data node and detemine if a value is required.  This can be determined in one of two
+  # Check each data node and determine if a value is required.  This can be determined in one of two
   # ways.  If any of the edges beginning at the data node correspond to a tool argument that is
   # listed as required by the tool, or if the node corresponds to a command line argument that is
   # listed as required.  If the node is a required pipeline argument, it has already been tagged as
@@ -249,10 +289,11 @@ class pipelineConfiguration:
 
     # Loop over all data nodes.
     for node in graph.nodes(data = False):
-      if graph.node[node]['attributes'].nodeType == 'data':
+      nodeType = self.getNodeAttribute(graph, node, 'nodeType')
+      if nodeType == 'file' or nodeType == 'option':
         for edge in graph.edges(node):
           task           = edge[1]
-          associatedTool = graph.node[task]['attributes'].tool
+          associatedTool = self.getNodeAttribute(graph, task, 'tool')
           toolArgument   = graph[node][task]['attributes'].argument
           if toolArgument != 'dummy':
             isRequired = toolData.attributes[associatedTool].arguments[toolArgument].isRequired
@@ -305,3 +346,19 @@ class pipelineConfiguration:
 
     return missingEdges
 
+  # Find all of the task nodes in the graph.
+  def getNodes(self, graph, nodeType):
+    nodeList = []
+    for node in graph.nodes(data = False):
+      if self.getNodeAttribute(graph, node, 'nodeType') == nodeType: nodeList.append(node)
+
+    return nodeList
+
+  # Get the node associated with a pipeline argument.
+  def getNodeForPipelineArgument(self, graph, argument):
+    for node in graph.nodes(data = False):
+      if self.getNodeAttribute(graph, node, 'nodeType') != 'task':
+        if self.getNodeAttribute(graph, node, 'isPipelineArgument'):
+          if self.getNodeAttribute(graph, node, 'argument') == argument: return node
+
+    return None
