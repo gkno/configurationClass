@@ -67,7 +67,7 @@ class configurationClassErrors:
   def missingNodeInAttributeRequest(self, node):
     text = 'Unknown pipeline graph node attribute requested.'
     self.text.append(text)
-    text = 'A pipeline node attribute was requested (using function getNodeAttribute), however, the requested node \'' + node + \
+    text = 'A pipeline node attribute was requested (using function getGraphNodeAttribute), however, the requested node \'' + node + \
     '\' does not exist in the pipeline graph.'
     self.text.append(text)
     self.writeFormattedText()
@@ -77,7 +77,7 @@ class configurationClassErrors:
   def noAttributesInAttributeRequest(self, node):
     text = 'Requested attributes from a pipeline graph node with no assigned attributes.'
     self.text.append(text)
-    text = 'A pipeline node attribute was requested (using function getNodeAttribute), however, no attributes have been attached to node \'' + \
+    text = 'A pipeline node attribute was requested (using function getGraphNodeAttribute), however, no attributes have been attached to node \'' + \
     node + '\'.'
     self.text.append(text)
     self.writeFormattedText()
@@ -87,7 +87,7 @@ class configurationClassErrors:
   def attributeNotAssociatedWithNode(self, node, attribute, nodeType, inTaskNode, inFileNode, inOptionsNode):
     text = 'Requested a non-existent attribute from a pipeline graph node.'
     self.text.append(text)
-    text = 'A pipeline node attribute was requested (using function getNodeAttribute), however, the requested attribute \'' + attribute + \
+    text = 'A pipeline node attribute was requested (using function getGraphNodeAttribute), however, the requested attribute \'' + attribute + \
     '\' is not associated with the supplied node \'' + node + '\'.  '
     self.text.append(text)
     self.text.append('\t')
@@ -114,7 +114,7 @@ class configurationClassErrors:
   def missingNodeInAttributeSet(self, node):
     text = 'Attempt to set unknown pipeline graph node.'
     self.text.append(text)
-    text = 'An attempt to set a pipeline node attribute was made (using function setNodeAttribute), however, the requested node \'' + node + \
+    text = 'An attempt to set a pipeline node attribute was made (using function setGraphNodeAttribute), however, the requested node \'' + node + \
     '\' does not exist in the pipeline graph.'
     self.text.append(text)
     self.writeFormattedText()
@@ -124,7 +124,7 @@ class configurationClassErrors:
   def noAttributesInAttributeSet(self, node):
     text = 'Attempt to set attributes from a pipeline graph node with no assigned attributes.'
     self.text.append(text)
-    text = 'An attempt to set a pipeline node attribute was made (using function setNodeAttribute), however, no attributes have been attached ' + \
+    text = 'An attempt to set a pipeline node attribute was made (using function setGraphNodeAttribute), however, no attributes have been attached ' + \
     'to node \'' + node + '\'.'
     self.text.append(text)
     self.writeFormattedText()
@@ -132,9 +132,9 @@ class configurationClassErrors:
 
   # If a a node attribute was set, but the node does not have the requested attribute, terminate.
   def attributeNotAssociatedWithNodeInSet(self, node, attribute, nodeType, inTaskNode, inFileNode, inOptionsNode):
-    text = 'Attempy to set a non-existent attribute from a pipeline graph node.'
+    text = 'Attempt to set a non-existent attribute from a pipeline graph node.'
     self.text.append(text)
-    text = 'An attempt to set a  pipeline node attribute was made (using function setNodeAttribute), however, the requested attribute \'' + \
+    text = 'An attempt to set a pipeline node attribute was made (using function setGraphNodeAttribute), however, the requested attribute \'' + \
     attribute + '\' is not associated with the supplied node \'' + node + '\'.  '
     self.text.append(text)
     self.text.append('\t')
@@ -148,8 +148,66 @@ class configurationClassErrors:
       if inOptionsNode: self.text.append('\toptions nodes')
     else:
       text = 'The requested attribute is not associated with any of the available node data structures.'
-      node + '\'.'
       self.text.append(text)
+    self.writeFormattedText()
+    self.terminate()
+
+  # If a a node attribute was set, but the node does not have the requested attribute, terminate.  This is for setting
+  # values in nodes not in the graph.
+  def attributeNotAssociatedWithNodeInSetNoGraph(self, attribute, nodeType, inTaskNode, inFileNode, inOptionsNode):
+    text = 'Attempt to set a non-existent attribute from a non-pipeline graph node.'
+    self.text.append(text)
+    text = 'An attempt to set a node attribute was made (using function setNodeAttribute), however, the requested attribute \'' + \
+    attribute + '\' is not associated with the supplied node.'
+    self.text.append(text)
+    self.text.append('\t')
+
+    # Check the node types to see if the requested attribute is available for some node types.
+    if inTaskNode or inFileNode or inOptionsNode:
+      text = 'The supplied node is a ' + nodeType + ' and the requested attribute is only available in the following node types:'
+      self.text.append(text)
+      if inTaskNode: self.text.append('\ttask nodes')
+      if inFileNode: self.text.append('\tfile nodes')
+      if inOptionsNode: self.text.append('\toptions nodes')
+    else:
+      text = 'The requested attribute is not associated with any of the available node data structures.'
+      self.text.append(text)
+    self.writeFormattedText()
+    self.terminate()
+
+  ################################################
+  # Errors associated with getting edge attributes
+  ################################################
+
+  # Node is missing.
+  def noNodeInGetEdgeAttribute(self, sourceNode, targetNode, missingNode):
+    text = 'Attempt to get attribute for a non-existent edge.'
+    self.text.append(text)
+    text = 'An attempt to get information about an edge between nodes \'' + sourceNode + '\' and \'' + targetNode + '\' was made, however, node \''
+    if missingNode == 'source': text += sourceNode
+    elif missingNode == 'target': text += targetNode
+    text += '\' does not exist.'
+    self.text.append(text)
+    self.writeFormattedText()
+    self.terminate()
+
+  # If the edge being interrogated has no attributes block.
+  def noAttributesForEdge(self, sourceNode, targetNode):
+    text = 'Attempt to get attribute for an edge with no attributes block.'
+    self.text.append(text)
+    text = 'An attempt to get information about an edge between nodes \'' + sourceNode + '\' and \'' + targetNode + '\' was made, however, this ' + \
+    'edge does not have an attributes block defined.'
+    self.text.append(text)
+    self.writeFormattedText()
+    self.terminate()
+
+  # If the edge being interrogated has no attributes block.
+  def invalidAttributeForEdge(self, sourceNode, targetNode, attribute):
+    text = 'Attempt to get non-existent attribute for an edge.'
+    self.text.append(text)
+    text = 'An attempt to get information about an edge between nodes \'' + sourceNode + '\' and \'' + targetNode + '\' was made, however, the ' + \
+    'requested attribute \'' + attribute + '\' is not associated with the edge.'
+    self.text.append(text)
     self.writeFormattedText()
     self.terminate()
 
@@ -178,8 +236,8 @@ class configurationClassErrors:
     self.terminate()
     
   # If the supplied argument is not available for the specified tool.
-  def invalidArgument(self, tool, argument, function):
-    text = 'Invalid argument'
+  def invalidToolArgument(self, tool, argument, function):
+    text = 'Invalid argument.'
     self.text.append(text)
     text = 'A call was made to a function (' + function + ') to extract information about the argument \'' + argument + '\' associated ' + \
     'with tool \'' + tool + '\'.  This is an invalid argument for this tool.'

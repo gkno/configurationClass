@@ -7,6 +7,9 @@ from copy import deepcopy
 import configurationClassErrors
 from configurationClassErrors import *
 
+import nodeAttributes
+from nodeAttributes import *
+
 import json
 import os
 import sys
@@ -39,6 +42,7 @@ class toolConfiguration:
     self.errors               = configurationClassErrors()
     self.filename             = ''
     self.jsonError            = ''
+    self.nodeMethods          = nodeClass()
     self.setRequiredArguments = False
 
   # Open a configuration file and store the contents of the file in the
@@ -78,37 +82,53 @@ class toolConfiguration:
         return False
 
       self.availableTools[toolName] = toolFile
-      self.attributes[toolName]     = toolAttributes()
 
       # Set the general tool attributes.
       self.attributes[toolName]             = toolAttributes()
       self.attributes[toolName].description = data['tools'][toolName]['description']
       self.attributes[toolName].executable  = data['tools'][toolName]['executable']
-      if 'hide tool' in data['tools'][toolName]: self.attributes[toolName].isHidden  = data['tools'][toolName]['hide tool']
       self.attributes[toolName].modifier    = data['tools'][toolName]['modifier'] if 'modifier' in data['tools'][toolName] else ''
       self.attributes[toolName].path        = data['tools'][toolName]['path']
       self.attributes[toolName].precommand  = data['tools'][toolName]['precommand'] if 'precommand' in data['tools'][toolName] else ''
+      if 'hide tool' in data['tools'][toolName]: self.attributes[toolName].isHidden  = data['tools'][toolName]['hide tool']
   
       # Set the tool argument information.
       for argument in data['tools'][toolName]['arguments']:
-        if argument not in self.attributes[toolName].arguments: self.attributes[toolName].arguments[argument] = toolArguments()
-        contents = data['tools'][toolName]['arguments'][argument]
-  
-        # If multiple extensions are allowed, they will be separated by pipes in the configuration
-        # file.  Add all allowed extensions to the list.
-        extension = contents['extension']
-        if '|' in extension:
-          extensions = extension.split('|')
-          for extension in extensions: self.attributes[toolName].arguments[argument].allowedExtensions.append(extension)
-        else: self.attributes[toolName].arguments[argument].allowedExtensions.append(extension)
-  
-        if 'allow multiple definitions' in contents: self.attributes[toolName].arguments[argument].allowMultipleDefinitions = contents['allow multiple definitions']
-        self.attributes[toolName].arguments[argument].description              = contents['description']
-        self.attributes[toolName].arguments[argument].hasType                  = contents['type']
-        self.attributes[toolName].arguments[argument].isInput                  = contents['input']
-        self.attributes[toolName].arguments[argument].isOutput                 = contents['output']
-        self.attributes[toolName].arguments[argument].isRequired               = contents['required']
-        if 'short form' in contents: self.attributes[toolName].arguments[argument].shortForm = contents['short form']
+
+        # The information about the arguments is stored in a node data structure.  This allow all of the methods
+        # for nodes to be used with each of the tool arguments.  These nodes are not added to the graph.  Begin
+        # by determining if the argument is for a file or an option and set the nodeAttributes accordingly.
+        if argument not in self.attributes[toolName].arguments:
+          contents = data['tools'][toolName]['arguments'][argument]
+
+          # Deal with file nodes.
+          if contents['input'] or contents['output']:
+            attributes             = fileNodeAttributes()
+            attributes.description = contents['description']
+            attributes.isInput     = contents['input']
+            attributes.isOutput    = contents['output']
+            attributes.isRequired  = contents['required']
+            if 'short form argument' in contents: attributes.shortForm = contents['short form argument']
+
+            # If multiple extensions are allowed, they will be separated by pipes in the configuration
+            # file.  Add all allowed extensions to the list.
+            extension = contents['extension']
+            if '|' in extension:
+              extensions = extension.split('|')
+              for extension in extensions: attributes.allowedExtensions.append(extension)
+
+            else: attributes.allowedExtensions.append(extension)
+
+          # Otherwise the argument requires an option node.
+          else:
+            attributes             = optionNodeAttributes()
+            attributes.description = contents['description']
+            attributes.hasType     = contents['type']
+            attributes.isRequired  = contents['required']
+            if 'short form argument' in contents: attributes.shortForm             = contents['short form argument']
+            if 'allow multiple values' in contents: attributes.allowMultipleValues = contents['allow multiple values']
+
+        self.attributes[toolName].arguments[argument] = attributes
 
   # Validate the contents of the tool configuration file.
   def validateConfigurationData(self, data):
@@ -144,4 +164,23 @@ class toolConfiguration:
     # 'dummy-file', the node corresponds to a file that does not have a command line argument.
     # In this case, return to the previous function without failing.
     if argument == 'dummy': return True
-    if argument not in self.attributes[tool].arguments: self.errors.invalidArgument(tool, argument, 'toolConfiguration -> isArgumentAFile')
+    if argument not in self.attributes[tool].arguments: self.errors.invalidToolArgument(tool, argument, 'isArgumentAFile')
+
+  # Get the long form of a tool argument.
+  def getLongFormArgument(self, tool, argument):
+
+    # Check if the supplied argument is in the arguments data structure already.  If so, it is already
+    # in the long form.
+    if argument in self.attributes[tool].arguments: return argument
+
+    # If the argument was not in the data structure, loop over the arguments and check their
+    # short form versions.  If the supplied argument appears as a short form, return the long
+    # form associated with it.
+    for toolArgument in self.attributes[tool].arguments:
+      try: shortForm = self.attributes[tool].arguments[toolArgument].shortForm
+      except: shortForm = ''
+
+      if shortForm == argument: return toolArgument
+
+    # If no value has been returned, the supplied argument is not associated with this tool.
+    self.errors.invalidToolArgument(tool, argument, 'getLongFormArgument')
