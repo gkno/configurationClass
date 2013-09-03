@@ -84,6 +84,29 @@ class configurationClassErrors:
     self.terminate()
 
   # If a a node attribute was requested, but the node does not have the requested attribute, terminate.
+  def attributeNotAssociatedWithNodeNoGraph(self, attribute, nodeType, inTaskNode, inFileNode, inOptionsNode):
+    text = 'Requested a non-existent attribute from a non-graph node.'
+    self.text.append(text)
+    text = 'A pipeline node attribute was requested (using function getGraphNodeAttributeNoGraph), however, the requested attribute \'' + \
+    attribute + '\' is not associated with the supplied node.'
+    self.text.append(text)
+    self.text.append('\t')
+
+    # Check the node types to see if the requested attribute is available for some node types.
+    if inTaskNode or inFileNode or inOptionsNode:
+      text = 'The supplied node is a ' + nodeType + ' and the requested attribute is only available in the following node types:'
+      self.text.append(text)
+      if inTaskNode: self.text.append('\ttask nodes')
+      if inFileNode: self.text.append('\tfile nodes')
+      if inOptionsNode: self.text.append('\toptions nodes')
+    else:
+      text = 'The requested attribute is not associated with any of the available node data structures.'
+      node + '\'.'
+      self.text.append(text)
+    self.writeFormattedText()
+    self.terminate()
+
+  # If a a node attribute was requested, but the node does not have the requested attribute, terminate.
   def attributeNotAssociatedWithNode(self, node, attribute, nodeType, inTaskNode, inFileNode, inOptionsNode):
     text = 'Requested a non-existent attribute from a pipeline graph node.'
     self.text.append(text)
@@ -207,6 +230,30 @@ class configurationClassErrors:
     self.text.append(text)
     text = 'An attempt to get information about an edge between nodes \'' + sourceNode + '\' and \'' + targetNode + '\' was made, however, the ' + \
     'requested attribute \'' + attribute + '\' is not associated with the edge.'
+    self.text.append(text)
+    self.writeFormattedText()
+    self.terminate()
+
+  #################################################
+  # Errors associated with setting tool attributes.
+  #################################################
+
+  # If the tool attributes for an invalid tool are set.
+  def invalidToolInSetToolAttribute(self, tool):
+    text = 'Attempt to set tool attributes for an invalid tool: ' + tool
+    self.text.append(text)
+    text = 'A call was made to a function (setToolAttribute) to set tool attributes.  The tool \'' + tool + '\' does not exist, so no ' + \
+    'data can be set for this tool.'
+    self.text.append(text)
+    self.writeFormattedText()
+    self.terminate()
+
+  # If the tool attributes for an tool include an invalid attribute.
+  def invalidAttributeInSetToolAttribute(self, attribute):
+    text = 'Attempt to set an invalid attribute for tool.'
+    self.text.append(text)
+    text = 'A call was made to a function (setToolAttribute) to set tool attributes.  The attribute \'' + attribute + '\' does not exist, so ' + \
+    'this attribute cannot be set.'
     self.text.append(text)
     self.writeFormattedText()
     self.terminate()

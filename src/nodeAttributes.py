@@ -68,8 +68,7 @@ class nodeClass:
   # Get an attribute from the nodes data structure.  Check to ensure that the requested attribute is
   # available for the type of node.  If not, terminate with an error.
   def getGraphNodeAttribute(self, graph, node, attribute):
-    try:
-      value = getattr(graph.node[node]['attributes'], attribute)
+    try: value = getattr(graph.node[node]['attributes'], attribute)
 
     # If there is an error, determine if the node exists in the graph.  If the node exists, the problem
     # lies with the attribute.  Determine if the attribute belongs to any of the node data structures,
@@ -129,11 +128,35 @@ class nodeClass:
 
     setattr(graph.node[node]['attributes'], attribute, value)
 
+  # Get an attribute from the nodes data structure.  Check to ensure that the requested attribute is
+  # available for the type of node.  If not, terminate with an error.  This method is for a node not
+  # contained in the graph.
+  def getNodeAttribute(self, nodeAttributes, attribute):
+    try: value = getattr(nodeAttributes, attribute)
+
+    # If there is an error, determine if the node exists in the graph.  If the node exists, the problem
+    # lies with the attribute.  Determine if the attribute belongs to any of the node data structures,
+    # then terminate.
+    except:
+
+      # If the attribute is not associated with the node.
+      inTaskNode    = False
+      inFileNode    = False
+      inOptionsNode = False
+      if hasattr(taskNodeAttributes(), attribute): inTaskNode      = True
+      if hasattr(fileNodeAttributes(), attribute): inFileNode      = True
+      if hasattr(optionNodeAttributes(), attribute): inOptionsNode = True
+      if nodeAttributes.nodeType == 'task': nodeType = 'task node'
+      if nodeAttributes.nodeType == 'file': nodeType = 'file node'
+      if nodeAttributes.nodeType == 'option': nodeType = 'options node'
+      self.errors.attributeNotAssociatedWithNodeNoGraph(attribute, nodeType, inTaskNode, inFileNode, inOptionsNode)
+
+    return value
+
   # Set an attribute from the nodes data structure.  In this method, the node is not a part of the graph and
   # so the node itself is given to the method.
   def setNodeAttribute(self, nodeAttributes, attribute, value):
-    try:
-      test = getattr(nodeAttributes, attribute)
+    try: test = getattr(nodeAttributes, attribute)
 
     # If there is an error, determine if the attribute belongs to any of the node data structures,
     # then terminate.

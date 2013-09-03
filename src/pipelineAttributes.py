@@ -133,11 +133,10 @@ class pipelineConfiguration:
           # Identify the argument associated with this node.
           if nodesListID == 'input nodes': argument = self.configurationData['tasks'][task]['input nodes'][node]
           else: argument = 'dummy'
-          isFile = toolData.isArgumentAFile(associatedTool, argument)
-          if isFile:
-            nodeAttributes = fileNodeAttributes()
-          else:
-            nodeAttributes = optionNodeAttributes()
+
+          # All dummy arguments are assumed to be file nodes.
+          if argument == 'dummy': nodeAttributes = fileNodeAttributes()
+          else: nodeAttributes = toolData.attributes[associatedTool].arguments[argument]
           graph.add_node(node, attributes = nodeAttributes)
 
         # Add an edge from the input node to the task.

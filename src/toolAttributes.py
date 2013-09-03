@@ -85,12 +85,12 @@ class toolConfiguration:
 
       # Set the general tool attributes.
       self.attributes[toolName]             = toolAttributes()
-      self.attributes[toolName].description = data['tools'][toolName]['description']
-      self.attributes[toolName].executable  = data['tools'][toolName]['executable']
-      self.attributes[toolName].modifier    = data['tools'][toolName]['modifier'] if 'modifier' in data['tools'][toolName] else ''
-      self.attributes[toolName].path        = data['tools'][toolName]['path']
-      self.attributes[toolName].precommand  = data['tools'][toolName]['precommand'] if 'precommand' in data['tools'][toolName] else ''
-      if 'hide tool' in data['tools'][toolName]: self.attributes[toolName].isHidden  = data['tools'][toolName]['hide tool']
+      self.setToolAttribute(self.attributes, toolName, 'description', data['tools'][toolName]['description'])
+      self.setToolAttribute(self.attributes, toolName, 'executable', data['tools'][toolName]['executable'])
+      if 'modifier' in data['tools'][toolName]: self.setToolAttribute(self.attributes, toolName, 'modifier', data['tools'][toolName]['modifier'])
+      self.setToolAttribute(self.attributes, toolName, 'path', data['tools'][toolName]['path'])
+      if 'precommand' in data['tools'][toolName]: self.setToolAttribute(self.attributes, toolName, 'precommand', data['tools'][toolName]['precommand'])
+      if 'hide tool' in data['tools'][toolName]: self.setToolAttribute(self.attributes, toolName, 'isHidden', data['tools'][toolName]['hide tool'])
   
       # Set the tool argument information.
       for argument in data['tools'][toolName]['arguments']:
@@ -104,29 +104,33 @@ class toolConfiguration:
           # Deal with file nodes.
           if contents['input'] or contents['output']:
             attributes             = fileNodeAttributes()
-            attributes.description = contents['description']
-            attributes.isInput     = contents['input']
-            attributes.isOutput    = contents['output']
-            attributes.isRequired  = contents['required']
-            if 'short form argument' in contents: attributes.shortForm = contents['short form argument']
+            self.nodeMethods.setNodeAttribute(attributes, 'description', contents['description'])
+            self.nodeMethods.setNodeAttribute(attributes, 'isInput', contents['input'])
+            self.nodeMethods.setNodeAttribute(attributes, 'isOutput', contents['output'])
+            self.nodeMethods.setNodeAttribute(attributes, 'isRequired', contents['required'])
+            if 'short form argument' in contents: self.nodeMethods.setNodeAttribute(attributes, 'shortForm', contents['short form argument'])
 
             # If multiple extensions are allowed, they will be separated by pipes in the configuration
             # file.  Add all allowed extensions to the list.
             extension = contents['extension']
             if '|' in extension:
               extensions = extension.split('|')
-              for extension in extensions: attributes.allowedExtensions.append(extension)
+              self.nodeMethods.setNodeAttribute(attributes, 'allowedExtensions', extensions)
 
-            else: attributes.allowedExtensions.append(extension)
+            #else: attributes.allowedExtensions.append(extension)
+            else:
+              extensions = []
+              extensions.append(extension)
+              self.nodeMethods.setNodeAttribute(attributes, 'allowedExtensions', extensions)
 
           # Otherwise the argument requires an option node.
           else:
             attributes             = optionNodeAttributes()
-            attributes.description = contents['description']
-            attributes.hasType     = contents['type']
-            attributes.isRequired  = contents['required']
-            if 'short form argument' in contents: attributes.shortForm             = contents['short form argument']
-            if 'allow multiple values' in contents: attributes.allowMultipleValues = contents['allow multiple values']
+            self.nodeMethods.setNodeAttribute(attributes, 'description', contents['description'])
+            self.nodeMethods.setNodeAttribute(attributes, 'dataType', contents['type'])
+            self.nodeMethods.setNodeAttribute(attributes, 'isRequired', contents['required'])
+            if 'short form argument' in contents: self.nodeMethods.setNodeAttribute(attributes, 'shortForm', contents['short form argument'])
+            if 'allow multiple values' in contents: self.nodeMethods.setNodeAttribute(attributes, 'allowMultipleValues', contents['allow multiple values'])
 
         self.attributes[toolName].arguments[argument] = attributes
 
@@ -134,37 +138,22 @@ class toolConfiguration:
   def validateConfigurationData(self, data):
     return True
 
-  # Check if a tool argument corresponds to a file.
-  def isArgumentAFile(self, tool, argument):
-    isDummy  = False
-    isInput  = False
-    isOutput = False
+  # Set a value in the toolAttributes.
+  def setToolAttribute(self, attributes, tool, attribute, value):
+    try: test = getattr(attributes[tool], attribute)
 
-    try:
-      isInput = self.attributes[tool].arguments[argument].isInput
-      isOutput = self.attributes[tool].arguments[argument].isOutput
+    # If the attribute can't be set, determine the source of the problem and provide an
+    # error message.
     except:
-      isDummy = self.isArgumentAFileError(tool, argument)
 
-    if isInput or isOutput or isDummy: return True
-    else: return False
+      # If the tool is not available.
+      if tool not in attributes: self.errors.invalidToolInSetToolAttribute(tool)
 
-  # If there was an error trying to determine if a tool argument corresponded to a file, 
-  # determine the source of the error and then call the errors class to fail.
-  def isArgumentAFileError(self, tool, argument):
+      # If the attribute being set is not valid.
+      if attribute not in attributes: self.errors.invalidAttributeInSetToolAttribute(attribute)
 
-    # Check if the tool is valid.
-    if tool not in self.attributes: self.errors.invalidTool(tool, 'toolConfiguration -> isArgumentAFile')
-
-    # Check if there is an arguments block associated with this tool.
-    try: arguments = self.attributes[tool].arguments
-    except: self.errors.noArgumentsInformation(tool, 'toolConfiguration -> isArgumentAFile')
-
-    # Check that there is information about the specified argument.  If the argument is
-    # 'dummy-file', the node corresponds to a file that does not have a command line argument.
-    # In this case, return to the previous function without failing.
-    if argument == 'dummy': return True
-    if argument not in self.attributes[tool].arguments: self.errors.invalidToolArgument(tool, argument, 'isArgumentAFile')
+    # Set the attribute.
+    setattr(attributes[tool], attribute, value)
 
   # Get the long form of a tool argument.
   def getLongFormArgument(self, tool, argument):
