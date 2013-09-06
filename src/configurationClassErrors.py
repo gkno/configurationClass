@@ -59,6 +59,28 @@ class configurationClassErrors:
           firstLine = False
           secondLine = True
 
+  ###########################################
+  # Errors with handling configuration files.
+  ###########################################
+
+  # If a configuration file cannot be found.
+  def missingFile(self, filename):
+    text = 'Missing configuration file.'
+    self.text.append(text)
+    text = "The file '" + filename + "' could not be located."
+    self.text.append(text)
+    self.writeFormattedText()
+    self.terminate()
+
+  # If there are errors with decoding the json file.
+  def jsonError(self, error, filename):
+    text = 'Malformed json file: ' + filename
+    self.text.append(text)
+    text = str(error) + '.'
+    self.text.append(text)
+    self.writeFormattedText()
+    self.terminate()
+
   ################################################
   # Errors associated with getting node attributes
   ################################################

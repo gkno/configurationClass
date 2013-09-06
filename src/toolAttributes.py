@@ -45,28 +45,6 @@ class toolConfiguration:
     self.nodeMethods          = nodeClass()
     self.setRequiredArguments = False
 
-  # Open a configuration file and store the contents of the file in the
-  # configuration dictionary.
-  def readConfigurationFile(self, filename):
-    fileExists = False
-    jsonError  = True
-    errorText  = ''
-
-    try: jsonData = open(filename)
-    except: return fileExists, jsonError, errorText
-    fileExists    = True
-    self.filename = filename
-
-    try: configurationData = json.load(jsonData)
-    except:
-      exc_type, exc_value, exc_traceback = sys.exc_info()
-      errorText = exc_value
-      return fileExists, jsonError, errorText
-
-    jsonError = False
-
-    return fileExists, jsonError, errorText, configurationData
-
   #TODO
   # Validate the contents of the tool configuration file.
   def processConfigurationFile(self, data, toolFile):
