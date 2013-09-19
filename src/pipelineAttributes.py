@@ -24,6 +24,7 @@ class pipelineConfiguration:
     self.edgeMethods       = edgeClass()
     self.errors            = configurationClassErrors()
     self.filename          = ''
+    self.instances         = {}
     self.nodeMethods       = nodeClass()
     self.nodeIDInteger     = 1
     self.pipelineName      = ''
@@ -38,6 +39,7 @@ class pipelineConfiguration:
 
     # Now put all of the data into data structures.
     self.configurationData = data
+    self.instances         = data['instances']
 
   #TODO
   # Check that the pipeline configuration file is valid.  If so, put all the information in

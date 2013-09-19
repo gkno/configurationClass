@@ -103,7 +103,7 @@ class toolConfiguration:
 
           # Otherwise the argument requires an option node.
           else:
-            attributes             = optionNodeAttributes()
+            attributes = optionNodeAttributes()
             self.nodeMethods.setNodeAttribute(attributes, 'description', contents['description'])
             self.nodeMethods.setNodeAttribute(attributes, 'dataType', contents['type'])
             self.nodeMethods.setNodeAttribute(attributes, 'isRequired', contents['required'])

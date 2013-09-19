@@ -110,9 +110,13 @@ class configurationClass:
           else: argument = 'dummy'
 
           # All dummy arguments are assumed to be file nodes.
-          if argument == 'dummy': nodeAttributes = fileNodeAttributes()
-          else: nodeAttributes = self.tools.attributes[associatedTool].arguments[argument]
-          graph.add_node(node, attributes = nodeAttributes)
+          if argument == 'dummy':
+            nodeAttributes = fileNodeAttributes()
+            graph.add_node(node, attributes = nodeAttributes)
+            self.nodeMethods.setGraphNodeAttribute(graph, node, 'isOutput', True)
+          else:
+            nodeAttributes = self.tools.attributes[associatedTool].arguments[argument]
+            graph.add_node(node, attributes = nodeAttributes)
 
         # Add an edge from the input node to the task.
         edge = edgeAttributes()
@@ -145,6 +149,12 @@ class configurationClass:
         tools.append(tool)
 
     return tools
+
+  # Set all task successor nodes as output files.
+  def setSuccessorsAsOutputs(self, graph, workflow):
+    for task in workflow:
+      for node in graph.successors(task):
+        self.nodeMethods.setGraphNodeAttribute(graph, node, 'isOutput', True)
 
   # Check each data node and determine if a value is required.  This can be determined in one of two
   # ways.  If any of the edges beginning at the data node correspond to a tool argument that is
@@ -211,3 +221,40 @@ class configurationClass:
             if not edgeIsDefined: missingEdges.append((task, edge))
 
     return missingEdges
+
+  # Find all of the file nodes without a set value.
+  def getUnsetFileNodes(self, graph):
+    nodes = []
+    for node in graph.nodes(data = False):
+
+      # Check that the node is a file node.
+      if self.nodeMethods.getGraphNodeAttribute(graph, node, 'nodeType') == 'file':
+
+        # Check that the node is not a pipeline argument.
+        if not self.nodeMethods.getGraphNodeAttribute(graph, node, 'isPipelineArgument'):
+          if not self.nodeMethods.getGraphNodeAttribute(graph, node, 'hasValue'): nodes.append(node)
+
+    return nodes
+
+  # Get all of the input or output nodes for a task.
+  def getInputOutputNodes(self, graph, task, isInput):
+    nodes = []
+
+    # Loop over all of the predecessor nodes and then the successor nodes.
+    for node in graph.predecessors(task):
+      print('pre', node)
+      if self.nodeMethods.getGraphNodeAttribute(graph, node, 'nodeType') == 'file':
+        if isInput and self.nodeMethods.getGraphNodeAttribute(graph, node, 'isInput'): nodes.append(node)
+        elif not isInput and self.nodeMethods.getGraphNodeAttribute(graph, node, 'isOutput'): nodes.append(node)
+
+    for node in graph.successors(task):
+      if self.nodeMethods.getGraphNodeAttribute(graph, node, 'nodeType') == 'file':
+        print('suc', node, isInput, self.nodeMethods.getGraphNodeAttribute(graph, node, 'isInput'))
+        if isInput and self.nodeMethods.getGraphNodeAttribute(graph, node, 'isInput'): nodes.append(node)
+        elif not isInput and self.nodeMethods.getGraphNodeAttribute(graph, node, 'isOutput'): nodes.append(node)
+
+    return nodes
+
+  # Construct filename for a node.
+  def constructInputFilename(self, graph, node):
+    print('\tconstruct filename for', node)

@@ -59,7 +59,7 @@ class fileNodeAttributes:
     self.numberOfDataSets    = 0
     self.shortForm           = ''
     self.values              = {}
-
+ 
 class nodeClass:
   def __init__(self):
     self.edgeMethods = edgeClass()
@@ -176,6 +176,25 @@ class nodeClass:
 
     setattr(nodeAttributes, attribute, value)
 
+  # Add values to a node.
+  def addValuestoGraphNodeAttribute(self, graph, node, values, overwrite):
+
+    # Since values have been added to the node, set the hasValue flag to True.
+    self.setGraphNodeAttribute(graph, node, 'hasValue', True)
+
+    # Determine how many sets of values are already included.
+    numberOfDataSets = int(self.getGraphNodeAttribute(graph, node, 'numberOfDataSets'))
+
+    # Add the values.  If overwrite is set to True, set the first iteration of values to
+    # the given values.  Otherwise, generate a new iteration.
+    if not overwrite:
+      graph.node[node]['attributes'].values[numberOfDataSets + 1] = values
+    else:
+      graph.node[node]['attributes'].values[1] = values
+
+    # Set the number of data sets.
+    self.setGraphNodeAttribute(graph, node, 'numberOfDataSets', 1)
+
   # Find all of the task nodes in the graph.
   def getNodes(self, graph, nodeType):
     nodeList = []
@@ -202,3 +221,33 @@ class nodeClass:
         return predecessorEdge[0]
 
     return None
+
+  # Get all predecessor file nodes for a task.
+  def getPredecessorFileNodes(self, graph, task):
+    fileNodes = []
+
+    try: predecessors = graph.predecessors(task)
+    except:
+
+      #TODO SORT OUT ERROR MESSAGE.
+      print('failed')
+
+    for predecessor in predecessors:
+      if self.getGraphNodeAttribute(graph, predecessor, 'nodeType') == 'file': fileNodes.append(predecessor)
+
+    return fileNodes
+
+  # Get all successor file nodes for a task.
+  def getSuccessorFileNodes(self, graph, task):
+    fileNodes = []
+
+    try: successors = graph.successors(task)
+    except:
+
+      #TODO SORT OUT ERROR MESSAGE.
+      print('failed')
+
+    for successor in successors:
+      if self.getGraphNodeAttribute(graph, successor, 'nodeType') == 'file': fileNodes.append(successor)
+
+    return fileNodes
