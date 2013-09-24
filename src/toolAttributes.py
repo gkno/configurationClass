@@ -74,43 +74,32 @@ class toolConfiguration:
       for argument in data['tools'][toolName]['arguments']:
 
         # The information about the arguments is stored in a node data structure.  This allow all of the methods
-        # for nodes to be used with each of the tool arguments.  These nodes are not added to the graph.  Begin
-        # by determining if the argument is for a file or an option and set the nodeAttributes accordingly.
+        # for nodes to be used with each of the tool arguments.  These nodes are not added to the graph.
         if argument not in self.attributes[toolName].arguments:
           contents = data['tools'][toolName]['arguments'][argument]
+          attributes = optionNodeAttributes()
+          self.nodeMethods.setNodeAttribute(attributes, 'dataType', contents['type'])
+          self.nodeMethods.setNodeAttribute(attributes, 'description', contents['description'])
+          self.nodeMethods.setNodeAttribute(attributes, 'isInput', contents['input'])
+          self.nodeMethods.setNodeAttribute(attributes, 'isOutput', contents['output'])
+          self.nodeMethods.setNodeAttribute(attributes, 'isRequired', contents['required'])
+          if 'short form argument' in contents: self.nodeMethods.setNodeAttribute(attributes, 'shortForm', contents['short form argument'])
+          if 'allow multiple values' in contents: self.nodeMethods.setNodeAttribute(attributes, 'allowMultipleValues', contents['allow multiple values'])
 
-          # Deal with file nodes.
-          if contents['input'] or contents['output']:
-            attributes             = fileNodeAttributes()
-            self.nodeMethods.setNodeAttribute(attributes, 'description', contents['description'])
-            self.nodeMethods.setNodeAttribute(attributes, 'isInput', contents['input'])
-            self.nodeMethods.setNodeAttribute(attributes, 'isOutput', contents['output'])
-            self.nodeMethods.setNodeAttribute(attributes, 'isRequired', contents['required'])
-            if 'short form argument' in contents: self.nodeMethods.setNodeAttribute(attributes, 'shortForm', contents['short form argument'])
+          # If multiple extensions are allowed, they will be separated by pipes in the configuration
+          # file.  Add all allowed extensions to the list.
+          extension = contents['extension']
+          if '|' in extension:
+            extensions = extension.split('|')
+            self.nodeMethods.setNodeAttribute(attributes, 'allowedExtensions', extensions)
 
-            # If multiple extensions are allowed, they will be separated by pipes in the configuration
-            # file.  Add all allowed extensions to the list.
-            extension = contents['extension']
-            if '|' in extension:
-              extensions = extension.split('|')
-              self.nodeMethods.setNodeAttribute(attributes, 'allowedExtensions', extensions)
-
-            #else: attributes.allowedExtensions.append(extension)
-            else:
-              extensions = []
-              extensions.append(extension)
-              self.nodeMethods.setNodeAttribute(attributes, 'allowedExtensions', extensions)
-
-          # Otherwise the argument requires an option node.
+          #else: attributes.allowedExtensions.append(extension)
           else:
-            attributes = optionNodeAttributes()
-            self.nodeMethods.setNodeAttribute(attributes, 'description', contents['description'])
-            self.nodeMethods.setNodeAttribute(attributes, 'dataType', contents['type'])
-            self.nodeMethods.setNodeAttribute(attributes, 'isRequired', contents['required'])
-            if 'short form argument' in contents: self.nodeMethods.setNodeAttribute(attributes, 'shortForm', contents['short form argument'])
-            if 'allow multiple values' in contents: self.nodeMethods.setNodeAttribute(attributes, 'allowMultipleValues', contents['allow multiple values'])
+            extensions = []
+            extensions.append(extension)
+            self.nodeMethods.setNodeAttribute(attributes, 'allowedExtensions', extensions)
 
-        self.attributes[toolName].arguments[argument] = attributes
+          self.attributes[toolName].arguments[argument] = attributes
 
   # Validate the contents of the tool configuration file.
   def validateConfigurationData(self, data):

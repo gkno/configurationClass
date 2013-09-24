@@ -49,6 +49,16 @@ class pipelineConfiguration:
 
     return True
 
+  # Parse the pipeline configuration data and return a dictionary contaiing all of the tasks
+  # appearing in the pipeline along with the tool required to perform the task.
+  def getTasks(self):
+    tasks = {}
+    for task in self.configurationData['tasks']:
+      tool        = self.configurationData['tasks'][task]['tool']
+      tasks[task] = tool
+
+    return tasks
+
   # Erase all of the data contained in the self.configurationData structure.
   def eraseConfigurationData(self):
     self.configurationData = {}

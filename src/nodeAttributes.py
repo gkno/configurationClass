@@ -26,6 +26,7 @@ class taskNodeAttributes:
 # hold option data, but are not files.
 class optionNodeAttributes:
   def __init__(self):
+    self.allowedExtensions   = []
     self.allowMultipleValues = False
     self.argument            = ''
     self.dataType            = ''
@@ -33,6 +34,8 @@ class optionNodeAttributes:
     self.hasMultipleDataSets = False
     self.hasMultipleValues   = False
     self.hasValue            = False
+    self.isInput             = False
+    self.isOutput            = False
     self.isPipelineArgument  = False
     self.isRequired          = False
     self.nodeType            = 'option'
@@ -46,18 +49,12 @@ class fileNodeAttributes:
   def __init__(self):
     self.allowMultipleValues = False
     self.allowedExtensions   = []
-    self.argument            = ''
     self.description         = 'No description provided'
     self.hasMultipleDataSets = False
     self.hasMultipleValues   = False
     self.hasValue            = False
-    self.isInput             = False
-    self.isOutput            = False
-    self.isPipelineArgument  = False
-    self.isRequired          = False
     self.nodeType            = 'file'
     self.numberOfDataSets    = 0
-    self.shortForm           = ''
     self.values              = {}
  
 class nodeClass:

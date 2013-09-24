@@ -35,6 +35,11 @@ class configurationClass:
     self.pipeline          = pipelineConfiguration()
     self.tools             = toolConfiguration()
 
+  # Build a graph for an individual task.  The pipeline is built by merging nodes between
+  # different tasks.  This step is performed later.
+  def buildTaskGraph(self, task):
+    print('Hello', task)
+
   # Transfer all of the information from the configuration file into data structures.
   def addNodesAndEdges(self, graph, data):
     inputNodes      = {}
@@ -96,6 +101,7 @@ class configurationClass:
   def addInputOutputNodes(self, graph, data, nodes, nodesListID):
     for task in nodes:
       for node in nodes[task]:
+        print('hello', task, node, nodesListID)
 
         # Determine the tool that is used to execute this task.  When parsing the input nodes, we
         # will need to identify the data associated with the node (e.g. a file or an option) in
@@ -249,7 +255,7 @@ class configurationClass:
 
     for node in graph.successors(task):
       if self.nodeMethods.getGraphNodeAttribute(graph, node, 'nodeType') == 'file':
-        print('suc', node, isInput, self.nodeMethods.getGraphNodeAttribute(graph, node, 'isInput'))
+        print('suc', node, isInput, self.nodeMethods.getGraphNodeAttribute(graph, node, 'isOutput'))
         if isInput and self.nodeMethods.getGraphNodeAttribute(graph, node, 'isInput'): nodes.append(node)
         elif not isInput and self.nodeMethods.getGraphNodeAttribute(graph, node, 'isOutput'): nodes.append(node)
 
