@@ -32,13 +32,123 @@ class configurationClass:
     self.errors            = configurationClassErrors()
     self.nodeMethods       = nodeClass()
     self.fileOperations    = fileOperations()
+    self.optionNodeID      = 1
     self.pipeline          = pipelineConfiguration()
     self.tools             = toolConfiguration()
 
   # Build a graph for an individual task.  The pipeline is built by merging nodes between
   # different tasks.  This step is performed later.
-  def buildTaskGraph(self, task):
-    print('Hello', task)
+  def buildTaskGraph(self, graph, task, tool, pipeData, toolData):
+
+    # Generate the task node.
+    self.buildTaskNode(graph, task, pipeData)
+
+    # Find all required arguments for this task and build nodes for them all.  Link these nodes
+    # to the task node.
+    self.buildRequiredPredecessorNodes(graph, task, tool, toolData['arguments'])
+
+    # TODO ENSURE THAT ADDITIONAL FILES, E.G. STUBS AND INDEXES ARE INCLUDED.
+
+  # TODO FINISH THIS
+  # Build a task node.
+  def buildTaskNode(self, graph, task, pipeData):
+    attributes      = taskNodeAttributes()
+    attributes.tool = pipeData['tool']
+    graph.add_node(task, attributes = attributes)
+
+  # Build all of the predecessor nodes for the task and attach them to the task node.
+  def buildRequiredPredecessorNodes(self, graph, task, tool, data):
+    for argument in data:
+      attributes = self.tools.buildNodeFromToolConfiguration(tool, argument)
+
+      # Check if the argument is required or not.  Only required nodes are built here.
+      isRequired = self.nodeMethods.getNodeAttribute(attributes, 'isRequired')
+      if isRequired:
+        nodeID = str('OPTION_') + str(self.optionNodeID)
+        self.optionNodeID += 1
+        graph.add_node(nodeID, attributes = attributes)
+
+        # Add an edge to the task node.
+        edge          = edgeAttributes()
+        edge.argument = argument
+        graph.add_edge(nodeID, task, attributes = edge)
+ 
+        # If the node represents an option for defining an input or output file, create
+        # a file node.
+        shortForm = data[argument]['short form argument'] if 'short form argument' in data[argument] else ''
+        if self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'isInput'):
+          self.buildTaskFileNodes(graph, nodeID, task, argument, shortForm, 'input')
+        elif self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'isOutput'):
+          self.buildTaskFileNodes(graph, nodeID, task, argument, shortForm, 'output')
+
+  # Add input file nodes.
+  def buildTaskFileNodes(self, graph, nodeID, task, argument, shortForm, fileType):
+    attributes                     = fileNodeAttributes()
+    attributes.description         = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'description')
+    attributes.allowMultipleValues = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'allowMultipleValues')
+    attributes.allowedExtensions   = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'allowedExtensions')
+    fileNodeID                     = nodeID + '_FILE'
+    graph.add_node(fileNodeID, attributes = attributes)
+
+    # Add the edge.
+    edge           = edgeAttributes()
+    edge.argument  = argument
+    edge.shortForm = shortForm
+    if fileType == 'input': graph.add_edge(nodeID, task, attributes = edge)
+    elif fileType == 'output': graph.add_edge(task, nodeID, attributes = edge)
+
+  # Merge shared nodes between tasks using information from the pipeline configuration file.  For
+  # example, task A outputs a file fileA and taskB uses this as input.  Having built an individual
+  # graph for each task, there exists an output file node for taskA and an input file node for
+  # taskB (and also option nodes defining the names), but these are the same file and so these
+  # nodes can be merged into a single node.
+  def mergeNodes(self, graph, commonNodes):
+    for node in commonNodes:
+
+      # The configuration file lists all the tasks (and arguments) that use the node.  The nodes
+      # themselves may have already been placed in the graph, or may not be present or are present
+      # for some of the tasks but not others (for example, it may be that only nodes listed as
+      # required appear in the graph).  For each task/argument pair, determine if the node exists.
+      existingNodes = {}
+      for task in commonNodes[node]:
+        argument = commonNodes[node][task]
+        existingNodes[str(task) + str(argument)] = self.doesNodeExist(graph, task, argument)
+
+      # For each of the common nodes, determine if the node exists for all, some or none of the
+      # tasks for which it is linked.
+      missingNodes = 0
+      for nodeID in existingNodes:
+        if existingNodes[nodeID] == None: missingNodes += 1
+
+      # TODO
+      # If the nodes referred to do not exist (this is possible, for example, if the nodes are
+      # for non-required arguments), create the node.
+      someNodesDefined = False if missingNodes == len(existingNodes) else True
+      if not someNodesDefined:
+        print('NOT HANDLED UNDEFINED COMMON NODES')
+
+      # If any the nodes are defined, remove all but one of them and insert edges from the
+      # one remaining node to the tasks whose nodes were removed.
+      else:
+
+        # Identifiy the node to keep.  This must be a defined node and, if one exists, the node
+        # linked to a pipeline command line argument will be used.  If no such nodes exist, an
+        # arbitrary node is picked.
+        self.getNodeToKeep()
+
+  # Check if a node exists based on a task and an argument.
+  def doesNodeExist(self, graph, task, argument):
+    exists = False
+    for sourceNode, targetNode in graph.in_edges(task):
+      edgeArgument = self.edgeMethods.getEdgeAttribute(graph, sourceNode, targetNode, 'argument')
+      nodeType     = self.nodeMethods.getGraphNodeAttribute(graph, sourceNode, 'nodeType')
+      if nodeType == 'option' and edgeArgument == argument:
+        exists = True
+        return sourceNode
+
+    return None
+
+
 
   # Transfer all of the information from the configuration file into data structures.
   def addNodesAndEdges(self, graph, data):

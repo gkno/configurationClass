@@ -13,7 +13,8 @@ import sys
 
 class edgeAttributes:
   def __init__(self):
-    self.argument = ''
+    self.argument  = ''
+    self.shortForm = ''
     self.isRequired = False
 
 class edgeClass:

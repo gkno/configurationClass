@@ -39,75 +39,68 @@ class toolConfiguration:
   def __init__(self):
     self.attributes           = {}
     self.availableTools       = {}
+    self.configurationData    = {}
     self.errors               = configurationClassErrors()
     self.filename             = ''
     self.jsonError            = ''
     self.nodeMethods          = nodeClass()
     self.setRequiredArguments = False
 
-  #TODO
-  # Validate the contents of the tool configuration file.
-  def processConfigurationFile(self, data, toolFile):
+  # Process the tool data.
+  def processConfigurationData(self, tool, data):
 
-    # First validate the contents of the data structure.
-    success = self.validateConfigurationData(data)
-    if not success: return False
+    # Validate the information.
+    success = self.validateConfigurationData(tool, data)
 
-    # Now put all of the data into data structures.
-    for toolName in data['tools']:
-      if toolName in self.availableTools:
-        print('Non-unique tool name error:', toolName)
-        return False
+    # Include the tool in the list of available tools.
+    self.availableTools[tool] = tool
 
-      self.availableTools[toolName] = toolFile
-
-      # Set the general tool attributes.
-      self.attributes[toolName]             = toolAttributes()
-      self.setToolAttribute(self.attributes, toolName, 'description', data['tools'][toolName]['description'])
-      self.setToolAttribute(self.attributes, toolName, 'executable', data['tools'][toolName]['executable'])
-      if 'modifier' in data['tools'][toolName]: self.setToolAttribute(self.attributes, toolName, 'modifier', data['tools'][toolName]['modifier'])
-      self.setToolAttribute(self.attributes, toolName, 'path', data['tools'][toolName]['path'])
-      if 'precommand' in data['tools'][toolName]: self.setToolAttribute(self.attributes, toolName, 'precommand', data['tools'][toolName]['precommand'])
-      if 'hide tool' in data['tools'][toolName]: self.setToolAttribute(self.attributes, toolName, 'isHidden', data['tools'][toolName]['hide tool'])
-  
-      # Set the tool argument information.
-      for argument in data['tools'][toolName]['arguments']:
-
-        # The information about the arguments is stored in a node data structure.  This allow all of the methods
-        # for nodes to be used with each of the tool arguments.  These nodes are not added to the graph.
-        if argument not in self.attributes[toolName].arguments:
-          contents = data['tools'][toolName]['arguments'][argument]
-          attributes = optionNodeAttributes()
-          self.nodeMethods.setNodeAttribute(attributes, 'dataType', contents['type'])
-          self.nodeMethods.setNodeAttribute(attributes, 'description', contents['description'])
-          self.nodeMethods.setNodeAttribute(attributes, 'isInput', contents['input'])
-          self.nodeMethods.setNodeAttribute(attributes, 'isOutput', contents['output'])
-          self.nodeMethods.setNodeAttribute(attributes, 'isRequired', contents['required'])
-          if 'short form argument' in contents: self.nodeMethods.setNodeAttribute(attributes, 'shortForm', contents['short form argument'])
-          if 'allow multiple values' in contents: self.nodeMethods.setNodeAttribute(attributes, 'allowMultipleValues', contents['allow multiple values'])
-
-          # If multiple extensions are allowed, they will be separated by pipes in the configuration
-          # file.  Add all allowed extensions to the list.
-          extension = contents['extension']
-          if '|' in extension:
-            extensions = extension.split('|')
-            self.nodeMethods.setNodeAttribute(attributes, 'allowedExtensions', extensions)
-
-          #else: attributes.allowedExtensions.append(extension)
-          else:
-            extensions = []
-            extensions.append(extension)
-            self.nodeMethods.setNodeAttribute(attributes, 'allowedExtensions', extensions)
-
-          self.attributes[toolName].arguments[argument] = attributes
+    # Set the general tool attributes.
+    attributes = toolAttributes()
+    self.setToolAttribute(attributes, tool, 'description', self.configurationData[tool]['description'])
+    self.setToolAttribute(attributes, tool, 'executable', self.configurationData[tool]['executable'])
+    if 'modifier' in self.configurationData[tool]: self.setToolAttribute(attributes, tool, 'modifier', self.configurationData[tool]['modifier'])
+    self.setToolAttribute(attributes, tool, 'path', self.configurationData[tool]['path'])
+    if 'precommand' in self.configurationData[tool]: self.setToolAttribute(attributes, tool, 'precommand', self.configurationData[tool]['precommand'])
+    if 'hide tool' in self.configurationData[tool]: self.setToolAttribute(attributes, tool, 'isHidden', self.configurationData[tool]['hide tool'])
+    self.attributes[tool] = attributes
 
   # Validate the contents of the tool configuration file.
-  def validateConfigurationData(self, data):
+  def validateConfigurationData(self, tool, data):
+    self.configurationData[tool] = data
     return True
+
+  def buildNodeFromToolConfiguration(self, tool, argument):
+  
+    # Set the tool argument information.
+    contents = self.configurationData[tool]['arguments'][argument]
+    attributes = optionNodeAttributes()
+    self.nodeMethods.setNodeAttribute(attributes, 'dataType', contents['type'])
+    self.nodeMethods.setNodeAttribute(attributes, 'description', contents['description'])
+    self.nodeMethods.setNodeAttribute(attributes, 'isInput', contents['input'])
+    self.nodeMethods.setNodeAttribute(attributes, 'isOutput', contents['output'])
+    if contents['input'] or contents['output']: self.nodeMethods.setNodeAttribute(attributes, 'isFile', True)
+    self.nodeMethods.setNodeAttribute(attributes, 'isRequired', contents['required'])
+    if 'allow multiple values' in contents: self.nodeMethods.setNodeAttribute(attributes, 'allowMultipleValues', contents['allow multiple values'])
+
+    # If multiple extensions are allowed, they will be separated by pipes in the configuration
+    # file.  Add all allowed extensions to the list.
+    extension = contents['extension']
+    if '|' in extension:
+      extensions = extension.split('|')
+      self.nodeMethods.setNodeAttribute(attributes, 'allowedExtensions', extensions)
+
+    #else: attributes.allowedExtensions.append(extension)
+    else:
+      extensions = []
+      extensions.append(extension)
+      self.nodeMethods.setNodeAttribute(attributes, 'allowedExtensions', extensions)
+
+    return attributes
 
   # Set a value in the toolAttributes.
   def setToolAttribute(self, attributes, tool, attribute, value):
-    try: test = getattr(attributes[tool], attribute)
+    try: test = getattr(attributes, attribute)
 
     # If the attribute can't be set, determine the source of the problem and provide an
     # error message.
@@ -120,7 +113,7 @@ class toolConfiguration:
       if attribute not in attributes: self.errors.invalidAttributeInSetToolAttribute(attribute)
 
     # Set the attribute.
-    setattr(attributes[tool], attribute, value)
+    setattr(attributes, attribute, value)
 
   # Get the long form of a tool argument.
   def getLongFormArgument(self, tool, argument):

@@ -28,19 +28,18 @@ class optionNodeAttributes:
   def __init__(self):
     self.allowedExtensions   = []
     self.allowMultipleValues = False
-    self.argument            = ''
     self.dataType            = ''
     self.description         = 'No description provided'
     self.hasMultipleDataSets = False
     self.hasMultipleValues   = False
     self.hasValue            = False
+    self.isFile              = False
     self.isInput             = False
     self.isOutput            = False
     self.isPipelineArgument  = False
     self.isRequired          = False
     self.nodeType            = 'option'
     self.numberOfDataSets    = 0
-    self.shortForm           = ''
     self.values              = {}
 
 # Define a class for holding attributes for file nodes.  These are nodes that
