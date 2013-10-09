@@ -24,17 +24,6 @@ class toolAttributes:
     self.path        = ''
     self.precommand  = ''
 
-class toolArguments:
-  def __init__(self):
-    self.allowedExtensions        = []
-    self.allowMultipleDefinitions = False
-    self.description              = ''
-    self.hasType                  = None
-    self.isInput                  = False
-    self.isOutput                 = False
-    self.isRequired               = False
-    self.shortForm                = ''
-
 class toolConfiguration:
   def __init__(self):
     self.attributes           = {}
@@ -69,6 +58,27 @@ class toolConfiguration:
   def validateConfigurationData(self, tool, data):
     self.configurationData[tool] = data
     return True
+
+  # Get information about a tool argument from the configuration data.
+  def getArgumentData(self, tool, argument, attribute):
+    try: value = self.configurationData[tool]['arguments'][argument][attribute]
+    except:
+
+      #FIXME Sort all the errors.
+      if tool not in self.configurationData:
+        print('MISSING TOOL: tools.getArgumentData', tool)
+        self.errors.terminate()
+
+      if argument not in self.configurationData[tool]['arguments']:
+        print('MISSING ARGUMENT: tools.getArgumentData', tool, argument, attribute)
+        print(self.configurationData[tool])
+        self.errors.terminate()
+
+      if attribute not in self.configurationData[tool]['arguments'][argument]:
+        print('MISSING ATTRIBUTE: tools.getArgumentData', tool, argument)
+        return ''
+
+    return value
 
   def buildNodeFromToolConfiguration(self, tool, argument):
   

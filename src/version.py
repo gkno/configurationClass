@@ -6,5 +6,5 @@ Do not add this file to the repository.
 """
 
 __author__  = 'Alistair Ward'
-__version__ = '0.20'
-__date__    = 'September 2013'
+__version__ = '0.21'
+__date__    = 'October 2013'

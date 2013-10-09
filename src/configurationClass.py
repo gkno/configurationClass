@@ -23,6 +23,7 @@ import toolAttributes
 from toolAttributes import *
 
 import json
+import operator
 import os
 import sys
 
@@ -83,6 +84,8 @@ class configurationClass:
 
   # Add input file nodes.
   def buildTaskFileNodes(self, graph, nodeID, task, argument, shortForm, fileType):
+
+    # TODO DEAL WITH MULTIPLE FILE NODES.
     attributes                     = fileNodeAttributes()
     attributes.description         = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'description')
     attributes.allowMultipleValues = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'allowMultipleValues')
@@ -94,8 +97,11 @@ class configurationClass:
     edge           = edgeAttributes()
     edge.argument  = argument
     edge.shortForm = shortForm
-    if fileType == 'input': graph.add_edge(nodeID, task, attributes = edge)
-    elif fileType == 'output': graph.add_edge(task, nodeID, attributes = edge)
+    if fileType == 'input': graph.add_edge(fileNodeID, task, attributes = edge)
+    elif fileType == 'output': graph.add_edge(task, fileNodeID, attributes = edge)
+
+    # Add the file node to the list of file nodes associated with the option node.
+    self.nodeMethods.setGraphNodeAttribute(graph, nodeID, 'associatedFileNodes', fileNodeID)
 
   # Merge shared nodes between tasks using information from the pipeline configuration file.  For
   # example, task A outputs a file fileA and taskB uses this as input.  Having built an individual
@@ -112,75 +118,57 @@ class configurationClass:
       existingNodes = {}
       for task in commonNodes[commonNodeID]:
         argument = commonNodes[commonNodeID][task]
-        existingNodes[str(task) + str(argument)] = self.doesNodeExist(graph, task, argument)
+        existingNodes[str(task) + str(argument)] = (task, argument, self.doesNodeExist(graph, task, argument))
 
-      # For each of the common nodes, determine if the node exists for all, some or none of the
-      # tasks for which it is linked.
-      missingNodes = 0
-      for nodeID in existingNodes:
-        if existingNodes[nodeID] == None: missingNodes += 1
+      # Sort the common nodes by the value. All values that are None will appear at the beginning.
+      sortedExistingNodes = sorted(existingNodes.iteritems(), key=operator.itemgetter(1))
 
-      # TODO
-      # If the nodes referred to do not exist (this is possible, for example, if the nodes are
-      # for non-required arguments), create the node.
-      someNodesDefined = False if missingNodes == len(existingNodes) else True
-      if not someNodesDefined:
-        firstNode = True
-        for taskNodeID in commonNodes[commonNodeID]:
-          argument = commonNodes[commonNodeID][taskNodeID]
-          if firstNode:
-            firstNode = False
+      # The first item is the node to be kept.  If its value is None, none of the nodes exist and
+      # a node with all connections needs to be created.
+      #firstNode = sortedExistingNodes.pop(0)
+      lastNode   = sortedExistingNodes.pop(len(sortedExistingNodes) - 1)[1]
+      task       = lastNode[0]
+      argument   = lastNode[1]
+      keptNodeID = lastNode[2]
 
-            # Find the tool for this task and argument.
-            tool       = graph.node[taskNodeID]['attributes'].tool
+      if keptNodeID == None:
+        tool       = self.pipeline.tasks[task]
+        attributes = self.tools.buildNodeFromToolConfiguration(tool, argument)
 
-            # Generate the node attributes for this node.
-            attributes = self.tools.buildNodeFromToolConfiguration(tool, argument)
-            nodeID     = str('OPTION_') + str(self.optionNodeID)
-            self.optionNodeID += 1
+        # Check if the argument is required or not.  Only required nodes are built here.
+        keptNodeID = str('OPTION_') + str(self.optionNodeID)
+        self.optionNodeID += 1
+        graph.add_node(keptNodeID, attributes = attributes)
 
-            # Add this node to the graph
-            graph.add_node(nodeID, attributes = attributes)
-            
-          # Add an edge from the created node to the task.
-          attributes           = edgeAttributes()
-          attributes.argument  = argument
-          shortForm            = self.tools.attributes[tool].arguments
-          #attributes.shortForm = graph[existingNodes[existingNodeID]][nodeID]['attributes'].shortForm
-          print('ADDING EDGE', nodeID, taskNodeID, argument, shortForm)
-          graph.add_edge(nodeID, taskNodeID, attributes = attributes)
+      # Loop over the remaining nodes, delete them and include edges to the retained nodes.
+      for ID, values in sortedExistingNodes:
+        task       = values[0]
+        argument   = values[1]
+        nodeID     = values[2]
+        tool       = self.pipeline.tasks[task]
+        if nodeID != None: shortForm  = self.edgeMethods.getEdgeAttribute(graph, nodeID, task, 'shortForm')
+        else: shortForm = self.tools.getArgumentData(tool, argument, 'short form argument')
 
-        exit(0)
+        # Add an edge from the common node to this task.
+        attributes = edgeAttributes()
+        attributes.argument  = argument
+        attributes.shortForm = shortForm
+        graph.add_edge(keptNodeID, task, attributes = attributes)
 
-      # If any the nodes are defined, remove all but one of them and insert edges from the
-      # one remaining node to the tasks whose nodes were removed.  The node to be kept is
-      # arbitrary.
-      else:
-        nodeToKeep  = True
-        connectNode = {}
-        for nodeID in commonNodes[commonNodeID]:
-          existingNodeID = str(nodeID) + str(commonNodes[commonNodeID][nodeID])
-          nodeExists     = False if existingNodes[existingNodeID] == None else True
-          if nodeToKeep and nodeExists:
-            nodeToKeep = False
-            keptNodeID = existingNodes[existingNodeID]
-          else:
+        # If this option node has associated file nodes, delete them and add edges to the file
+        # nodes associated with the kept node.
+        isInput  = self.tools.getArgumentData(tool, argument, 'input')
+        isOutput = self.tools.getArgumentData(tool, argument, 'output')
+        if nodeID != None: 
+          for fileNodeID in self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'associatedFileNodes'):
+            graph.remove_node(fileNodeID)
 
-            # If the node exists in the graph, remove it.
-            shortForm = ''
-            if existingNodes[existingNodeID] != None:
-              shortForm = graph[existingNodes[existingNodeID]][nodeID]['attributes'].shortForm
-              graph.remove_node(existingNodes[existingNodeID])
+        for fileNodeID in self.nodeMethods.getGraphNodeAttribute(graph, keptNodeID, 'associatedFileNodes'):
+          if isInput: graph.add_edge(fileNodeID, task, attributes = attributes)
+          elif isOutput: graph.add_edge(task, fileNodeID, attributes = attributes)
 
-            # Add the argument and the shortForm into the connectNode dictionary.
-            connectNode[nodeID] = (commonNodes[commonNodeID][nodeID], shortForm)
-
-        # Generate edges from the kept node to the tasks whose nodes were deleted.
-        for nodeID in connectNode:
-          attributes           = edgeAttributes()
-          attributes.argument  = connectNode[nodeID][0]
-          attributes.shortForm = connectNode[nodeID][1]
-          graph.add_edge(keptNodeID, nodeID, attributes = attributes)
+        # Remove the node.
+        if nodeID != None: graph.remove_node(nodeID)
 
   # Check if a node exists based on a task and an argument.
   def doesNodeExist(self, graph, task, argument):
@@ -193,6 +181,17 @@ class configurationClass:
         return sourceNode
 
     return None
+
+
+
+
+
+
+
+
+
+
+
 
 
 

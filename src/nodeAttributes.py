@@ -28,6 +28,7 @@ class optionNodeAttributes:
   def __init__(self):
     self.allowedExtensions   = []
     self.allowMultipleValues = False
+    self.associatedFileNodes = []
     self.dataType            = ''
     self.description         = 'No description provided'
     self.hasMultipleDataSets = False
@@ -94,20 +95,20 @@ class nodeClass:
 
   # Set an attribute from the nodes data structure.  Check to ensure that the requested attribute is
   # available for the type of node.  If not, terminate with an error.
-  def setGraphNodeAttribute(self, graph, node, attribute, value):
+  def setGraphNodeAttribute(self, graph, nodeID, attribute, value):
     try:
-      test = getattr(graph.node[node]['attributes'], attribute)
+      test = getattr(graph.node[nodeID]['attributes'], attribute)
 
     # If there is an error, determine if the node exists in the graph.  If the node exists, the problem
     # lies with the attribute.  Determine if the attribute belongs to any of the node data structures,
     # then terminate.
     except:
-      if node not in graph.nodes():
-        self.errors.missingNodeInAttributeSet(node)
+      if nodeID not in graph.nodes():
+        self.errors.missingNodeInAttributeSet(nodeID)
 
       # If no attributes have been attached to the node.
-      elif 'attributes' not in graph.node[node]:
-        self.errors.noAttributesInAttributeSet(node)
+      elif 'attributes' not in graph.node[nodeID]:
+        self.errors.noAttributesInAttributeSet(nodeID)
 
       # If the attribute is not associated with the node.
       else:
@@ -117,12 +118,18 @@ class nodeClass:
         if hasattr(taskNodeAttributes(), attribute): inTaskNode      = True
         if hasattr(fileNodeAttributes(), attribute): inFileNode      = True
         if hasattr(optionNodeAttributes(), attribute): inOptionsNode = True
-        if graph.node[node]['attributes'].nodeType == 'task': nodeType = 'task node'
-        if graph.node[node]['attributes'].nodeType == 'file': nodeType = 'file node'
-        if graph.node[node]['attributes'].nodeType == 'option': nodeType = 'options node'
-        self.errors.attributeNotAssociatedWithNodeInSet(node, attribute, nodeType, inTaskNode, inFileNode, inOptionsNode)
+        if graph.node[nodeID]['attributes'].nodeType == 'task': nodeType = 'task node'
+        if graph.node[nodeID]['attributes'].nodeType == 'file': nodeType = 'file node'
+        if graph.node[nodeID]['attributes'].nodeType == 'option': nodeType = 'options node'
+        self.errors.attributeNotAssociatedWithNodeInSet(nodeID, attribute, nodeType, inTaskNode, inFileNode, inOptionsNode)
 
-    setattr(graph.node[node]['attributes'], attribute, value)
+    # Set the attribute.  If the attribute points to a list, append the value.
+    if type(getattr(graph.node[nodeID]['attributes'], attribute)) == list:
+      valueList = getattr(graph.node[nodeID]['attributes'], attribute)
+      valueList.append(value)
+      setattr(graph.node[nodeID]['attributes'], attribute, valueList)
+    else:
+      setattr(graph.node[nodeID]['attributes'], attribute, value)
 
   # Get an attribute from the nodes data structure.  Check to ensure that the requested attribute is
   # available for the type of node.  If not, terminate with an error.  This method is for a node not
@@ -217,6 +224,21 @@ class nodeClass:
         return predecessorEdge[0]
 
     return None
+
+  # Get all predecessor file nodes for a task.
+  def getPredecessorOptionNodes(self, graph, task):
+    optionNodes = []
+
+    try: predecessors = graph.predecessors(task)
+    except:
+
+      #TODO SORT OUT ERROR MESSAGE.
+      print('failed')
+
+    for predecessor in predecessors:
+      if self.getGraphNodeAttribute(graph, predecessor, 'nodeType') == 'option': optionNodes.append(predecessor)
+
+    return optionNodes
 
   # Get all predecessor file nodes for a task.
   def getPredecessorFileNodes(self, graph, task):

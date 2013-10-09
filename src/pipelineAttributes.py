@@ -28,6 +28,7 @@ class pipelineConfiguration:
     self.nodeMethods       = nodeClass()
     self.nodeIDInteger     = 1
     self.pipelineName      = ''
+    self.tasks             = {}
 
   #TODO
   # Validate the contents of the tool configuration file.
@@ -52,11 +53,11 @@ class pipelineConfiguration:
   # Parse the pipeline configuration data and return a dictionary contaiing all of the tasks
   # appearing in the pipeline along with the tool required to perform the task.
   def getTasks(self):
-    tasks = {}
     for task in self.configurationData['tasks']:
       tool        = self.configurationData['tasks'][task]['tool']
-      tasks[task] = tool
+      self.tasks[task] = tool
 
+    tasks = deepcopy(self.tasks)
     return tasks
 
   # Erase all of the data contained in the self.configurationData structure.
