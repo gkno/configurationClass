@@ -206,15 +206,6 @@ class nodeClass:
 
     return nodeList
 
-  # Get the node associated with a pipeline argument.
-  def getNodeForPipelineArgument(self, graph, argument):
-    for node in graph.nodes(data = False):
-      if self.getGraphNodeAttribute(graph, node, 'nodeType') != 'task':
-        if self.getGraphNodeAttribute(graph, node, 'isPipelineArgument'):
-          if self.getGraphNodeAttribute(graph, node, 'argument') == argument: return node
-
-    return None
-
   # Get the node associated with a tool argument.
   def getNodeForTaskArgument(self, graph, task, argument):
     predecessorEdges = graph.in_edges(task)

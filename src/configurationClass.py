@@ -31,6 +31,7 @@ class configurationClass:
   def __init__(self):
     self.edgeMethods       = edgeClass()
     self.errors            = configurationClassErrors()
+    self.nodeIDs           = {}
     self.nodeMethods       = nodeClass()
     self.fileOperations    = fileOperations()
     self.optionNodeID      = 1
@@ -39,27 +40,31 @@ class configurationClass:
 
   # Build a graph for an individual task.  The pipeline is built by merging nodes between
   # different tasks.  This step is performed later.
-  def buildTaskGraph(self, graph, task, tool, pipeData, toolData):
+  def buildTaskGraph(self, graph):
 
-    # Generate the task node.
-    self.buildTaskNode(graph, task, pipeData)
+    for task in self.pipeline.tasks:
 
-    # Find all required arguments for this task and build nodes for them all.  Link these nodes
-    # to the task node.
-    self.buildRequiredPredecessorNodes(graph, task, tool, toolData['arguments'])
+      # Generate the task node.
+      self.buildTaskNode(graph, task)
 
-    # TODO ENSURE THAT ADDITIONAL FILES, E.G. STUBS AND INDEXES ARE INCLUDED.
+      # Find all required arguments for this task and build nodes for them all.  Link these nodes
+      # to the task node.
+      self.buildRequiredPredecessorNodes(graph, task)
+
+      # TODO ENSURE THAT ADDITIONAL FILES, E.G. STUBS AND INDEXES ARE INCLUDED.
 
   # TODO FINISH THIS
   # Build a task node.
-  def buildTaskNode(self, graph, task, pipeData):
-    attributes      = taskNodeAttributes()
-    attributes.tool = pipeData['tool']
+  def buildTaskNode(self, graph, task):
+    attributes             = taskNodeAttributes()
+    attributes.tool        = self.pipeline.tasks[task]
+    attributes.description = self.tools.getConfigurationData(attributes.tool, 'description')
     graph.add_node(task, attributes = attributes)
 
   # Build all of the predecessor nodes for the task and attach them to the task node.
-  def buildRequiredPredecessorNodes(self, graph, task, tool, data):
-    for argument in data:
+  def buildRequiredPredecessorNodes(self, graph, task):
+    tool = self.pipeline.tasks[task]
+    for argument in self.tools.configurationData[tool]['arguments']:
       attributes = self.tools.buildNodeFromToolConfiguration(tool, argument)
 
       # Check if the argument is required or not.  Only required nodes are built here.
@@ -76,7 +81,7 @@ class configurationClass:
  
         # If the node represents an option for defining an input or output file, create
         # a file node.
-        shortForm = data[argument]['short form argument'] if 'short form argument' in data[argument] else ''
+        shortForm = self.tools.getArgumentData(tool, argument, 'short form argument')
         if self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'isInput'):
           self.buildTaskFileNodes(graph, nodeID, task, argument, shortForm, 'input')
         elif self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'isOutput'):
@@ -108,16 +113,15 @@ class configurationClass:
   # graph for each task, there exists an output file node for taskA and an input file node for
   # taskB (and also option nodes defining the names), but these are the same file and so these
   # nodes can be merged into a single node.
-  def mergeNodes(self, graph, commonNodes):
-    for commonNodeID in commonNodes:
+  def mergeNodes(self, graph):
+    for nodeName in self.pipeline.nodeTaskInformation:
 
       # The configuration file lists all the tasks (and arguments) that use the node.  The nodes
       # themselves may have already been placed in the graph, or may not be present or are present
       # for some of the tasks but not others (for example, it may be that only nodes listed as
       # required appear in the graph).  For each task/argument pair, determine if the node exists.
       existingNodes = {}
-      for task in commonNodes[commonNodeID]:
-        argument = commonNodes[commonNodeID][task]
+      for task, argument in self.pipeline.nodeTaskInformation[nodeName]:
         existingNodes[str(task) + str(argument)] = (task, argument, self.doesNodeExist(graph, task, argument))
 
       # Sort the common nodes by the value. All values that are None will appear at the beginning.
@@ -136,9 +140,14 @@ class configurationClass:
         attributes = self.tools.buildNodeFromToolConfiguration(tool, argument)
 
         # Check if the argument is required or not.  Only required nodes are built here.
-        keptNodeID = str('OPTION_') + str(self.optionNodeID)
+        keptNodeID                 = str('OPTION_') + str(self.optionNodeID)
         self.optionNodeID += 1
         graph.add_node(keptNodeID, attributes = attributes)
+
+      # Store the ID of the node being kept along with the value it was given in the common nodes
+      # section of the configuration file.  The instances information will refer to the common
+      # node value and this needs to point to the nodeID in the graph.
+      self.nodeIDs[nodeName] = keptNodeID
 
       # Loop over the remaining nodes, delete them and include edges to the retained nodes.
       for ID, values in sortedExistingNodes:
@@ -167,8 +176,13 @@ class configurationClass:
           if isInput: graph.add_edge(fileNodeID, task, attributes = attributes)
           elif isOutput: graph.add_edge(task, fileNodeID, attributes = attributes)
 
-        # Remove the node.
-        if nodeID != None: graph.remove_node(nodeID)
+        # Remove the node.  First check if this node is associated with a pipeline argument.  If so, reassign
+        # the pipeline argument to the keptNodeID.
+        if nodeID != None:
+          for pipelineArgument in self.pipeline.argumentData:
+            pipelineArgumentNodeID = self.pipeline.argumentData[pipelineArgument].nodeID
+            if pipelineArgumentNodeID == nodeID: self.pipeline.argumentData[pipelineArgument].nodeID = keptNodeID
+          graph.remove_node(nodeID)
 
   # Check if a node exists based on a task and an argument.
   def doesNodeExist(self, graph, task, argument):
@@ -292,9 +306,9 @@ class configurationClass:
   def generateWorkflow(self, graph):
     workflow  = []
     topolSort = nx.topological_sort(graph)
-    for node in topolSort:
-      nodeType = self.nodeMethods.getGraphNodeAttribute(graph, node, 'nodeType')
-      if nodeType == 'task': workflow.append(node)
+    for nodeID in topolSort:
+      nodeType = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'nodeType')
+      if nodeType == 'task': workflow.append(nodeID)
 
     return workflow
 
@@ -311,77 +325,24 @@ class configurationClass:
 
     return tools
 
-  # Set all task successor nodes as output files.
-  def setSuccessorsAsOutputs(self, graph, workflow):
-    for task in workflow:
-      for node in graph.successors(task):
-        self.nodeMethods.setGraphNodeAttribute(graph, node, 'isOutput', True)
-
-  # Check each data node and determine if a value is required.  This can be determined in one of two
-  # ways.  If any of the edges beginning at the data node correspond to a tool argument that is
+  # Check each option node and determine if a value is required.  This can be determined in one of two
+  # ways.  If any of the edges beginning at the option node correspond to a tool argument that is
   # listed as required by the tool, or if the node corresponds to a command line argument that is
   # listed as required.  If the node is a required pipeline argument, it has already been tagged as
   # required.
   def setRequiredNodes(self, graph):
 
     # Loop over all data nodes.
-    for node in graph.nodes(data = False):
-      nodeType = self.nodeMethods.getGraphNodeAttribute(graph, node, 'nodeType')
-      if nodeType == 'file' or nodeType == 'option':
-        for edge in graph.edges(node):
+    for nodeID in graph.nodes(data = False):
+      nodeType = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'nodeType')
+      if nodeType == 'option':
+        for edge in graph.edges(nodeID):
           task           = edge[1]
           associatedTool = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
-          toolArgument   = self.edgeMethods.getEdgeAttribute(graph, node, task, 'argument')
-          if toolArgument != 'dummy':
-            isRequired = self.tools.attributes[associatedTool].arguments[toolArgument].isRequired
-            if isRequired: graph.node[node]['attributes'].isRequired = True
-            break
-
-  def setTaskNodes(self, graph):
-
-    # Loop over all task nodes.
-    for node in graph.nodes(data = False):
-      if graph.node[node]['attributes'].nodeType == 'task':
-        associatedTool = graph.node[node]['attributes'].tool
-        graph.node[node]['attributes'].description = self.tools.attributes[associatedTool].description
-
-  # Check that all of the supplied edges (tool arguments) are present in the graph.
-  def checkRequiredTaskConnections(self, graph):
-    missingEdges = []
-
-    # Loop over all task nodes and find the required edges.
-    for node in graph.nodes(data = False):
-      if graph.node[node]['attributes'].nodeType == 'task':
-        task           = node
-        associatedTool = graph.node[task]['attributes'].tool
-
-        # Loop over all edges for this tool.
-        for edge in self.tools.attributes[associatedTool].arguments:
-
-          # Only consider required edges.
-          if self.tools.attributes[associatedTool].arguments[edge].isRequired:
-            edgeIsDefined = False
-  
-            # Loop over the input and output nodes of this task and check that an edge corresponding to
-            # the required edge exists.  First deal with input nodes.
-            predecessorNodes = graph.predecessors(task)
-            for predecessorNode in predecessorNodes:
-              graphEdge = graph[predecessorNode][task]['attributes'].argument
-              if graphEdge == edge:
-                edgeIsDefined = True
-                break
-
-            # Now loop over the output nodes.
-            successorNodes = graph.successors(task)
-            for successorNode in successorNodes:
-              graphEdge = graph[task][successorNode]['attributes'].argument
-              if graphEdge == edge:
-                edgeIsDefined = True
-                break
-
-            if not edgeIsDefined: missingEdges.append((task, edge))
-
-    return missingEdges
+          toolArgument   = self.edgeMethods.getEdgeAttribute(graph, nodeID, task, 'argument')
+          isRequired     = self.tools.getArgumentData(associatedTool, toolArgument, 'required')
+          if isRequired: self.nodeMethods.setGraphNodeAttribute(graph, nodeID, 'isRequired', True)
+          break
 
   # Find all of the file nodes without a set value.
   def getUnsetFileNodes(self, graph):

@@ -54,11 +54,29 @@ class toolConfiguration:
     if 'hide tool' in self.configurationData[tool]: self.setToolAttribute(attributes, tool, 'isHidden', self.configurationData[tool]['hide tool'])
     self.attributes[tool] = attributes
 
+    # Put all of the argument information in data structures.
+
   # Validate the contents of the tool configuration file.
   def validateConfigurationData(self, tool, data):
     self.configurationData[tool] = data
     return True
 
+  # Get information from the configuration file (not argument data).
+  def getConfigurationData(self, tool, attribute):
+    try: value = self.configurationData[tool][attribute]
+    except:
+
+      #FIXME
+      if tool not in self.configurationData:
+        print('MISSING TOOL: tools.getConfigurationData', tool)
+        self.errors.terminate()
+  
+      if attribute not in self.configurationData[tool]:
+        print('MISSING ATTRIBUTE: tools.getConfigurationData', tool, attribute)
+        self.errors.terminate()
+
+    return value
+ 
   # Get information about a tool argument from the configuration data.
   def getArgumentData(self, tool, argument, attribute):
     try: value = self.configurationData[tool]['arguments'][argument][attribute]
@@ -75,7 +93,6 @@ class toolConfiguration:
         self.errors.terminate()
 
       if attribute not in self.configurationData[tool]['arguments'][argument]:
-        print('MISSING ATTRIBUTE: tools.getArgumentData', tool, argument)
         return ''
 
     return value
@@ -127,19 +144,26 @@ class toolConfiguration:
 
   # Get the long form of a tool argument.
   def getLongFormArgument(self, tool, argument):
+    try: value = self.configurationData[tool]['arguments'][argument]['shortForm']
+    except:
 
-    # Check if the supplied argument is in the arguments data structure already.  If so, it is already
-    # in the long form.
-    if argument in self.attributes[tool].arguments: return argument
+      #FIXME Sort all the errors.
+      if tool not in self.configurationData:
+        print('MISSING TOOL: tools.getLongFormArgument', tool)
+        self.errors.terminate()
 
-    # If the argument was not in the data structure, loop over the arguments and check their
-    # short form versions.  If the supplied argument appears as a short form, return the long
-    # form associated with it.
-    for toolArgument in self.attributes[tool].arguments:
-      try: shortForm = self.attributes[tool].arguments[toolArgument].shortForm
-      except: shortForm = ''
+      # If the argument is not in the configurationData structure, this might be because
+      # the short form of the argument was supplied.
+      if argument not in self.configurationData[tool]['arguments']:
+        for toolArgument in self.configurationData[tool]['arguments']:
+          shortForm = self.getArgumentData(tool, toolArgument, 'short form argument')
+          if shortForm == argument: return toolArgument
 
-      if shortForm == argument: return toolArgument
+        # If all the short form arguments for this tool were searched and none of them
+        # were the supplied argument, the argument is not valid for this tool.
+        print('tools.getLongFormArgument: invalid argument,', argument)
+        self.errors.terminate()
 
-    # If no value has been returned, the supplied argument is not associated with this tool.
-    self.errors.invalidToolArgument(tool, argument, 'getLongFormArgument')
+    # If the supplied argument was already the long form version, return the original
+    # argument.
+    return argument
