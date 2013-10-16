@@ -132,24 +132,6 @@ class pipelineConfiguration:
 
     return value
 
-  # Determine which nodes each pipeline argument points to.
-  def getPipelineArgumentNodes(self, graph):
-    for argument in self.argumentData:
-      nodeID = self.getArgumentData(argument, 'nodeID')
-
-      # Get a random task/argument from the commonNodes structure and set the nodeIDs dictionaet
-      # based on this value.
-      task             = self.nodeTaskInformation[nodeID][0][0]
-      taskArgument     = self.nodeTaskInformation[nodeID][0][1]
-      tool             = self.tasks[task]
-      predecessorNodes = self.nodeMethods.getPredecessorOptionNodes(graph, task)
-      for predecessorNodeID in predecessorNodes:
-        testArgument = self.edgeMethods.getEdgeAttribute(graph, predecessorNodeID, task, 'argument')
-        if taskArgument == testArgument: break
- 
-      # Set the nodeID to a graph nodeID.
-      self.argumentData[argument].nodeID = predecessorNodeID
-
   # Get the long form argument for a command given on the command line.
   def getLongFormArgument(self, graph, argument):
 

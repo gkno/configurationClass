@@ -59,8 +59,105 @@ class fileNodeAttributes:
  
 class nodeClass:
   def __init__(self):
-    self.edgeMethods = edgeClass()
-    self.errors      = configurationClassErrors()
+    self.edgeMethods  = edgeClass()
+    self.errors       = configurationClassErrors()
+    self.optionNodeID = 1
+
+  # Build an option node.
+  def buildOptionNode(self, graph, tools, task, tool, argument, attributes):
+    nodeID = str('OPTION_') + str(self.optionNodeID)
+    self.optionNodeID += 1
+    graph.add_node(nodeID, attributes = attributes)
+
+    # Add an edge to the task node.
+    edge          = edgeAttributes()
+    edge.argument = argument
+    graph.add_edge(nodeID, task, attributes = edge)
+
+    # If the node represents an option for defining an input or output file, create
+    # a file node.
+    shortForm = tools.getArgumentData(tool, argument, 'short form argument')
+    if self.getGraphNodeAttribute(graph, nodeID, 'isInput'): self.buildTaskFileNodes(graph, nodeID, task, argument, shortForm, 'input')
+    elif self.getGraphNodeAttribute(graph, nodeID, 'isOutput'): self.buildTaskFileNodes(graph, nodeID, task, argument, shortForm, 'output')
+
+    return nodeID
+
+  # Build a node using information from the tool configuration file.
+  def buildNodeFromToolConfiguration(self, tools, tool, argument):
+
+    # Set the tool argument information.
+    contents   = tools.configurationData[tool]['arguments'][argument]
+    attributes = optionNodeAttributes()
+    self.setNodeAttribute(attributes, 'dataType', contents['type'])
+    self.setNodeAttribute(attributes, 'description', contents['description'])
+    self.setNodeAttribute(attributes, 'isInput', contents['input'])
+    self.setNodeAttribute(attributes, 'isOutput', contents['output'])
+    if contents['input'] or contents['output']: self.setNodeAttribute(attributes, 'isFile', True)
+    self.setNodeAttribute(attributes, 'isRequired', contents['required'])
+    if 'allow multiple values' in contents: self.setNodeAttribute(attributes, 'allowMultipleValues', contents['allow multiple values'])
+
+    # If multiple extensions are allowed, they will be separated by pipes in the configuration
+    # file.  Add all allowed extensions to the list.
+    extension = contents['extension']
+    if '|' in extension:
+      extensions = extension.split('|')
+      self.setNodeAttribute(attributes, 'allowedExtensions', extensions)
+
+    #else: attributes.allowedExtensions.append(extension)
+    else:
+      extensions = []
+      extensions.append(extension)
+      self.setNodeAttribute(attributes, 'allowedExtensions', extensions)
+
+    return attributes
+
+  # Add input file nodes.
+  def buildTaskFileNodes(self, graph, nodeID, task, argument, shortForm, fileType):
+
+    # TODO DEAL WITH MULTIPLE FILE NODES.
+    attributes                     = fileNodeAttributes()
+    attributes.description         = self.getGraphNodeAttribute(graph, nodeID, 'description')
+    attributes.allowMultipleValues = self.getGraphNodeAttribute(graph, nodeID, 'allowMultipleValues')
+    attributes.allowedExtensions   = self.getGraphNodeAttribute(graph, nodeID, 'allowedExtensions')
+    fileNodeID                     = nodeID + '_FILE'
+    graph.add_node(fileNodeID, attributes = attributes)
+
+    # Add the edge.
+    edge           = edgeAttributes()
+    edge.argument  = argument
+    edge.shortForm = shortForm
+    if fileType == 'input': graph.add_edge(fileNodeID, task, attributes = edge)
+    elif fileType == 'output': graph.add_edge(task, fileNodeID, attributes = edge)
+
+    # Add the file node to the list of file nodes associated with the option node.
+    self.setGraphNodeAttribute(graph, nodeID, 'associatedFileNodes', fileNodeID)
+
+  # Determine which nodes each pipeline argument points to.
+  def getPipelineArgumentNodes(self, graph, pipeline, tools):
+    for argument in pipeline.argumentData:
+      nodeID = pipeline.getArgumentData(argument, 'nodeID')
+
+      # Get a random task/argument from the commonNodes structure and set the nodeIDs dictionaet
+      # based on this value.
+      task             = pipeline.nodeTaskInformation[nodeID][0][0]
+      taskArgument     = pipeline.nodeTaskInformation[nodeID][0][1]
+      tool             = pipeline.tasks[task]
+      foundArgument    = False
+      predecessorNodes = self.getPredecessorOptionNodes(graph, task)
+      for predecessorNodeID in predecessorNodes:
+        testArgument = self.edgeMethods.getEdgeAttribute(graph, predecessorNodeID, task, 'argument')
+        if taskArgument == testArgument:
+          foundArgument = True
+          break
+
+      # If the node to which this argument points has not been defined, no edge linking the node
+      # to the task will be found.  Thus, the node and edge need to be created.
+      if not foundArgument:
+        attributes = self.buildNodeFromToolConfiguration(tools, tool, taskArgument)
+        predecessorNodeID = self.buildOptionNode(graph, tools, task, tool, taskArgument, attributes)
+
+      # Set the nodeID to a graph nodeID.
+      pipeline.argumentData[argument].nodeID = predecessorNodeID
 
   # Get an attribute from the nodes data structure.  Check to ensure that the requested attribute is
   # available for the type of node.  If not, terminate with an error.
@@ -260,3 +357,8 @@ class nodeClass:
       if self.getGraphNodeAttribute(graph, successor, 'nodeType') == 'file': fileNodes.append(successor)
 
     return fileNodes
+
+  # Given a file node ID, return the corresponding option node ID.
+  def getOptionNodeIDFromFileNodeID(self, nodeID):
+    optionNodeID = nodeID.replace('_FILE', '')
+    return optionNodeID

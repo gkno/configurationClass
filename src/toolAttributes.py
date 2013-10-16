@@ -7,9 +7,6 @@ from copy import deepcopy
 import configurationClassErrors
 from configurationClassErrors import *
 
-import nodeAttributes
-from nodeAttributes import *
-
 import json
 import os
 import sys
@@ -32,7 +29,6 @@ class toolConfiguration:
     self.errors               = configurationClassErrors()
     self.filename             = ''
     self.jsonError            = ''
-    self.nodeMethods          = nodeClass()
     self.setRequiredArguments = False
 
   # Process the tool data.
@@ -53,8 +49,6 @@ class toolConfiguration:
     if 'precommand' in self.configurationData[tool]: self.setToolAttribute(attributes, tool, 'precommand', self.configurationData[tool]['precommand'])
     if 'hide tool' in self.configurationData[tool]: self.setToolAttribute(attributes, tool, 'isHidden', self.configurationData[tool]['hide tool'])
     self.attributes[tool] = attributes
-
-    # Put all of the argument information in data structures.
 
   # Validate the contents of the tool configuration file.
   def validateConfigurationData(self, tool, data):
@@ -96,34 +90,6 @@ class toolConfiguration:
         return ''
 
     return value
-
-  def buildNodeFromToolConfiguration(self, tool, argument):
-  
-    # Set the tool argument information.
-    contents = self.configurationData[tool]['arguments'][argument]
-    attributes = optionNodeAttributes()
-    self.nodeMethods.setNodeAttribute(attributes, 'dataType', contents['type'])
-    self.nodeMethods.setNodeAttribute(attributes, 'description', contents['description'])
-    self.nodeMethods.setNodeAttribute(attributes, 'isInput', contents['input'])
-    self.nodeMethods.setNodeAttribute(attributes, 'isOutput', contents['output'])
-    if contents['input'] or contents['output']: self.nodeMethods.setNodeAttribute(attributes, 'isFile', True)
-    self.nodeMethods.setNodeAttribute(attributes, 'isRequired', contents['required'])
-    if 'allow multiple values' in contents: self.nodeMethods.setNodeAttribute(attributes, 'allowMultipleValues', contents['allow multiple values'])
-
-    # If multiple extensions are allowed, they will be separated by pipes in the configuration
-    # file.  Add all allowed extensions to the list.
-    extension = contents['extension']
-    if '|' in extension:
-      extensions = extension.split('|')
-      self.nodeMethods.setNodeAttribute(attributes, 'allowedExtensions', extensions)
-
-    #else: attributes.allowedExtensions.append(extension)
-    else:
-      extensions = []
-      extensions.append(extension)
-      self.nodeMethods.setNodeAttribute(attributes, 'allowedExtensions', extensions)
-
-    return attributes
 
   # Set a value in the toolAttributes.
   def setToolAttribute(self, attributes, tool, attribute, value):

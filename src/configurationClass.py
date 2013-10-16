@@ -34,7 +34,6 @@ class configurationClass:
     self.nodeIDs           = {}
     self.nodeMethods       = nodeClass()
     self.fileOperations    = fileOperations()
-    self.optionNodeID      = 1
     self.pipeline          = pipelineConfiguration()
     self.tools             = toolConfiguration()
 
@@ -65,48 +64,9 @@ class configurationClass:
   def buildRequiredPredecessorNodes(self, graph, task):
     tool = self.pipeline.tasks[task]
     for argument in self.tools.configurationData[tool]['arguments']:
-      attributes = self.tools.buildNodeFromToolConfiguration(tool, argument)
-
-      # Check if the argument is required or not.  Only required nodes are built here.
+      attributes = self.nodeMethods.buildNodeFromToolConfiguration(self.tools, tool, argument)
       isRequired = self.nodeMethods.getNodeAttribute(attributes, 'isRequired')
-      if isRequired:
-        nodeID = str('OPTION_') + str(self.optionNodeID)
-        self.optionNodeID += 1
-        graph.add_node(nodeID, attributes = attributes)
-
-        # Add an edge to the task node.
-        edge          = edgeAttributes()
-        edge.argument = argument
-        graph.add_edge(nodeID, task, attributes = edge)
- 
-        # If the node represents an option for defining an input or output file, create
-        # a file node.
-        shortForm = self.tools.getArgumentData(tool, argument, 'short form argument')
-        if self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'isInput'):
-          self.buildTaskFileNodes(graph, nodeID, task, argument, shortForm, 'input')
-        elif self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'isOutput'):
-          self.buildTaskFileNodes(graph, nodeID, task, argument, shortForm, 'output')
-
-  # Add input file nodes.
-  def buildTaskFileNodes(self, graph, nodeID, task, argument, shortForm, fileType):
-
-    # TODO DEAL WITH MULTIPLE FILE NODES.
-    attributes                     = fileNodeAttributes()
-    attributes.description         = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'description')
-    attributes.allowMultipleValues = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'allowMultipleValues')
-    attributes.allowedExtensions   = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'allowedExtensions')
-    fileNodeID                     = nodeID + '_FILE'
-    graph.add_node(fileNodeID, attributes = attributes)
-
-    # Add the edge.
-    edge           = edgeAttributes()
-    edge.argument  = argument
-    edge.shortForm = shortForm
-    if fileType == 'input': graph.add_edge(fileNodeID, task, attributes = edge)
-    elif fileType == 'output': graph.add_edge(task, fileNodeID, attributes = edge)
-
-    # Add the file node to the list of file nodes associated with the option node.
-    self.nodeMethods.setGraphNodeAttribute(graph, nodeID, 'associatedFileNodes', fileNodeID)
+      if isRequired: self.nodeMethods.buildOptionNode(graph, self.tools, task, tool, argument, attributes)
 
   # Generate the task workflow from the topologically sorted pipeline graph.
   def generateWorkflow(self, graph):
@@ -158,19 +118,18 @@ class configurationClass:
 
       # The first item is the node to be kept.  If its value is None, none of the nodes exist and
       # a node with all connections needs to be created.
-      #firstNode = sortedExistingNodes.pop(0)
-      lastNode   = sortedExistingNodes.pop(len(sortedExistingNodes) - 1)[1]
-      task       = lastNode[0]
-      argument   = lastNode[1]
-      keptNodeID = lastNode[2]
+      firstNode = sortedExistingNodes.pop(0)[1]
+      task       = firstNode[0]
+      argument   = firstNode[1]
+      keptNodeID = firstNode[2]
 
       if keptNodeID == None:
         tool       = self.pipeline.tasks[task]
-        attributes = self.tools.buildNodeFromToolConfiguration(tool, argument)
+        attributes = self.nodeMethods.buildNodeFromToolConfiguration(self.tools, tool, argument)
 
         # Check if the argument is required or not.  Only required nodes are built here.
-        keptNodeID                 = str('OPTION_') + str(self.optionNodeID)
-        self.optionNodeID += 1
+        keptNodeID = str('OPTION_') + str(self.nodeMethods.optionNodeID)
+        self.nodeMethods.optionNodeID += 1
         graph.add_node(keptNodeID, attributes = attributes)
 
       # Store the ID of the node being kept along with the value it was given in the common nodes
@@ -224,22 +183,3 @@ class configurationClass:
         return sourceNode
 
     return None
-
-  # Get all of the input or output nodes for a task.
-  def getInputOutputNodes(self, graph, task, isInput):
-    nodes = []
-
-    # Loop over all of the predecessor nodes and then the successor nodes.
-    for node in graph.predecessors(task):
-      print('pre', node)
-      if self.nodeMethods.getGraphNodeAttribute(graph, node, 'nodeType') == 'file':
-        if isInput and self.nodeMethods.getGraphNodeAttribute(graph, node, 'isInput'): nodes.append(node)
-        elif not isInput and self.nodeMethods.getGraphNodeAttribute(graph, node, 'isOutput'): nodes.append(node)
-
-    for node in graph.successors(task):
-      if self.nodeMethods.getGraphNodeAttribute(graph, node, 'nodeType') == 'file':
-        print('suc', node, isInput, self.nodeMethods.getGraphNodeAttribute(graph, node, 'isOutput'))
-        if isInput and self.nodeMethods.getGraphNodeAttribute(graph, node, 'isInput'): nodes.append(node)
-        elif not isInput and self.nodeMethods.getGraphNodeAttribute(graph, node, 'isOutput'): nodes.append(node)
-
-    return nodes
