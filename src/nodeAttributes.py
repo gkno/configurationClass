@@ -11,6 +11,7 @@ import edgeAttributes
 from edgeAttributes import *
 
 import json
+import operator
 import os
 import sys
 
@@ -132,13 +133,56 @@ class nodeClass:
     # Add the file node to the list of file nodes associated with the option node.
     self.setGraphNodeAttribute(graph, nodeID, 'associatedFileNodes', fileNodeID)
 
+  # TODO FINISH THIS
+  # Build a task node.
+  def buildTaskNode(self, graph, tools, task, tool):
+    attributes             = taskNodeAttributes()
+    attributes.tool        = tool
+    attributes.description = tools.getConfigurationData(attributes.tool, 'description')
+    graph.add_node(task, attributes = attributes)
+
+  # Build all of the predecessor nodes for the task and attach them to the task node.
+  def buildRequiredPredecessorNodes(self, graph, tools, task, tool):
+    for argument in tools.configurationData[tool]['arguments']:
+      attributes = self.buildNodeFromToolConfiguration(tools, tool, argument)
+      isRequired = self.getNodeAttribute(attributes, 'isRequired')
+      if isRequired: self.buildOptionNode(graph, tools, task, tool, argument, attributes)
+
+  # Check each option node and determine if a value is required.  This can be determined in one of two 
+  # ways.  If any of the edges beginning at the option node correspond to a tool argument that is 
+  # listed as required by the tool, or if the node corresponds to a command line argument that is 
+  # listed as required.  If the node is a required pipeline argument, it has already been tagged as 
+  # required. 
+  def setRequiredNodes(self, graph, tools): 
+ 
+    # Loop over all data nodes. 
+    for nodeID in graph.nodes(data = False): 
+      nodeType = self.getGraphNodeAttribute(graph, nodeID, 'nodeType') 
+      if nodeType == 'option': 
+        for edge in graph.edges(nodeID): 
+          task           = edge[1] 
+          associatedTool = self.getGraphNodeAttribute(graph, task, 'tool') 
+          toolArgument   = self.edgeMethods.getEdgeAttribute(graph, nodeID, task, 'argument') 
+          isRequired     = tools.getArgumentData(associatedTool, toolArgument, 'required') 
+          if isRequired: self.setGraphNodeAttribute(graph, nodeID, 'isRequired', True) 
+          break
+
+  # Check if a node exists based on a task and an argument.
+  def doesNodeExist(self, graph, task, argument):
+    exists = False
+    for sourceNode, targetNode in graph.in_edges(task):
+      edgeArgument = self.edgeMethods.getEdgeAttribute(graph, sourceNode, targetNode, 'argument')
+      nodeType     = self.getGraphNodeAttribute(graph, sourceNode, 'nodeType')
+      if nodeType == 'option' and edgeArgument == argument:
+        exists = True
+        return sourceNode
+
+    return None
+
   # Determine which nodes each pipeline argument points to.
   def getPipelineArgumentNodes(self, graph, pipeline, tools):
     for argument in pipeline.argumentData:
-      nodeID = pipeline.getArgumentData(argument, 'nodeID')
-
-      # Get a random task/argument from the commonNodes structure and set the nodeIDs dictionaet
-      # based on this value.
+      nodeID           = pipeline.getArgumentData(argument, 'nodeID')
       task             = pipeline.nodeTaskInformation[nodeID][0][0]
       taskArgument     = pipeline.nodeTaskInformation[nodeID][0][1]
       tool             = pipeline.tasks[task]
@@ -277,23 +321,28 @@ class nodeClass:
     setattr(nodeAttributes, attribute, value)
 
   # Add values to a node.
-  def addValuestoGraphNodeAttribute(self, graph, node, values, overwrite):
+  def addValuestoGraphNodeAttribute(self, graph, nodeID, values, overwrite):
 
-    # Since values have been added to the node, set the hasValue flag to True.
-    self.setGraphNodeAttribute(graph, node, 'hasValue', True)
+    # Check if the node value has already been set.  If so, and overwrite is set to False,
+    # do not proceed with adding the values.
+    hasValue = self.getGraphNodeAttribute(graph, nodeID, 'hasValue')
+    if not hasValue or overwrite:
 
-    # Determine how many sets of values are already included.
-    numberOfDataSets = int(self.getGraphNodeAttribute(graph, node, 'numberOfDataSets'))
-
-    # Add the values.  If overwrite is set to True, set the first iteration of values to
-    # the given values.  Otherwise, generate a new iteration.
-    if not overwrite:
-      graph.node[node]['attributes'].values[numberOfDataSets + 1] = values
-    else:
-      graph.node[node]['attributes'].values[1] = values
-
-    # Set the number of data sets.
-    self.setGraphNodeAttribute(graph, node, 'numberOfDataSets', 1)
+      # Since values have been added to the node, set the hasValue flag to True.
+      self.setGraphNodeAttribute(graph, nodeID, 'hasValue', True)
+  
+      # Determine how many sets of values are already included.
+      numberOfDataSets = int(self.getGraphNodeAttribute(graph, nodeID, 'numberOfDataSets'))
+  
+      # Add the values.  If overwrite is set to True, set the first iteration of values to
+      # the given values.  Otherwise, generate a new iteration.
+      if not overwrite:
+        graph.node[nodeID]['attributes'].values[numberOfDataSets + 1] = values
+      else:
+        graph.node[nodeID]['attributes'].values[1] = values
+  
+      # Set the number of data sets.
+      self.setGraphNodeAttribute(graph, nodeID, 'numberOfDataSets', 1)
 
   # Find all of the task nodes in the graph.
   def getNodes(self, graph, nodeType):
@@ -309,7 +358,9 @@ class nodeClass:
     for predecessorEdge in predecessorEdges:
       value = self.edgeMethods.getEdgeAttribute(graph, predecessorEdge[0], predecessorEdge[1], 'argument')
       if value == argument:
-        return predecessorEdge[0]
+
+        # Only return a value if this is an option node.
+        if self.getGraphNodeAttribute(graph, predecessorEdge[0], 'nodeType') == 'option': return predecessorEdge[0]
 
     return None
 

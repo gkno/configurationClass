@@ -87,7 +87,7 @@ class toolConfiguration:
         self.errors.terminate()
 
       if attribute not in self.configurationData[tool]['arguments'][argument]:
-        return ''
+        return None
 
     return value
 
