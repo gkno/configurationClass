@@ -32,10 +32,12 @@ class optionNodeAttributes:
     self.associatedFileNodes = []
     self.dataType            = ''
     self.description         = 'No description provided'
+    self.filenameExtensions  = ''
     self.hasMultipleDataSets = False
     self.hasMultipleValues   = False
     self.hasValue            = False
     self.isFile              = False
+    self.isFilenameStub      = False
     self.isInput             = False
     self.isOutput            = False
     self.isPipelineArgument  = False
@@ -85,6 +87,7 @@ class nodeClass:
 
   # Build a node using information from the tool configuration file.
   def buildNodeFromToolConfiguration(self, tools, tool, argument):
+    isFilenameStub = False
 
     # Set the tool argument information.
     contents   = tools.configurationData[tool]['arguments'][argument]
@@ -96,19 +99,35 @@ class nodeClass:
     if contents['input'] or contents['output']: self.setNodeAttribute(attributes, 'isFile', True)
     self.setNodeAttribute(attributes, 'isRequired', contents['required'])
     if 'allow multiple values' in contents: self.setNodeAttribute(attributes, 'allowMultipleValues', contents['allow multiple values'])
+    if 'is filename stub' in contents:
+      self.setNodeAttribute(attributes, 'isFilenameStub', contents['is filename stub'])
+
+      # If the option node refers to a filename stub, a list of output files must also be present.
+      try: extensions = contents['filename extensions']
+      except:
+        #TODO DEAL WITH ERROR.
+        print('filename stub, but no filename extensions provided.', tool, argument)
+        self.errors.terminate()
+
+      for counter, extension in enumerate(extensions): extensions[counter] = str(extension)
+      self.setNodeAttribute(attributes, 'filenameExtensions', extensions)
+      isFilenameStub = True
 
     # If multiple extensions are allowed, they will be separated by pipes in the configuration
     # file.  Add all allowed extensions to the list.
-    extension = contents['extension']
-    if '|' in extension:
-      extensions = extension.split('|')
-      self.setNodeAttribute(attributes, 'allowedExtensions', extensions)
-
-    #else: attributes.allowedExtensions.append(extension)
-    else:
-      extensions = []
-      extensions.append(extension)
-      self.setNodeAttribute(attributes, 'allowedExtensions', extensions)
+    if not isFilenameStub:
+      extension = contents['extension']
+      if '|' in extension:
+        extensions       = extension.split('|')
+        stringExtensions = []
+        for extension in extensions: stringExtensions.append(str(extension))
+        self.setNodeAttribute(attributes, 'allowedExtensions', stringExtensions)
+  
+      #else: attributes.allowedExtensions.append(extension)
+      else:
+        extensions = []
+        extensions.append(str(extension))
+        self.setNodeAttribute(attributes, 'allowedExtensions', extensions)
 
     return attributes
 
@@ -119,19 +138,34 @@ class nodeClass:
     attributes                     = fileNodeAttributes()
     attributes.description         = self.getGraphNodeAttribute(graph, nodeID, 'description')
     attributes.allowMultipleValues = self.getGraphNodeAttribute(graph, nodeID, 'allowMultipleValues')
-    attributes.allowedExtensions   = self.getGraphNodeAttribute(graph, nodeID, 'allowedExtensions')
-    fileNodeID                     = nodeID + '_FILE'
-    graph.add_node(fileNodeID, attributes = attributes)
 
-    # Add the edge.
-    edge           = edgeAttributes()
-    edge.argument  = argument
-    edge.shortForm = shortForm
-    if fileType == 'input': graph.add_edge(fileNodeID, task, attributes = edge)
-    elif fileType == 'output': graph.add_edge(task, fileNodeID, attributes = edge)
+    # Check if the node argument is a filename stub.  If it is, there are multiple file nodes to be
+    # created.
+    fileNodeIDs = []
+    if self.getGraphNodeAttribute(graph, nodeID, 'isFilenameStub'):
+      fileID = 1
+      for extension in self.getGraphNodeAttribute(graph, nodeID, 'filenameExtensions'):
+        fileNodeID = nodeID + '_FILE_' + str(fileID)
+        fileID    += 1
+        attributes.allowedExtensions = str(extension)
+        graph.add_node(fileNodeID, attributes = attributes)
+        fileNodeIDs.append(fileNodeID)
+    else:
+      fileNodeID = nodeID + '_FILE'
+      attributes.allowedExtensions   = self.getGraphNodeAttribute(graph, nodeID, 'allowedExtensions')
+      graph.add_node(fileNodeID, attributes = attributes)
+      fileNodeIDs.append(fileNodeID)
 
-    # Add the file node to the list of file nodes associated with the option node.
-    self.setGraphNodeAttribute(graph, nodeID, 'associatedFileNodes', fileNodeID)
+    # Add the edges.
+    for fileNodeID in fileNodeIDs:
+      edge           = edgeAttributes()
+      edge.argument  = argument
+      edge.shortForm = shortForm
+      if fileType == 'input': graph.add_edge(fileNodeID, task, attributes = edge)
+      elif fileType == 'output': graph.add_edge(task, fileNodeID, attributes = edge)
+
+      # Add the file node to the list of file nodes associated with the option node.
+      self.setGraphNodeAttribute(graph, nodeID, 'associatedFileNodes', fileNodeID)
 
   # TODO FINISH THIS
   # Build a task node.
@@ -321,28 +355,52 @@ class nodeClass:
     setattr(nodeAttributes, attribute, value)
 
   # Add values to a node.
-  def addValuestoGraphNodeAttribute(self, graph, nodeID, values, overwrite):
+  def addValuesToGraphNode(self, graph, nodeID, values, overwrite = False, append = True):
 
-    # Check if the node value has already been set.  If so, and overwrite is set to False,
-    # do not proceed with adding the values.
-    hasValue = self.getGraphNodeAttribute(graph, nodeID, 'hasValue')
-    if not hasValue or overwrite:
+    # Since values have been added to the node, set the hasValue flag to True.
+    self.setGraphNodeAttribute(graph, nodeID, 'hasValue', True)
 
-      # Since values have been added to the node, set the hasValue flag to True.
-      self.setGraphNodeAttribute(graph, nodeID, 'hasValue', True)
-  
-      # Determine how many sets of values are already included.
-      numberOfDataSets = int(self.getGraphNodeAttribute(graph, nodeID, 'numberOfDataSets'))
-  
-      # Add the values.  If overwrite is set to True, set the first iteration of values to
-      # the given values.  Otherwise, generate a new iteration.
-      if not overwrite:
-        graph.node[nodeID]['attributes'].values[numberOfDataSets + 1] = values
-      else:
-        graph.node[nodeID]['attributes'].values[1] = values
-  
-      # Set the number of data sets.
+    # Determine how many sets of values are already included.
+    numberOfDataSets = int(self.getGraphNodeAttribute(graph, nodeID, 'numberOfDataSets'))
+
+    # If the number of data sets is zero, set overwrite to True.  It may be that the calling routine
+    # set overwrite to False, but it's values should be used if there are no values already set.  In
+    # particular, all values coming from instances will have overwrite set to False.  If the value for
+    # this argument was not explicitly set, but the instance contained information, the values should
+    # be used.
+    if numberOfDataSets == 0: overwrite = True
+
+    # Add the values.  If overwrite is set to True, set the first iteration of values to
+    # the given values.  Otherwise, generate a new iteration.  In both cases, set the
+    # number of data sets.
+    if overwrite:
+      graph.node[nodeID]['attributes'].values[1] = values
       self.setGraphNodeAttribute(graph, nodeID, 'numberOfDataSets', 1)
+    elif append:
+      originalValues = self.getGraphNodeAttribute(graph, nodeID, 'values')
+      for value in values: originalValues[1].append(value)
+      graph.node[nodeID]['attributes'].values[1] = originalValues[1]
+      self.setGraphNodeAttribute(graph, nodeID, 'numberOfDataSets', 1)
+
+  # Replace a nodes values.
+  def replaceGraphNodeValues(self, graph, nodeID, values):
+
+    # If replacing the values, the supplied values must be a dictionary.  If not, fail.
+    # TODO Sort errors.
+    if type(values) != dict:
+      print('nodeMethods.replaceGraphNodeValues: Values not dict')
+      print(values)
+      self.errors.terminate()
+
+    # Since values have been added to the node, set the hasValue flag to True.
+    self.setGraphNodeAttribute(graph, nodeID, 'hasValue', True)
+
+    # Determine how many sets of values are already included.
+    numberOfDataSets = len(values)
+
+    # Add the values.
+    self.setGraphNodeAttribute(graph, nodeID, 'values', values)
+    self.setGraphNodeAttribute(graph, nodeID, 'numberOfDataSets', numberOfDataSets)
 
   # Find all of the task nodes in the graph.
   def getNodes(self, graph, nodeType):
@@ -411,5 +469,32 @@ class nodeClass:
 
   # Given a file node ID, return the corresponding option node ID.
   def getOptionNodeIDFromFileNodeID(self, nodeID):
-    optionNodeID = nodeID.replace('_FILE', '')
-    return optionNodeID
+    return nodeID.split('_FILE')[0]
+
+  # Determine if the supplied node has any predecessors.
+  def hasPredecessor(self, graph, nodeID):
+    predecessorNodeIDs = graph.predecessors(nodeID)
+    if predecessorNodeIDs: return True
+    else: return False
+
+  # Determine if the supplied node has any successors.
+  def hasSuccessor(self, graph, nodeID):
+    successorNodeIDs = graph.successors(nodeID)
+    if successorNodeIDs: return True
+    else: return False
+
+  # Get all of the file nodes associated with an option node.
+  def getAssociatedFileNodeIDs(self, graph, optionNodeID):
+
+    # Check that an option node was supplied.
+    if self.getGraphNodeAttribute(graph, optionNodeID, 'nodeType') != 'option':
+      #TODO SORT ERROR
+      print('ATTEMPTING TO FIND FILE NODES ASSOCIATED WTH OPTION NODE, BUT AN OPTION NODE WAS NOT PROVIDED.')
+      print(optionNodeID, 'nodeMethods.getAssociatedFileNodes')
+      self.errors.terminate()
+
+    fileNodeIDs = []
+    for nodeID in graph.nodes(data = False):
+      if self.getGraphNodeAttribute(graph, nodeID, 'nodeType') == 'file' and nodeID.startswith(optionNodeID): fileNodeIDs.append(nodeID)
+
+    return fileNodeIDs

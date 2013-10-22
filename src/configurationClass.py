@@ -146,3 +146,172 @@ class configurationClass:
   # Check that all defined parameters are valid.
   def checkParameters(self, graph):
     print('***NEED TO CHECK PARAMETERS')
+
+  # Determine all of the outputs from the graph.  This is essentially all file nodes with no successors.
+  def determineGraphDependencies(self, graph, key):
+    dependencies = []
+    fileNodeIDs  = self.nodeMethods.getNodes(graph, 'file')
+    for nodeID in fileNodeIDs:
+
+      # Determine if the node has any predecessors.
+      hasPredecessor = self.nodeMethods.hasPredecessor(graph, nodeID)
+
+      # If there are no predecessors, find the name of the file and add to the list of dependencies.
+      # Since the values associated with a node is a dictionary of lists, if 'key' is set to 'all',
+      # get all of the values, otherwise, just get those with the specified key.
+      if not hasPredecessor:
+        values = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values')
+        if key == 'all':
+          for iteration in values.keys():
+            for value in values[iteration]: dependencies.append(value)
+
+        # Just get values for a particular key.
+        elif key in values:
+          for value in values[key]: dependencies.append(value)
+
+        # If the key is unknown, fail.
+        #TODO Errors.
+        else:
+          print('UNKNOWN KEY: configurationClass.determineGraphDependencies', key)
+          self.errors.terminate()
+
+    return dependencies
+
+  # Determine all of the dependencies in the graph.  This is essentially all file nodes with no predecessors.
+  def determineGraphOutputs(self, graph, key):
+    outputs     = []
+    fileNodeIDs = self.nodeMethods.getNodes(graph, 'file')
+    for nodeID in fileNodeIDs:
+
+      # Determine if the node has any successors.
+      hasSuccessor = self.nodeMethods.hasSuccessor(graph, nodeID)
+
+      # If there are no predecessors, find the name of the file and add to the list of dependencies.
+      # Since the values associated with a node is a dictionary of lists, if 'key' is set to 'all',
+      # get all of the values, otherwise, just get those with the specified key.
+      if not hasSuccessor:
+        values = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values')
+        if key == 'all':
+          for iteration in values.keys():
+            for value in values[iteration]: outputs.append(value)
+
+        # Just get values for a particular key.
+        elif key in values:
+          for value in values[key]: outputs.append(value)
+
+        # If the key is unknown, fail.
+        #TODO Errors.
+        else:
+          print('UNKNOWN KEY: configurationClass.determineGraphOutputs', key)
+          self.errors.terminate()
+
+    return outputs
+
+  # Determine all of the intermediate files in the graph.  This is all of the file nodes that have both
+  # predecessor and successor nodes.
+  def determineGraphIntermediateFiles(self, graph, key):
+    intermediates = []
+    fileNodeIDs   = self.nodeMethods.getNodes(graph, 'file')
+    for nodeID in fileNodeIDs:
+
+      # Determine if the node has any predecessors or successors.
+      hasPredecessor = self.nodeMethods.hasPredecessor(graph, nodeID)
+      hasSuccessor   = self.nodeMethods.hasSuccessor(graph, nodeID)
+
+      if hasPredecessor and hasSuccessor:
+        values = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values')
+        if key == 'all':
+          for iteration in values.keys():
+            for value in values[iteration]: intermediates.append(value)
+
+        # Just get values for a particular key.
+        elif key in values:
+          for value in values[key]: intermediates.append(value)
+
+        # If the key is unknown, fail.
+        #TODO Errors.
+        else:
+          print('UNKNOWN KEY: configurationClass.determineGraphIntermediateFiles', key)
+          self.errors.terminate()
+
+    return intermediates
+
+  # Check all of tha provided information.
+  def checkData(self, graph):
+    optionNodes = self.nodeMethods.getNodes(graph, 'option')
+    for optionNodeID in optionNodes:
+
+      # Check if there are any values associated with this node.
+      values = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'values')
+      if values:
+
+        for iteration in values:
+
+          # First check to see if multiple values have been given erroneously.
+          numberOfValues      = len(values[iteration])
+          allowMultipleValues = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'allowMultipleValues')
+
+          #TODO SORT OUT ERRORS.
+          if not allowMultipleValues and numberOfValues != 1:
+            print('GIVEN MULTIPLE VALUES WHEN NOT ALLOWED', values[iteration])
+            self.errors.terminate()
+
+          # Determine the expected data type
+          expectedDataType = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'dataType')
+          for value in values[iteration]:
+
+            # Get the data type for the value and check that it is as expected.
+            if not self.checkDataType(expectedDataType, value):
+              #TODO SORT ERROR.
+              print('Unexpected data type:', value, expectedDataType)
+              self.errors.terminate()
+
+            # If the value refers to a file, check that the extension is valid.
+            if self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'isFile'):
+              if not self.checkFileExtension(graph, optionNodeID, value):
+                #TODO SORT ERROR
+                print('Wrong file extension', value)
+                self.errors.terminate()
+
+  # Check if data types agree.
+  def checkDataType(self, expectedType, value):
+    success = True
+  
+    # Check that flags have the value "set" or "unset".
+    if expectedType == 'flag':
+      if value != 'set' and value != 'unset': success = False
+  
+    # Boolean values should be set to 'true', 'True', 'false' or 'False'.
+    elif expectedType == 'bool':
+      if value != 'true' and value != 'True' and value != 'false' and value != 'False': success = False
+  
+    # Check integers...
+    elif expectedType == 'integer':
+      try: test = int(value)
+      except: success = False
+  
+    # Check floats...
+    elif expectedType == 'float':
+      try: test = float(value)
+      except: success = False
+  
+    # and strings.
+    elif expectedType == 'string':
+      try: test = str(value)
+      except: success = False
+  
+    # If the data type is unknown.
+    else:
+      success = False
+  
+    return success
+
+  #TODO FINISH
+  # Check that a file extension is valid.
+  def checkFileExtension(self, graph, nodeID, value):
+    extensions = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'allowedExtensions')
+    for extension in extensions:
+      if value.endswith(extension):
+        return True
+
+    return False

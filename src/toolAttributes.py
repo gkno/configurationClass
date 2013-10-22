@@ -53,6 +53,10 @@ class toolConfiguration:
   # Validate the contents of the tool configuration file.
   def validateConfigurationData(self, tool, data):
     self.configurationData[tool] = data
+
+    # TODO In the validation, ensure that if the argument is for a filename stub, make sure that 
+    # if constructing filename, the replace extension is set to False.  Otherwise, the algorithm
+    # will look for extensions to use which will not exist!
     return True
 
   # Get information from the configuration file (not argument data).
