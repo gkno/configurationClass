@@ -82,7 +82,7 @@ class pipelineConfiguration:
 
       # Add the task/argument to the nodeTaskInformation structure as tuples.
       self.nodeTaskInformation[nodeID] = []
-      for task in tasks: self.nodeTaskInformation[nodeID].append((task, tasks[task]))
+      for task in tasks: self.nodeTaskInformation[nodeID].append((str(task), str(tasks[task])))
 
       # Now look for information pertaining to pipeline arguments.
       if 'long form argument' in information:

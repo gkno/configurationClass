@@ -58,6 +58,28 @@ class configurationClass:
   # taskB (and also option nodes defining the names), but these are the same file and so these
   # nodes can be merged into a single node.
   def mergeNodes(self, graph):
+
+    # The first step involves parsing through the 'nodes' section of the pipeline configuration file and
+    # determining which option nodes will be merged.  For each set of option nodes to be merged, one is
+    # picked to be kept and the others are marked for deletion.
+    edgesToCreate = self.identifyNodesToRemove(graph)
+
+#    for nodeID in graph.nodes(data = False):
+#      if self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'nodeType') == 'option':
+#        if self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'isMarkedForRemoval'):
+#          successorNodeID = graph.successors(nodeID)[0]
+#          edge            = self.edgeMethods.getEdgeAttribute(graph, nodeID, successorNodeID, 'argument')
+#          print("TEST", nodeID, 'is marked for removal', successorNodeID, edge)
+#
+#    print('edges')
+#    for edge in edgesToCreate: print(edge, edgesToCreate[edge])
+#    exit(0)
+
+    # Having completed the merging process, purge the nodes that are no longer required.
+    self.nodeMethods.purgeNodeMarkedForRemoval(graph)
+    exit(0)
+
+
     for nodeName in self.pipeline.nodeTaskInformation:
 
       # The configuration file lists all the tasks (and arguments) that use the node.  The nodes
@@ -118,12 +140,26 @@ class configurationClass:
         isInput  = self.tools.getArgumentData(tool, argument, 'input')
         isOutput = self.tools.getArgumentData(tool, argument, 'output')
         if nodeID != None:
-          for fileNodeID in self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'associatedFileNodes'):
-            graph.remove_node(fileNodeID)
 
-        for fileNodeID in self.nodeMethods.getGraphNodeAttribute(graph, keptNodeID, 'associatedFileNodes'):
-          if isInput: graph.add_edge(fileNodeID, task, attributes = attributes)
-          elif isOutput: graph.add_edge(task, fileNodeID, attributes = attributes)
+          # Check how many file nodes are associated with the option node being deleted.  If there is more than
+          # one associated file node, determine the correct course of action.
+          numberOfAssociatedFileNodes = len(self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'associatedFileNodes'))
+          print('TEST', task, argument, numberOfAssociatedFileNodes)
+          #if numberOfAssociatedFileNodes > 1:
+
+            # By default,
+          print('SORTING FILE NODES', task, argument, self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'associatedFileNodes'), numberOfAssociatedFileNodes)
+          for fileNodeID in self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'associatedFileNodes'):
+            print(fileNodeID, self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values'))
+          exit(0)
+
+            # TODO ADD ALTERNATIVE STRATEGIES.
+
+          # If there was only one file node, delete it and add the new edge.
+            #fileNodeID = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'associatedFileNodes')[0]
+            #graph.remove_node(fileNodeID)
+            #if isInput: graph.add_edge(fileNodeID, task, attributes = attributes)
+            #elif isOutput: graph.add_edge(task, fileNodeID, attributes = attributes)
 
         # Remove the node.  First check if this node is associated with a pipeline argument.  If so, reassign
         # the pipeline argument to the keptNodeID.
@@ -132,6 +168,73 @@ class configurationClass:
             pipelineArgumentNodeID = self.pipeline.argumentData[pipelineArgument].nodeID
             if pipelineArgumentNodeID == nodeID: self.pipeline.argumentData[pipelineArgument].nodeID = keptNodeID
           graph.remove_node(nodeID)
+
+  # Parse through the 'nodes' section of the pipeline configuration file and identify which nodes can be
+  # removed (i.e. merged with another node).  The nodes to be removed are tagged as to be removed and the
+  # node that will replace them is also stored.
+  def identifyNodesToRemove(self, graph):
+    missingNodeID = 1
+
+    # Create a dictionary to store the tasks and arguments required to build edges from the
+    # merged node.  
+    edgesToCreate = {}
+
+    for nodeName in self.pipeline.nodeTaskInformation:
+
+      # If there is only a single node, listed, there is no need to proceed, since no merhing needs to
+      # take place. 
+      optionsToMerge = self.pipeline.nodeTaskInformation[nodeName]
+      if len(optionsToMerge) != 1:
+
+        # Pick one of the nodes to keep.  If the option picked has not yet been set as a node, choose
+        # again.
+        nodeID           = None
+        absentNodeValues = []
+        while nodeID == None and optionsToMerge:
+          optionToKeep = optionsToMerge.pop(0)
+          task         = optionToKeep[0]
+          argument     = optionToKeep[1]
+          nodeID       = self.nodeMethods.doesNodeExist(graph, task, argument)
+
+          # If the node doesn't exist, store the task and argument.  These will be put into the
+          # edgesToCreate dictionary once a nodeID has been found.
+          if nodeID == None: absentNodeValues.append((task, argument))
+
+        # If none of the nodes exist, a node needs to be created.  For now, store the edges that
+        # need to be created
+        if nodeID == None:
+          tempNodeID                = 'CREATE_NODE_' + str(missingNodeID)
+          edgesToCreate[tempNodeID] = []
+          missingNodeID += 1
+          for task, argument in absentNodeValues: edgesToCreate[tempNodeID].append((None, task, argument))
+
+        # Mark the remaining nodes for deletion and also the nodeID of the node which this node is
+        # to be merged with.
+        else:
+
+          # If this nodeID already exists in the edgesToCreate dictionary, throw an error.
+          # TODO SORT ERROR
+          if nodeID in edgesToCreate:
+            print('ERROR WITH SHARED NODES.')
+            self.errors.terminate()
+
+          # Initialise the entry for this nodeID and add any edges that are stored in the absentNodeValues list.
+          edgesToCreate[nodeID] = []
+          for task, argument in absentNodeValues: edgesToCreate[nodeID].append((None, task, argument))
+
+          # Now parse through the nodes remaining in the optionsToMerge structure and mark nodes and store edge
+          # information.
+          for task, argument in optionsToMerge:
+            nodeIDToRemove = self.nodeMethods.doesNodeExist(graph, task, argument)
+
+            # Store the task and arguments for those nodes that are to be deleted or do not exist.
+            # These will be needed to build edges to the merged nodes.
+            edgesToCreate[nodeID].append((nodeIDToRemove, task, argument))
+
+            # Only mark nodes that exist.
+            if nodeIDToRemove != None: self.nodeMethods.setGraphNodeAttribute(graph, nodeIDToRemove, 'isMarkedForRemoval', True)
+
+    return edgesToCreate
 
   # Generate the task workflow from the topologically sorted pipeline graph.
   def generateWorkflow(self, graph):

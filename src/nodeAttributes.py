@@ -46,6 +46,9 @@ class optionNodeAttributes:
     self.numberOfDataSets    = 0
     self.values              = {}
 
+    # Node markings for node removal.
+    self.isMarkedForRemoval = False
+
 # Define a class for holding attributes for file nodes.  These are nodes that
 # hold information about files.
 class fileNodeAttributes:
@@ -134,24 +137,25 @@ class nodeClass:
   # Add input file nodes.
   def buildTaskFileNodes(self, graph, nodeID, task, argument, shortForm, fileType):
 
-    # TODO DEAL WITH MULTIPLE FILE NODES.
-    attributes                     = fileNodeAttributes()
-    attributes.description         = self.getGraphNodeAttribute(graph, nodeID, 'description')
-    attributes.allowMultipleValues = self.getGraphNodeAttribute(graph, nodeID, 'allowMultipleValues')
-
     # Check if the node argument is a filename stub.  If it is, there are multiple file nodes to be
     # created.
     fileNodeIDs = []
     if self.getGraphNodeAttribute(graph, nodeID, 'isFilenameStub'):
       fileID = 1
       for extension in self.getGraphNodeAttribute(graph, nodeID, 'filenameExtensions'):
-        fileNodeID = nodeID + '_FILE_' + str(fileID)
-        fileID    += 1
+        attributes                     = fileNodeAttributes()
+        attributes.description         = self.getGraphNodeAttribute(graph, nodeID, 'description')
+        attributes.allowMultipleValues = self.getGraphNodeAttribute(graph, nodeID, 'allowMultipleValues')
+        fileNodeID                     = nodeID + '_FILE_' + str(fileID)
+        fileID += 1
         attributes.allowedExtensions = str(extension)
         graph.add_node(fileNodeID, attributes = attributes)
         fileNodeIDs.append(fileNodeID)
     else:
       fileNodeID = nodeID + '_FILE'
+      attributes                     = fileNodeAttributes()
+      attributes.description         = self.getGraphNodeAttribute(graph, nodeID, 'description')
+      attributes.allowMultipleValues = self.getGraphNodeAttribute(graph, nodeID, 'allowMultipleValues')
       attributes.allowedExtensions   = self.getGraphNodeAttribute(graph, nodeID, 'allowedExtensions')
       graph.add_node(fileNodeID, attributes = attributes)
       fileNodeIDs.append(fileNodeID)
@@ -498,3 +502,19 @@ class nodeClass:
       if self.getGraphNodeAttribute(graph, nodeID, 'nodeType') == 'file' and nodeID.startswith(optionNodeID): fileNodeIDs.append(nodeID)
 
     return fileNodeIDs
+
+  # Parse through all nodes and remove those that are marked for deletion.
+  def purgeNodeMarkedForRemoval(self, graph, typeToRemove = 'all'):
+    nodeIDs = []
+
+    if typeToRemove != 'option' and typeToRemove != 'file' and typeToRemove != 'all':
+      print('Unknown node type to remove - nodeMethods.purgeNodeMarkedForRemoval.')
+      self.errors.terminate()
+
+    # Identify option nodes if required.
+    if typeToRemove == 'option' or typeToRemove == 'all': nodeIDs += self.getNodes(graph, 'option')
+
+    # Identify file nodes if required.
+    if typeToRemove == 'file' or typeToRemove == 'all': nodeIDs += self.getNodes(graph, 'file')
+
+    for nodeID in nodeIDs: graph.remove_node(nodeID)
