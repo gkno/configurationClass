@@ -19,6 +19,9 @@ from nodeAttributes import *
 import pipelineAttributes
 from pipelineAttributes import *
 
+import graphPlotting
+from graphPlotting import *
+
 import toolAttributes
 from toolAttributes import *
 
@@ -34,6 +37,7 @@ class configurationClass:
     self.nodeMethods       = nodeClass()
     self.fileOperations    = fileOperations()
     self.pipeline          = pipelineConfiguration()
+    self.drawing           = drawGraph()
     self.tools             = toolConfiguration()
 
   # Build a graph for an individual task.  The pipeline is built by merging nodes between
@@ -64,19 +68,20 @@ class configurationClass:
     # picked to be kept and the others are marked for deletion.
     edgesToCreate = self.identifyNodesToRemove(graph)
 
-#    for nodeID in graph.nodes(data = False):
-#      if self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'nodeType') == 'option':
-#        if self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'isMarkedForRemoval'):
-#          successorNodeID = graph.successors(nodeID)[0]
-#          edge            = self.edgeMethods.getEdgeAttribute(graph, nodeID, successorNodeID, 'argument')
-#          print("TEST", nodeID, 'is marked for removal', successorNodeID, edge)
-#
-#    print('edges')
-#    for edge in edgesToCreate: print(edge, edgesToCreate[edge])
-#    exit(0)
+    # Before creating all of the new edges, find any nodes that have not been created but were called
+    # on to be merged.  Create the nodes and update the edgesToCreate structure with the new ID.
+    self.createMissingMergedNodes(graph, edgesToCreate)
+
+    # Parse through all of the edges that need to be created.  Create nodes where necessary and handle
+    # cases where the option is a filename stub and there are multiple file nodes to handle.
+    self.createEdgesForMergedNodes(graph, edgesToCreate)
+
+    #
+    self.createEdgesForMergedFileNodes(graph, edgesToCreate)
 
     # Having completed the merging process, purge the nodes that are no longer required.
     self.nodeMethods.purgeNodeMarkedForRemoval(graph)
+    self.drawing.drawDot(graph, self.nodeMethods, self.edgeMethods, 'beforePurge.dot')
     exit(0)
 
 
@@ -236,13 +241,169 @@ class configurationClass:
 
     return edgesToCreate
 
+  # Create missing merged nodes.
+  def createMissingMergedNodes(self, graph, edgesToCreate):
+    createdNodes = {}
+    for mergeNodeID in edgesToCreate:
+      for nodeID, task, argument in edgesToCreate[mergeNodeID]:
+
+        # If the node does not exist (i.e. none of the nodes being merged had been added to the graph),
+        # the ID will begin with 'CREATE_NODE'.  If this is the case, create the node.
+        if mergeNodeID.startswith('CREATE_NODE') and mergeNodeID not in createdNodes:
+          tempNodeID = 'OPTION_' + str(self.nodeMethods.optionNodeID)
+          self.nodeMethods.optionNodeID += 1
+          tool       = self.pipeline.tasks[task]
+          attributes = self.nodeMethods.buildNodeFromToolConfiguration(self.tools, tool, argument)
+          graph.add_node(tempNodeID, attributes = attributes)
+
+          # With the node addded, add the mergeNodeID to the dictionary containing nodes created in
+          # this routine.  There will be at least two edges required for any of the nodes to be
+          # created, but the node only needs to be created once.
+          createdNodes[mergeNodeID] = tempNodeID
+
+    # Having created all of the necessary nodes, update the edgesToCreate structure to include the new
+    # IDs.
+    for nodeID in createdNodes: edgesToCreate[createdNodes[nodeID]] = edgesToCreate.pop(nodeID)
+ 
+  # For each node that is removed in the merging process, edges need to be created from the merged node
+  # to the task whose original node has been merged.
+  def createEdgesForMergedNodes(self, graph, edgesToCreate):
+    for mergeNodeID in edgesToCreate:
+      for nodeID, task, argument in edgesToCreate[mergeNodeID]:
+        tool = self.pipeline.tasks[task]
+
+        # Find the short and long form of the argument.
+        longFormArgument  = self.tools.getLongFormArgument(tool, argument)
+        shortFormArgument = self.tools.getArgumentData(tool, longFormArgument, 'short form argument')
+
+        # Add an edge from the merged node to this task.
+        attributes           = edgeAttributes()
+        attributes.argument  = longFormArgument
+        attributes.shortForm = shortFormArgument
+        graph.add_edge(mergeNodeID, task, attributes = attributes)
+
+  # Create edges from the merged file nodes to the tasks whose own file nodes were marked
+  # for removal in the merging process.  Filename stubs have to be handled here.
+  def createEdgesForMergedFileNodes(self, graph, edgesToCreate):
+    for mergeNodeID in edgesToCreate:
+      for nodeID, task, argument in edgesToCreate[mergeNodeID]:
+
+        # If the nodeID exists, then option node for this task already exists in the graph and
+        # has been marked for removal.  The associated file nodes will therefore, also exist and
+        # so these should also be marked for removal.
+        if nodeID:
+          fileNodeIDs = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'associatedFileNodes')
+          for fileNodeID in fileNodeIDs: self.nodeMethods.setGraphNodeAttribute(graph, fileNodeID, 'isMarkedForRemoval', True)
+
+        # Only look at options nodes that contain information about files.
+        if self.nodeMethods.getGraphNodeAttribute(graph, mergeNodeID, 'isFile'):
+          tool                      = self.pipeline.tasks[task]
+          mergedNodeisFilenameStub  = self.nodeMethods.getGraphNodeAttribute(graph, mergeNodeID, 'isFilenameStub')
+          removedNodeisFilenameStub = self.tools.getArgumentData(tool, argument, 'is filename stub')
+          if removedNodeisFilenameStub == None: removedNodeisFilenameStub = False
+
+          # Find the short and long form of the argument.
+          longFormArgument     = self.tools.getLongFormArgument(tool, argument)
+          shortFormArgument    = self.tools.getArgumentData(tool, longFormArgument, 'short form argument')
+          isInput              = self.tools.getArgumentData(tool, longFormArgument, 'input')
+          isOutput             = self.tools.getArgumentData(tool, longFormArgument, 'output')
+
+          # If the argument is not for a filename stub, then there is a single output file.
+          # Generate the edges from the replacement file value to this task.
+          if not mergedNodeisFilenameStub and not removedNodeisFilenameStub:
+            self.linkNonFilenameStubNodes(graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument, isInput)
+
+          # If either of the nodes are filename stubs, deal with them.
+          # is an input of an output.
+          elif mergedNodeisFilenameStub and not removedNodeisFilenameStub:
+            self.createFilenameStubEdgesM(graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument)
+          elif not mergedNodeisFilenameStub and removedNodeisFilenameStub:
+            self.createFilenameStubEdgesR(graph, mergeNodeID, nodeID, task, tool, shortFormArgument, longFormArgument)
+          elif mergedNodeisFilenameStub and removedNodeisFilenameStub:
+            self.createFilenameStubEdgesMR(graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument, isInput)
+
+  # Create the edges for file nodes that are not generated from filename stubs.
+  def linkNonFilenameStubNodes(self, graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument, isInput):
+
+    # Find the file nodes associated with the option node.
+    mergeFileNodeIDs = self.nodeMethods.getGraphNodeAttribute(graph, mergeNodeID, 'associatedFileNodes')
+    fileNodeIDs      = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'associatedFileNodes')
+    if len(mergeFileNodeIDs) != 1 or len(fileNodeIDs) != 1:
+      #TODO SORT ERROR.
+      print('UNEXPECTED NUMBER OF FILENODE IDs - createEdgesForMergedFileNodes')
+      self.errors.terminate()
+
+    attributes           = edgeAttributes()
+    attributes.argument  = longFormArgument
+    attributes.shortForm = shortFormArgument
+    if isInput: graph.add_edge(mergeFileNodeIDs[0], task, attributes = attributes)
+    else: graph.add_edge(task, mergeFileNodeIDs[0], attributes = attributes)
+
+  # TODO WRITE THIS ROUTINE.
+  # Create the edges for file nodes that are generated from filename stubs.  Specifically, deal
+  # with the case where the node being kept is a filename stub and the node being removed is not.
+  def createFilenameStubEdgesM(self, graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument):
+    print('HAVE NOT IMPLEMENTED YET.')
+    print('The node being removed is not a filename stub, but the one remaining is.')
+    self.errors.terminate()
+
+  # Create the edges for file nodes that are generated from filename stubs.  Specifically, deal
+  # with the case where the node being kept is not a filename stub and the node being removed is.
+  def createFilenameStubEdgesR(self, graph, mergeNodeID, nodeID, task, tool, shortFormArgument, longFormArgument):
+    fileNodeIDs = []
+
+    # Since the node being kept is not a filename stub, it will only have a single file node associated
+    # with it. Reiname this file node (with the suffix '_1') and create the correct number of file nodes.
+    mergeFileNodeIDs = self.nodeMethods.getGraphNodeAttribute(graph, mergeNodeID, 'associatedFileNodes')
+    if len(mergeFileNodeIDs) != 1:
+      #TODO SORT ERROR.
+      print('UNEXPECTED NUMBER OF FILENODE IDs - createFilenameStubEdgesR')
+      self.errors.terminate()
+
+    # Rename the existing file node.
+    self.nodeMethods.renameNode(graph, mergeFileNodeIDs[0], mergeFileNodeIDs[0] + '_1')
+    fileNodeIDs.append(mergeFileNodeIDs[0] + '_1')
+
+    # Create the additional file nodes.
+    outputs    = self.tools.getArgumentData(tool, longFormArgument, 'filename extensions')
+    for count in range(2, len(outputs) + 1):
+      fileNodeID                     = mergeNodeID + '_FILE_' + str(count)
+      attributes                     = fileNodeAttributes()
+      attributes.description         = self.nodeMethods.getGraphNodeAttribute(graph, mergeNodeID, 'description')
+      attributes.allowMultipleValues = self.nodeMethods.getGraphNodeAttribute(graph, mergeNodeID, 'allowMultipleValues')
+      attributes.allowedExtensions   = self.nodeMethods.getGraphNodeAttribute(graph, mergeNodeID, 'allowedExtensions')
+      fileNodeIDs.append(fileNodeID)
+      graph.add_node(fileNodeID, attributes = attributes)
+
+    # Create edges from all of the file nodes to the task associated with the node being removed.
+    for fileNodeID in fileNodeIDs:
+      attributes           = edgeAttributes()
+      attributes.argument  = longFormArgument
+      attributes.shortForm = shortFormArgument
+      if self.tools.getArgumentData(tool, longFormArgument, 'input'): graph.add_edge(fileNodeID, task, attributes = attributes)
+      else: graph.add_edge(task, fileNodeID, attributes = attributes)
+
+    #TODO WHAT IF WE WANT ALL OF THE OUTPUTS FROM THE TOOL WITH THE FILENAME STUB TO GO TO THE NEXT NODE?
+
+  # Create the edges for file nodes that are generated from filename stubs.  Specifically, deal
+  # with the case where both the node being kept and the node being removed are filename stubs.
+  # This is the simplest case, as no choices are required, just include edges from all the file
+  # nodes to the task.
+  def createFilenameStubEdgesMR(self, graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument, isInput):
+    mergeFileNodeIDs = self.nodeMethods.getGraphNodeAttribute(graph, mergeNodeID, 'associatedFileNodes')
+    for mergeFileNodeID in mergeFileNodeIDs:
+      attributes           = edgeAttributes()
+      attributes.argument  = longFormArgument
+      attributes.shortForm = shortFormArgument
+      if isInput: graph.add_edge(mergeFileNodeID, task, attributes = attributes)
+      else: graph.add_edge(task, mergeFileNodeID, attributes = attributes)
+
   # Generate the task workflow from the topologically sorted pipeline graph.
   def generateWorkflow(self, graph):
     workflow  = []
     topolSort = nx.topological_sort(graph)
     for nodeID in topolSort:
-      nodeType = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'nodeType')
-      if nodeType == 'task': workflow.append(nodeID)
+      if self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'nodeType') == 'task': workflow.append(nodeID)
 
     return workflow
 

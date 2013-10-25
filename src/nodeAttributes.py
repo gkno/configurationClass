@@ -63,6 +63,9 @@ class fileNodeAttributes:
     self.numberOfDataSets    = 0
     self.values              = {}
  
+    # Node markings for node removal.
+    self.isMarkedForRemoval = False
+
 class nodeClass:
   def __init__(self):
     self.edgeMethods  = edgeClass()
@@ -507,7 +510,7 @@ class nodeClass:
   def purgeNodeMarkedForRemoval(self, graph, typeToRemove = 'all'):
     nodeIDs = []
 
-    if typeToRemove != 'option' and typeToRemove != 'file' and typeToRemove != 'all':
+    if typeToRemove != 'option' and typeToRemove != 'file' and typeToRemove != 'general' and typeToRemove != 'all':
       print('Unknown node type to remove - nodeMethods.purgeNodeMarkedForRemoval.')
       self.errors.terminate()
 
@@ -517,4 +520,26 @@ class nodeClass:
     # Identify file nodes if required.
     if typeToRemove == 'file' or typeToRemove == 'all': nodeIDs += self.getNodes(graph, 'file')
 
-    for nodeID in nodeIDs: graph.remove_node(nodeID)
+    # Identify general nodes if required.
+    if typeToRemove == 'general' or typeToRemove == 'all': nodeIDs += self.getNodes(graph, 'general')
+
+    for nodeID in nodeIDs:
+      if self.getGraphNodeAttribute(graph, nodeID, 'isMarkedForRemoval'): graph.remove_node(nodeID)
+
+  # Rename a node.  This involves creating a new node with the same attributes as the node being
+  # removed.  Then reproduce all of the edges, before removing the old node.
+  def renameNode(self, graph, originalNodeID, newNodeID):
+    graph.add_node(newNodeID, attributes = graph.node[originalNodeID]['attributes'])
+
+    # Set all of the predecessor edges.
+    predecessorNodeIDs = graph.predecessors(originalNodeID)
+    for nodeID in predecessorNodeIDs:
+      graph.add_edge(nodeID, newNodeID, attributes = graph[nodeID][originalNodeID])
+
+    # Set all of the successor edges.
+    successorNodeIDs = graph.successors(originalNodeID)
+    for nodeID in successorNodeIDs:
+      graph.add_edge(newNodeID, nodeID, attributes = graph[originalNodeID][nodeID])
+
+    # Remove the original node.
+    graph.remove_node(originalNodeID)

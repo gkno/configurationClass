@@ -40,7 +40,6 @@ class pipelineConfiguration:
     self.nodeMethods         = nodeClass()
     self.pipelineName        = ''
     self.tasks               = {}
-    self.tools               = toolConfiguration()
 
   #TODO
   # Validate the contents of the tool configuration file.
