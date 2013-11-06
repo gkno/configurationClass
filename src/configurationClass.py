@@ -76,12 +76,11 @@ class configurationClass:
     # cases where the option is a filename stub and there are multiple file nodes to handle.
     self.createEdgesForMergedNodes(graph, edgesToCreate)
 
-    #
+    # Now add edges for the file nodes.
     self.createEdgesForMergedFileNodes(graph, edgesToCreate)
 
     # Having completed the merging process, purge the nodes that are no longer required.
     self.nodeMethods.purgeNodeMarkedForRemoval(graph)
-    self.drawing.drawDot(graph, self.nodeMethods, self.edgeMethods, 'beforePurge.dot')
 
   # Parse through the 'nodes' section of the pipeline configuration file and identify which nodes can be
   # removed (i.e. merged with another node).  The nodes to be removed are tagged as to be removed and the
