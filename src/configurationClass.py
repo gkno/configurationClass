@@ -82,97 +82,6 @@ class configurationClass:
     # Having completed the merging process, purge the nodes that are no longer required.
     self.nodeMethods.purgeNodeMarkedForRemoval(graph)
     self.drawing.drawDot(graph, self.nodeMethods, self.edgeMethods, 'beforePurge.dot')
-    exit(0)
-
-
-    for nodeName in self.pipeline.nodeTaskInformation:
-
-      # The configuration file lists all the tasks (and arguments) that use the node.  The nodes
-      # themselves may have already been placed in the graph, or may not be present or are present
-      # for some of the tasks but not others (for example, it may be that only nodes listed as
-      # required appear in the graph).  For each task/argument pair, determine if the node exists.
-      existingNodes = {}
-      forSorting    = {}
-      for task, argument in self.pipeline.nodeTaskInformation[nodeName]:
-        existingNodes[str(task) + str(argument)] = (task, argument, self.nodeMethods.doesNodeExist(graph, task, argument))
-        forSorting[str(task) + str(argument)]    = self.nodeMethods.doesNodeExist(graph, task, argument)
-
-      # Sort the nodes by the nodeID. All values that are None will appear at the beginning.
-      #sortedExistingNodes = sorted(existingNodes.iteritems(), key=operator.itemgetter(1))
-      sortedNodes = sorted(forSorting.iteritems(), key=operator.itemgetter(1))
-      sortedExistingNodes = []
-      for ID in sortedNodes: sortedExistingNodes.append(existingNodes[ID[0]])
-
-      # The last item is the node to be kept.  If its value is None, none of the nodes exist and
-      # a node with all connections needs to be created.
-      lastNode = sortedExistingNodes.pop(len(sortedExistingNodes) - 1)
-      task       = lastNode[0]
-      argument   = lastNode[1]
-      keptNodeID = lastNode[2]
-
-      if keptNodeID == None:
-        tool       = self.pipeline.tasks[task]
-        attributes = self.nodeMethods.buildNodeFromToolConfiguration(self.tools, tool, argument)
-
-        # Check if the argument is required or not.  Only required nodes are built here.
-        keptNodeID = str('OPTION_') + str(self.nodeMethods.optionNodeID)
-        self.nodeMethods.optionNodeID += 1
-        graph.add_node(keptNodeID, attributes = attributes)
-
-      # Store the ID of the node being kept along with the value it was given in the common nodes
-      # section of the configuration file.  The instances information will refer to the common
-      # node value and this needs to point to the nodeID in the graph.
-      self.nodeIDs[nodeName] = keptNodeID
-
-      # Loop over the remaining nodes, delete them and include edges to the retained nodes.
-      #for ID, values in sortedExistingNodes:
-      for values in sortedExistingNodes:
-        task       = values[0]
-        argument   = values[1]
-        nodeID     = values[2]
-        tool       = self.pipeline.tasks[task]
-        if nodeID != None: shortForm  = self.edgeMethods.getEdgeAttribute(graph, nodeID, task, 'shortForm')
-        else: shortForm = self.tools.getArgumentData(tool, argument, 'short form argument')
-
-        # Add an edge from the common node to this task.
-        attributes           = edgeAttributes()
-        attributes.argument  = argument
-        attributes.shortForm = shortForm
-        graph.add_edge(keptNodeID, task, attributes = attributes)
-
-        # If this option node has associated file nodes, delete them and add edges to the file
-        # nodes associated with the kept node.
-        isInput  = self.tools.getArgumentData(tool, argument, 'input')
-        isOutput = self.tools.getArgumentData(tool, argument, 'output')
-        if nodeID != None:
-
-          # Check how many file nodes are associated with the option node being deleted.  If there is more than
-          # one associated file node, determine the correct course of action.
-          numberOfAssociatedFileNodes = len(self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'associatedFileNodes'))
-          print('TEST', task, argument, numberOfAssociatedFileNodes)
-          #if numberOfAssociatedFileNodes > 1:
-
-            # By default,
-          print('SORTING FILE NODES', task, argument, self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'associatedFileNodes'), numberOfAssociatedFileNodes)
-          for fileNodeID in self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'associatedFileNodes'):
-            print(fileNodeID, self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values'))
-          exit(0)
-
-            # TODO ADD ALTERNATIVE STRATEGIES.
-
-          # If there was only one file node, delete it and add the new edge.
-            #fileNodeID = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'associatedFileNodes')[0]
-            #graph.remove_node(fileNodeID)
-            #if isInput: graph.add_edge(fileNodeID, task, attributes = attributes)
-            #elif isOutput: graph.add_edge(task, fileNodeID, attributes = attributes)
-
-        # Remove the node.  First check if this node is associated with a pipeline argument.  If so, reassign
-        # the pipeline argument to the keptNodeID.
-        if nodeID != None:
-          for pipelineArgument in self.pipeline.argumentData:
-            pipelineArgumentNodeID = self.pipeline.argumentData[pipelineArgument].nodeID
-            if pipelineArgumentNodeID == nodeID: self.pipeline.argumentData[pipelineArgument].nodeID = keptNodeID
-          graph.remove_node(nodeID)
 
   # Parse through the 'nodes' section of the pipeline configuration file and identify which nodes can be
   # removed (i.e. merged with another node).  The nodes to be removed are tagged as to be removed and the
@@ -201,6 +110,11 @@ class configurationClass:
           argument     = optionToKeep[1]
           nodeID       = self.nodeMethods.doesNodeExist(graph, task, argument)
 
+          # Store the ID of the node being kept along with the value it was given in the common nodes
+          # section of the configuration file.  The instances information will refer to the common
+          # node value and this needs to point to the nodeID in the graph.
+          self.nodeIDs[nodeName] = nodeID
+
           # If the node doesn't exist, store the task and argument.  These will be put into the
           # edgesToCreate dictionary once a nodeID has been found.
           if nodeID == None: absentNodeValues.append((task, argument))
@@ -210,6 +124,7 @@ class configurationClass:
         if nodeID == None:
           tempNodeID                = 'CREATE_NODE_' + str(missingNodeID)
           edgesToCreate[tempNodeID] = []
+          self.nodeIDs[nodeName]    = tempNodeID
           missingNodeID += 1
           for task, argument in absentNodeValues: edgesToCreate[tempNodeID].append((None, task, argument))
 
@@ -261,6 +176,10 @@ class configurationClass:
           # created, but the node only needs to be created once.
           createdNodes[mergeNodeID] = tempNodeID
 
+          # Modify the value in the nodeIDs dictionary to reflect this modified node value.
+          for storedNodeID in self.nodeIDs:
+            if mergeNodeID == self.nodeIDs[storedNodeID]: self.nodeIDs[storedNodeID] = tempNodeID
+
     # Having created all of the necessary nodes, update the edgesToCreate structure to include the new
     # IDs.
     for nodeID in createdNodes: edgesToCreate[createdNodes[nodeID]] = edgesToCreate.pop(nodeID)
@@ -275,11 +194,13 @@ class configurationClass:
         # Find the short and long form of the argument.
         longFormArgument  = self.tools.getLongFormArgument(tool, argument)
         shortFormArgument = self.tools.getArgumentData(tool, longFormArgument, 'short form argument')
+        isFilenameStub    = self.tools.getArgumentData(tool, longFormArgument, 'is filename stub')
 
         # Add an edge from the merged node to this task.
-        attributes           = edgeAttributes()
-        attributes.argument  = longFormArgument
-        attributes.shortForm = shortFormArgument
+        attributes                = edgeAttributes()
+        attributes.argument       = longFormArgument
+        attributes.isFilenameStub = isFilenameStub
+        attributes.shortForm      = shortFormArgument
         graph.add_edge(mergeNodeID, task, attributes = attributes)
 
   # Create edges from the merged file nodes to the tasks whose own file nodes were marked
@@ -333,9 +254,10 @@ class configurationClass:
       print('UNEXPECTED NUMBER OF FILENODE IDs - createEdgesForMergedFileNodes')
       self.errors.terminate()
 
-    attributes           = edgeAttributes()
-    attributes.argument  = longFormArgument
-    attributes.shortForm = shortFormArgument
+    attributes                = edgeAttributes()
+    attributes.argument       = longFormArgument
+    attributes.isFilenameStub = False
+    attributes.shortForm      = shortFormArgument
     if isInput: graph.add_edge(mergeFileNodeIDs[0], task, attributes = attributes)
     else: graph.add_edge(task, mergeFileNodeIDs[0], attributes = attributes)
 
@@ -377,9 +299,10 @@ class configurationClass:
 
     # Create edges from all of the file nodes to the task associated with the node being removed.
     for fileNodeID in fileNodeIDs:
-      attributes           = edgeAttributes()
-      attributes.argument  = longFormArgument
-      attributes.shortForm = shortFormArgument
+      attributes                = edgeAttributes()
+      attributes.argument       = longFormArgument
+      attributes.isFilenameStub = True
+      attributes.shortForm      = shortFormArgument
       if self.tools.getArgumentData(tool, longFormArgument, 'input'): graph.add_edge(fileNodeID, task, attributes = attributes)
       else: graph.add_edge(task, fileNodeID, attributes = attributes)
 
@@ -392,9 +315,10 @@ class configurationClass:
   def createFilenameStubEdgesMR(self, graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument, isInput):
     mergeFileNodeIDs = self.nodeMethods.getGraphNodeAttribute(graph, mergeNodeID, 'associatedFileNodes')
     for mergeFileNodeID in mergeFileNodeIDs:
-      attributes           = edgeAttributes()
-      attributes.argument  = longFormArgument
-      attributes.shortForm = shortFormArgument
+      attributes                = edgeAttributes()
+      attributes.argument       = longFormArgument
+      attributes.isFilenameStub = True
+      attributes.shortForm      = shortFormArgument
       if isInput: graph.add_edge(mergeFileNodeID, task, attributes = attributes)
       else: graph.add_edge(task, mergeFileNodeID, attributes = attributes)
 
@@ -406,6 +330,49 @@ class configurationClass:
       if self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'nodeType') == 'task': workflow.append(nodeID)
 
     return workflow
+
+  # Get the instance information or fail if the instance does not exist.
+  def getInstanceData(self, path, isPipeline, pipelineName, instanceName, instances):
+
+    # TODO HANDLE TOOL OPERATION - NOT PIPELINE
+    # If the instance is available in the pipeline configuration file, return the data.
+    if instanceName in self.pipeline.instances: return self.pipeline.instances[instanceName]
+
+    # If the instance is not in the pipeline configuration file, check the associated instance file
+    # it exists.
+    instanceFilename = pipelineName + '_instances.json'
+    if instanceFilename in instances.keys():
+      #TODO REMOVE 'temp'
+      if isPipeline: filePath = path + '/config_files/temp/pipes/' + instanceFilename
+      else: filePath = path + '/config_files/temp/tools/' + instanceFilename
+      data         = self.fileOperations.readConfigurationFile(filePath)
+      instanceData = data['instances']
+
+      if instanceName in instanceData: return instanceData[instanceName]
+      else:
+        #TODO ERROR
+        print('instance does not exist.')
+        self.errors.terminate()
+
+    # If the associated instance file does not exist, fail.
+    else:
+      # TODO ERROR
+      print('instance does not exist.')
+      self.errors.terminate()
+
+  # Attach the instance arguments to the relevant nodes.
+  def attachInstanceArgumentsToNodes(self, graph, data):
+    for node in data['nodes']:
+
+      # Get the ID of the node in the graph that this argument points to.  Since nodes were merged in
+      # the generation of the pipeline graph, the dictionary config.nodeIDs retains information about
+      # which node this value refers to.
+      nodeID = self.nodeIDs[node['id']]
+
+      # All of the values extracted from the instance json file are unicode.  Convert them to strings.
+      for counter, value in enumerate(node['values']): node['values'][counter] = str(value)
+
+      self.nodeMethods.addValuesToGraphNode(graph, nodeID, node['values'], write = 'replace')
 
   # Check that all defined parameters are valid.
   def checkParameters(self, graph):
@@ -450,7 +417,7 @@ class configurationClass:
       # Determine if the node has any successors.
       hasSuccessor = self.nodeMethods.hasSuccessor(graph, nodeID)
 
-      # If there are no predecessors, find the name of the file and add to the list of dependencies.
+      # If there are no successors, find the name of the file and add to the list of outputs.
       # Since the values associated with a node is a dictionary of lists, if 'key' is set to 'all',
       # get all of the values, otherwise, just get those with the specified key.
       if not hasSuccessor:

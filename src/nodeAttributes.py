@@ -79,13 +79,16 @@ class nodeClass:
     graph.add_node(nodeID, attributes = attributes)
 
     # Add an edge to the task node.
-    edge          = edgeAttributes()
-    edge.argument = argument
+    shortForm           = tools.getArgumentData(tool, argument, 'short form argument')
+    isFilenameStub      = tools.getArgumentData(tool, argument, 'is filename stub')
+    edge                = edgeAttributes()
+    edge.argument       = argument
+    edge.isFilenameStub = isFilenameStub
+    edge.shortForm      = shortForm
     graph.add_edge(nodeID, task, attributes = edge)
 
     # If the node represents an option for defining an input or output file, create
     # a file node.
-    shortForm = tools.getArgumentData(tool, argument, 'short form argument')
     if self.getGraphNodeAttribute(graph, nodeID, 'isInput'): self.buildTaskFileNodes(graph, nodeID, task, argument, shortForm, 'input')
     elif self.getGraphNodeAttribute(graph, nodeID, 'isOutput'): self.buildTaskFileNodes(graph, nodeID, task, argument, shortForm, 'output')
 
@@ -362,32 +365,52 @@ class nodeClass:
     setattr(nodeAttributes, attribute, value)
 
   # Add values to a node.
-  def addValuesToGraphNode(self, graph, nodeID, values, overwrite = False, append = True):
+  def addValuesToGraphNode(self, graph, nodeID, values, write, iteration = None):
 
     # Since values have been added to the node, set the hasValue flag to True.
     self.setGraphNodeAttribute(graph, nodeID, 'hasValue', True)
 
-    # Determine how many sets of values are already included.
-    numberOfDataSets = int(self.getGraphNodeAttribute(graph, nodeID, 'numberOfDataSets'))
-
-    # If the number of data sets is zero, set overwrite to True.  It may be that the calling routine
-    # set overwrite to False, but it's values should be used if there are no values already set.  In
-    # particular, all values coming from instances will have overwrite set to False.  If the value for
-    # this argument was not explicitly set, but the instance contained information, the values should
-    # be used.
-    if numberOfDataSets == 0: overwrite = True
-
-    # Add the values.  If overwrite is set to True, set the first iteration of values to
-    # the given values.  Otherwise, generate a new iteration.  In both cases, set the
-    # number of data sets.
-    if overwrite:
+    # If write is set to replace, set the number of datasets to 1, clear any values currently
+    # set and add the new values.
+    if write == 'replace':
+      graph.node[nodeID]['attributes'].values    = {}
       graph.node[nodeID]['attributes'].values[1] = values
       self.setGraphNodeAttribute(graph, nodeID, 'numberOfDataSets', 1)
-    elif append:
-      originalValues = self.getGraphNodeAttribute(graph, nodeID, 'values')
-      for value in values: originalValues[1].append(value)
-      graph.node[nodeID]['attributes'].values[1] = originalValues[1]
-      self.setGraphNodeAttribute(graph, nodeID, 'numberOfDataSets', 1)
+
+    # If write is set to append, append the value to the defined iteration.
+    elif write == 'append':
+      definedValues    = self.getGraphNodeAttribute(graph, nodeID, 'values')
+      numberOfDataSets = self.getGraphNodeAttribute(graph, nodeID, 'numberOfDataSets')
+                                                                   
+      # If there are currently no data sets associated with this node, create the '1' iteration.
+      if numberOfDataSets == 0 and iteration == 1:
+        numberOfDataSets = 1
+        definedValues[1] = []
+
+      # Check that the defined iteration exists.
+      try: iterationValues = definedValues[iteration]
+      except:
+        #TODO ERROR
+        print('Unavailable iteration in addValuesToGraphNode')
+        self.errors.terminate()
+
+      for value in values: iterationValues.append(value)
+      graph.node[nodeID]['attributes'].values[iteration] = iterationValues
+
+    # If write is set to append, find the number of datasets, then append a new set of values.
+    elif write == 'iteration':
+      numberOfDataSets = self.getGraphNodeAttribute(graph, nodeID, 'numberOfDataSets')
+      graph.node[nodeID]['attributes'].values[numberOfDataSets + 1] = values
+      self.setGraphNodeAttribute(graph, nodeID, 'numberOfDataSets', numberOfDataSets + 1)
+
+    # The write mode is either 'replace' or 'append'.  The 'replace' mode will remove any values
+    # already attached to the node and replace them with those provided.  If the were multiple
+    # iterations of values attached, this mode will remove them and leave only a single iteration 
+    # of data (see multiple runs or internal loops).  The 'append' mode will generate a new iteration.
+    else:
+      #TODO ERROR
+      print('Unknown write mode in addValuesToGraphNode -', write)
+      self.errors.terminate()
 
   # Replace a nodes values.
   def replaceGraphNodeValues(self, graph, nodeID, values):
@@ -419,15 +442,16 @@ class nodeClass:
 
   # Get the node associated with a tool argument.
   def getNodeForTaskArgument(self, graph, task, argument):
+    nodeIDs          = []
     predecessorEdges = graph.in_edges(task)
     for predecessorEdge in predecessorEdges:
       value = self.edgeMethods.getEdgeAttribute(graph, predecessorEdge[0], predecessorEdge[1], 'argument')
       if value == argument:
 
         # Only return a value if this is an option node.
-        if self.getGraphNodeAttribute(graph, predecessorEdge[0], 'nodeType') == 'option': return predecessorEdge[0]
+        if self.getGraphNodeAttribute(graph, predecessorEdge[0], 'nodeType') == 'option': nodeIDs.append(predecessorEdge[0])
 
-    return None
+    return nodeIDs
 
   # Get all predecessor file nodes for a task.
   def getPredecessorOptionNodes(self, graph, task):
@@ -502,9 +526,30 @@ class nodeClass:
 
     fileNodeIDs = []
     for nodeID in graph.nodes(data = False):
-      if self.getGraphNodeAttribute(graph, nodeID, 'nodeType') == 'file' and nodeID.startswith(optionNodeID): fileNodeIDs.append(nodeID)
+      if self.getGraphNodeAttribute(graph, nodeID, 'nodeType') == 'file' and nodeID.startswith(optionNodeID + '_'): fileNodeIDs.append(nodeID)
 
     return fileNodeIDs
+
+  # From a list of node IDs, find the node with a predecessor node. If more than one such node
+  # is present in the list, terminate. If there are none, return a random node ID from the list.
+  def getNodeIDWithPredecessor(self, graph, nodeIDs, task):
+    foundNodeIDWithPredecessor = False
+    for nodeID in nodeIDs:
+      fileNodeIDs = self.getAssociatedFileNodeIDs(graph, nodeID)
+      for fileNodeID in fileNodeIDs:
+        predecessorNodeIDs = graph.predecessors(fileNodeID)
+        if predecessorNodeIDs:
+          if foundNodeIDWithPredecessor:
+            # TODO SORT ERROR
+            print('Multiple nodeIDs with predecessor - config.nodeMethods.getNodeIDWithPredecessor')
+            self.errors.terminate()
+          else:
+            returnNodeID               = nodeID
+            foundNodeIDWithPredecessor = True
+
+    # If no nodes with a predecessor were found, return a random node ID.
+    if not foundNodeIDWithPredecessor: return nodeIDs[0]
+    else: return returnNodeID
 
   # Parse through all nodes and remove those that are marked for deletion.
   def purgeNodeMarkedForRemoval(self, graph, typeToRemove = 'all'):
@@ -534,12 +579,20 @@ class nodeClass:
     # Set all of the predecessor edges.
     predecessorNodeIDs = graph.predecessors(originalNodeID)
     for nodeID in predecessorNodeIDs:
-      graph.add_edge(nodeID, newNodeID, attributes = graph[nodeID][originalNodeID])
+      attributes                = edgeAttributes()
+      attributes.argument       = self.edgeMethods.getEdgeAttribute(graph, nodeID, originalNodeID, 'argument')
+      attributes.isFilenameStub = self.edgeMethods.getEdgeAttribute(graph, nodeID, originalNodeID, 'isFilenameStub')
+      attributes.shortForm      = self.edgeMethods.getEdgeAttribute(graph, nodeID, originalNodeID, 'shortForm')
+      graph.add_edge(nodeID, newNodeID, attributes = attributes)
 
     # Set all of the successor edges.
     successorNodeIDs = graph.successors(originalNodeID)
     for nodeID in successorNodeIDs:
-      graph.add_edge(newNodeID, nodeID, attributes = graph[originalNodeID][nodeID])
+      attributes                = edgeAttributes()
+      attributes.argument       = self.edgeMethods.getEdgeAttribute(graph, originalNodeID, nodeID, 'argument')
+      attributes.isFilenameStub = self.edgeMethods.getEdgeAttribute(graph, originalNodeID, nodeID, 'isFilenameStub')
+      attributes.shortForm      = self.edgeMethods.getEdgeAttribute(graph, originalNodeID, nodeID, 'shortForm')
+      graph.add_edge(newNodeID, nodeID, attributes = attributes)
 
     # Remove the original node.
     graph.remove_node(originalNodeID)
