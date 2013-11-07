@@ -42,6 +42,7 @@ class optionNodeAttributes:
     self.isOutput            = False
     self.isPipelineArgument  = False
     self.isRequired          = False
+    self.keepFiles           = False
     self.nodeType            = 'option'
     self.numberOfDataSets    = 0
     self.values              = {}
@@ -226,7 +227,7 @@ class nodeClass:
   # Determine which nodes each pipeline argument points to.
   def getPipelineArgumentNodes(self, graph, pipeline, tools):
     for argument in pipeline.argumentData:
-      nodeID           = pipeline.getArgumentData(argument, 'nodeID')
+      nodeID           = pipeline.argumentData[argument].nodeID
       task             = pipeline.nodeTaskInformation[nodeID][0][0]
       taskArgument     = pipeline.nodeTaskInformation[nodeID][0][1]
       tool             = pipeline.tasks[task]

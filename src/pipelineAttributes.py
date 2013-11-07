@@ -36,6 +36,7 @@ class pipelineConfiguration:
     self.errors              = configurationClassErrors()
     self.filename            = ''
     self.instances           = {}
+    self.keepFiles           = {}
     self.nodeTaskInformation = {}
     self.nodeMethods         = nodeClass()
     self.pipelineName        = ''
@@ -101,6 +102,10 @@ class pipelineConfiguration:
 
         if 'required' in information: self.argumentData[argument].isRequired = information['required'] 
 
+      # Now look to see if the 'keep files' tag is included in the configuration file for this
+      # node. This is an indiciation that the file is not an intermediate file.
+      self.keepFiles[nodeID] = information['keep files'] if 'keep files' in information else False
+
   # Parse the pipeline configuration data and return a dictionary contaiing all of the tasks
   # appearing in the pipeline along with the tool required to perform the task.
   def getTasks(self):
@@ -114,22 +119,6 @@ class pipelineConfiguration:
   # Erase all of the data contained in the self.configurationData structure.
   def eraseConfigurationData(self):
     self.configurationData = {}
-
-  # Retrieve information about a pipeline argument.
-  def getArgumentData(self, argument, attribute):
-    try: value = getattr(self.argumentData[argument], attribute)
-    except:
-
-      #FIXME
-      if argument not in self.argumentData:
-        print('MISSING DATA: pipelines.getArgumentInformation', argument)
-        self.errors.terminate()
-
-      if attribute not in self.argumentData[argument]:
-        print('MISSING DATA: pipelines.getArgumentInformation', argument, attribute)
-        self.errors.terminate()
-
-    return value
 
   # Get the long form argument for a command given on the command line.
   def getLongFormArgument(self, graph, argument):

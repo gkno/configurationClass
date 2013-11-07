@@ -82,6 +82,11 @@ class configurationClass:
     # Having completed the merging process, purge the nodes that are no longer required.
     self.nodeMethods.purgeNodeMarkedForRemoval(graph)
 
+    # Parse through all of the nodes that have been merged and check if they have files that
+    # were marked in the pipeline configuration file as files that should be kept. If such
+    # nodes exist, mark them.
+    self.markNodesWithFilesToBeKept(graph)
+
   # Parse through the 'nodes' section of the pipeline configuration file and identify which nodes can be
   # removed (i.e. merged with another node).  The nodes to be removed are tagged as to be removed and the
   # node that will replace them is also stored.
@@ -93,6 +98,10 @@ class configurationClass:
     edgesToCreate = {}
 
     for nodeName in self.pipeline.nodeTaskInformation:
+
+      # Check if there are files associated with this node that should be kept (i.e. not marked as
+      # intermediate files.)
+      keepFiles = self.pipeline.keepFiles[nodeName]
 
       # If there is only a single node, listed, there is no need to proceed, since no merhing needs to
       # take place. 
@@ -321,6 +330,14 @@ class configurationClass:
       if isInput: graph.add_edge(mergeFileNodeID, task, attributes = attributes)
       else: graph.add_edge(task, mergeFileNodeID, attributes = attributes)
 
+  # Parse through all of the nodes that have been merged and check if they have files that
+  # were marked in the pipeline configuration file as files that should be kept. If such
+  # nodes exist, mark them.
+  def markNodesWithFilesToBeKept(self, graph):
+    for nodeName in self.nodeIDs:
+      nodeID = self.nodeIDs[nodeName]
+      if self.pipeline.keepFiles[nodeName]: self.nodeMethods.setGraphNodeAttribute(graph, nodeID, 'keepFiles', True)
+
   # Generate the task workflow from the topologically sorted pipeline graph.
   def generateWorkflow(self, graph):
     workflow  = []
@@ -377,6 +394,23 @@ class configurationClass:
   def checkParameters(self, graph):
     print('***NEED TO CHECK PARAMETERS')
 
+  # Parse all file nodes and determine if they are intermediate files or not. If so, check if the
+  # pipeline configuration file specifically marks the file as one to keep. If not, mark the file
+  # node as an intermediate file.
+  def markIntermediateFileNodes(self, graph):
+    fileNodeIDs = self.nodeMethods.getNodes(graph, 'file')
+    for fileNodeID in fileNodeIDs:
+
+      # Only consider file nodes that have both an incoming and an outgoing edge. Nodes with only
+      # incoming edges are considered to be output files and those with only outgoing edges are
+      # files that are required by the pipeline in order to run.
+      if graph.predecessors(fileNodeID) and graph.successors(fileNodeID):
+        print('TEST', fileNodeID, self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values'))
+ 
+        # Check if this node is listed in the pipeline configuration file as one to keep.
+        
+    exit(0)
+
   # Determine all of the outputs from the graph.  This is essentially all file nodes with no successors.
   def determineGraphDependencies(self, graph, key):
     dependencies = []
@@ -412,6 +446,8 @@ class configurationClass:
     outputs     = []
     fileNodeIDs = self.nodeMethods.getNodes(graph, 'file')
     for nodeID in fileNodeIDs:
+      optionNodeID = self.nodeMethods.getOptionNodeIDFromFileNodeID(nodeID)
+      keepFiles    = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'keepFiles')
 
       # Determine if the node has any successors.
       hasSuccessor = self.nodeMethods.hasSuccessor(graph, nodeID)
@@ -419,7 +455,7 @@ class configurationClass:
       # If there are no successors, find the name of the file and add to the list of outputs.
       # Since the values associated with a node is a dictionary of lists, if 'key' is set to 'all',
       # get all of the values, otherwise, just get those with the specified key.
-      if not hasSuccessor:
+      if not hasSuccessor or keepFiles:
         values = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values')
         if key == 'all':
           for iteration in values.keys():
@@ -443,12 +479,14 @@ class configurationClass:
     intermediates = []
     fileNodeIDs   = self.nodeMethods.getNodes(graph, 'file')
     for nodeID in fileNodeIDs:
+      optionNodeID = self.nodeMethods.getOptionNodeIDFromFileNodeID(nodeID)
+      keepFiles    = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'keepFiles')
 
       # Determine if the node has any predecessors or successors.
       hasPredecessor = self.nodeMethods.hasPredecessor(graph, nodeID)
       hasSuccessor   = self.nodeMethods.hasSuccessor(graph, nodeID)
 
-      if hasPredecessor and hasSuccessor:
+      if hasPredecessor and hasSuccessor and not keepFiles:
         values = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values')
         if key == 'all':
           for iteration in values.keys():
