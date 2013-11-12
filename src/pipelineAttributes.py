@@ -35,11 +35,13 @@ class pipelineConfiguration:
     self.edgeMethods         = edgeClass()
     self.errors              = configurationClassErrors()
     self.filename            = ''
+    self.greedyTasks         = {}
     self.instances           = {}
     self.keepFiles           = {}
     self.nodeTaskInformation = {}
     self.nodeMethods         = nodeClass()
     self.pipelineName        = ''
+    self.streamingNodes      = {}
     self.tasks               = {}
 
   #TODO
@@ -84,6 +86,12 @@ class pipelineConfiguration:
       self.nodeTaskInformation[nodeID] = []
       for task in tasks: self.nodeTaskInformation[nodeID].append((str(task), str(tasks[task])))
 
+      # Also add information from greedy tasks.
+      if 'greedy tasks' in information:
+        for task in information['greedy tasks']:
+          self.nodeTaskInformation[nodeID].append((str(task), str(information['greedy tasks'][task])))
+          self.greedyTasks[task] = str(information['greedy tasks'][task])
+
       # Now look for information pertaining to pipeline arguments.
       if 'long form argument' in information:
         argument                           = information['long form argument']
@@ -106,12 +114,22 @@ class pipelineConfiguration:
       # node. This is an indiciation that the file is not an intermediate file.
       self.keepFiles[nodeID] = information['keep files'] if 'keep files' in information else False
 
+      # Now look to see if the 'keep files' tag is included in the configuration file for this
+      # node. This is an indiciation that the file is not an intermediate file.
+      self.streamingNodes[nodeID] = information['is stream'] if 'is stream' in information else False
+
   # Parse the pipeline configuration data and return a dictionary contaiing all of the tasks
   # appearing in the pipeline along with the tool required to perform the task.
   def getTasks(self):
     for task in self.configurationData['tasks']:
       tool             = self.configurationData['tasks'][task]['tool']
       self.tasks[task] = tool
+
+    # Add the tasks listed as 'greedy tasks'.
+    if 'greedy tasks' in self.configurationData:
+      for task in self.configurationData['greedy tasks']:
+        tool             = self.configurationData['greedy tasks'][task]['tool']
+        self.tasks[task] = tool
 
     tasks = deepcopy(self.tasks)
     return tasks

@@ -87,6 +87,16 @@ class configurationClass:
     # nodes exist, mark them.
     self.markNodesWithFilesToBeKept(graph)
 
+    #
+    self.markNodesWithStreamingFiles(graph)
+
+    # Mark all edges that are greedy. If the input to a particular task is several sets of data, there
+    # are two possible ways to handle this. The default is that the task will be run multiple times for
+    # each set of data. However, if the task argument accepting the multiple sets of data is listed as
+    # being 'greedy', all of the iterations will be collapsed into a single input and all of the files
+    # will be used as input to a single run of the task.
+    self.markGreedyEdges(graph)
+
   # Parse through the 'nodes' section of the pipeline configuration file and identify which nodes can be
   # removed (i.e. merged with another node).  The nodes to be removed are tagged as to be removed and the
   # node that will replace them is also stored.
@@ -199,17 +209,8 @@ class configurationClass:
       for nodeID, task, argument in edgesToCreate[mergeNodeID]:
         tool = self.pipeline.tasks[task]
 
-        # Find the short and long form of the argument.
-        longFormArgument  = self.tools.getLongFormArgument(tool, argument)
-        shortFormArgument = self.tools.getArgumentData(tool, longFormArgument, 'short form argument')
-        isFilenameStub    = self.tools.getArgumentData(tool, longFormArgument, 'is filename stub')
-
         # Add an edge from the merged node to this task.
-        attributes                = edgeAttributes()
-        attributes.argument       = longFormArgument
-        attributes.isFilenameStub = isFilenameStub
-        attributes.shortForm      = shortFormArgument
-        graph.add_edge(mergeNodeID, task, attributes = attributes)
+        attributes = self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, mergeNodeID, task, argument)
 
   # Create edges from the merged file nodes to the tasks whose own file nodes were marked
   # for removal in the merging process.  Filename stubs have to be handled here.
@@ -262,12 +263,9 @@ class configurationClass:
       print('UNEXPECTED NUMBER OF FILENODE IDs - createEdgesForMergedFileNodes')
       self.errors.terminate()
 
-    attributes                = edgeAttributes()
-    attributes.argument       = longFormArgument
-    attributes.isFilenameStub = False
-    attributes.shortForm      = shortFormArgument
-    if isInput: graph.add_edge(mergeFileNodeIDs[0], task, attributes = attributes)
-    else: graph.add_edge(task, mergeFileNodeIDs[0], attributes = attributes)
+    tool = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
+    if isInput: self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, mergeFileNodeIDs[0], task, longFormArgument)
+    else: self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, task, mergeFileNodeIDs[0], longFormArgument)
 
   # TODO WRITE THIS ROUTINE.
   # Create the edges for file nodes that are generated from filename stubs.  Specifically, deal
@@ -291,7 +289,7 @@ class configurationClass:
       self.errors.terminate()
 
     # Rename the existing file node.
-    self.nodeMethods.renameNode(graph, mergeFileNodeIDs[0], mergeFileNodeIDs[0] + '_1')
+    self.nodeMethods.renameNode(graph, self.tools, mergeFileNodeIDs[0], mergeFileNodeIDs[0] + '_1')
     fileNodeIDs.append(mergeFileNodeIDs[0] + '_1')
 
     # Create the additional file nodes.
@@ -307,12 +305,9 @@ class configurationClass:
 
     # Create edges from all of the file nodes to the task associated with the node being removed.
     for fileNodeID in fileNodeIDs:
-      attributes                = edgeAttributes()
-      attributes.argument       = longFormArgument
-      attributes.isFilenameStub = True
-      attributes.shortForm      = shortFormArgument
-      if self.tools.getArgumentData(tool, longFormArgument, 'input'): graph.add_edge(fileNodeID, task, attributes = attributes)
-      else: graph.add_edge(task, fileNodeID, attributes = attributes)
+      isInput = self.tools.getArgumentData(tool, longFormArgument, 'input')
+      if isInput: self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, fileNodeID, task, longFormArgument)
+      else: self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, task, fileNodeID, longFormArgument)
 
     #TODO WHAT IF WE WANT ALL OF THE OUTPUTS FROM THE TOOL WITH THE FILENAME STUB TO GO TO THE NEXT NODE?
 
@@ -323,12 +318,9 @@ class configurationClass:
   def createFilenameStubEdgesMR(self, graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument, isInput):
     mergeFileNodeIDs = self.nodeMethods.getGraphNodeAttribute(graph, mergeNodeID, 'associatedFileNodes')
     for mergeFileNodeID in mergeFileNodeIDs:
-      attributes                = edgeAttributes()
-      attributes.argument       = longFormArgument
-      attributes.isFilenameStub = True
-      attributes.shortForm      = shortFormArgument
-      if isInput: graph.add_edge(mergeFileNodeID, task, attributes = attributes)
-      else: graph.add_edge(task, mergeFileNodeID, attributes = attributes)
+      tool = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
+      if isInput: self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, mergeFileNodeID, task, longFormArgument)
+      else: self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, task, mergeFileNodeID, longFormArgument)
 
   # Parse through all of the nodes that have been merged and check if they have files that
   # were marked in the pipeline configuration file as files that should be kept. If such
@@ -337,6 +329,23 @@ class configurationClass:
     for nodeName in self.nodeIDs:
       nodeID = self.nodeIDs[nodeName]
       if self.pipeline.keepFiles[nodeName]: self.nodeMethods.setGraphNodeAttribute(graph, nodeID, 'keepFiles', True)
+
+  # Parse through all of the nodes that have been merged and check if they have files that
+  # were marked in the pipeline configuration file as files that are streamed. If such
+  # nodes exist, mark them.
+  def markNodesWithStreamingFiles(self, graph):
+    for nodeName in self.nodeIDs:
+      nodeID = self.nodeIDs[nodeName]
+      if self.pipeline.streamingNodes[nodeName]: self.nodeMethods.setGraphNodeAttribute(graph, nodeID, 'isStream', True)
+
+  # Mark all greedy edges in the graph.
+  def markGreedyEdges(self, graph):
+
+    # Loop over all of the tasks.
+    for task in self.pipeline.greedyTasks:
+      argument     = self.pipeline.greedyTasks[task]
+      for sourceNodeID in self.nodeMethods.getNodeForTaskArgument(graph, task, argument):
+        self.edgeMethods.setEdgeAttribute(graph, sourceNodeID, task, 'isGreedy', True)
 
   # Generate the task workflow from the topologically sorted pipeline graph.
   def generateWorkflow(self, graph):
@@ -394,115 +403,196 @@ class configurationClass:
   def checkParameters(self, graph):
     print('***NEED TO CHECK PARAMETERS')
 
-  # Parse all file nodes and determine if they are intermediate files or not. If so, check if the
-  # pipeline configuration file specifically marks the file as one to keep. If not, mark the file
-  # node as an intermediate file.
-  def markIntermediateFileNodes(self, graph):
-    fileNodeIDs = self.nodeMethods.getNodes(graph, 'file')
-    for fileNodeID in fileNodeIDs:
-
-      # Only consider file nodes that have both an incoming and an outgoing edge. Nodes with only
-      # incoming edges are considered to be output files and those with only outgoing edges are
-      # files that are required by the pipeline in order to run.
-      if graph.predecessors(fileNodeID) and graph.successors(fileNodeID):
-        print('TEST', fileNodeID, self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values'))
- 
-        # Check if this node is listed in the pipeline configuration file as one to keep.
-        
-    exit(0)
-
   # Determine all of the outputs from the graph.  This is essentially all file nodes with no successors.
-  def determineGraphDependencies(self, graph, key):
+  def determineGraphDependencies(self, graph, taskList, key):
     dependencies = []
-    fileNodeIDs  = self.nodeMethods.getNodes(graph, 'file')
-    for nodeID in fileNodeIDs:
+    for task in taskList:
+      fileNodeIDs = self.nodeMethods.getPredecessorFileNodes(graph, task)
+      for nodeID in fileNodeIDs:
+        optionNodeID = self.nodeMethods.getOptionNodeIDFromFileNodeID(nodeID)
 
-      # Determine if the node has any predecessors.
-      hasPredecessor = self.nodeMethods.hasPredecessor(graph, nodeID)
+        # Determine if the node has any predecessors.
+        hasPredecessor = self.nodeMethods.hasPredecessor(graph, nodeID)
 
-      # If there are no predecessors, find the name of the file and add to the list of dependencies.
-      # Since the values associated with a node is a dictionary of lists, if 'key' is set to 'all',
-      # get all of the values, otherwise, just get those with the specified key.
-      if not hasPredecessor:
-        values = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values')
-        if key == 'all':
-          for iteration in values.keys():
-            for value in values[iteration]: dependencies.append(value)
+        # If there are no predecessors, find the name of the file and add to the list of dependencies.
+        # Since the values associated with a node is a dictionary of lists, if 'key' is set to 'all',
+        # get all of the values, otherwise, just get those with the specified key.
+        if not hasPredecessor:
+          values = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values')
+          if key == 'all':
+            for iteration in values.keys():
+              for value in values[iteration]: dependencies.append((optionNodeID, value))
 
-        # Just get values for a particular key.
-        elif key in values:
-          for value in values[key]: dependencies.append(value)
+          # Just get values for a particular key.
+          elif key in values:
+            for value in values[key]: dependencies.append((optionNodeID, value))
 
-        # If the key is unknown, fail.
-        #TODO Errors.
-        else:
-          print('UNKNOWN KEY: configurationClass.determineGraphDependencies', key)
-          self.errors.terminate()
+          # TODO CHECK
+          elif key not in values and key != 1:
+             for value in values[1]: dependencies.append((optionNodeID, value))
+
+          # If the key is unknown, fail.
+          #TODO Errors.
+          else:
+            print('UNKNOWN KEY: configurationClass.determineGraphDependencies', key)
+            print(values)
+            self.errors.terminate()
 
     return dependencies
 
-  # Determine all of the dependencies in the graph.  This is essentially all file nodes with no predecessors.
-  def determineGraphOutputs(self, graph, key):
+  # Determine all of the outputs.  This is essentially all file nodes with no predecessors.
+  def determineGraphOutputs(self, graph, taskList, key):
     outputs     = []
-    fileNodeIDs = self.nodeMethods.getNodes(graph, 'file')
-    for nodeID in fileNodeIDs:
-      optionNodeID = self.nodeMethods.getOptionNodeIDFromFileNodeID(nodeID)
-      keepFiles    = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'keepFiles')
+    for task in taskList:
+      fileNodeIDs = self.nodeMethods.getSuccessorFileNodes(graph, task)
+      for nodeID in fileNodeIDs:
+        optionNodeID = self.nodeMethods.getOptionNodeIDFromFileNodeID(nodeID)
+        keepFiles    = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'keepFiles')
 
-      # Determine if the node has any successors.
-      hasSuccessor = self.nodeMethods.hasSuccessor(graph, nodeID)
+        # Determine if the node has any successors.
+        hasSuccessor = self.nodeMethods.hasSuccessor(graph, nodeID)
 
-      # If there are no successors, find the name of the file and add to the list of outputs.
-      # Since the values associated with a node is a dictionary of lists, if 'key' is set to 'all',
-      # get all of the values, otherwise, just get those with the specified key.
-      if not hasSuccessor or keepFiles:
-        values = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values')
-        if key == 'all':
-          for iteration in values.keys():
-            for value in values[iteration]: outputs.append(value)
+        # Get the tasks associated with this option node.
+        tasks = graph.successors(optionNodeID)
 
-        # Just get values for a particular key.
-        elif key in values:
-          for value in values[key]: outputs.append(value)
+        # If there are no successors, find the name of the file and add to the list of outputs.
+        # Since the values associated with a node is a dictionary of lists, if 'key' is set to 'all',
+        # get all of the values, otherwise, just get those with the specified key.
+        if not hasSuccessor or keepFiles:
+          values = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values')
+          if key == 'all':
+            for iteration in values.keys():
+              for value in values[iteration]: outputs.append((optionNodeID, value))
+  
+          # Just get values for a particular key.
+          elif key in values:
+            for value in values[key]: outputs.append((optionNodeID, value))
+  
+          #TODO CHECK
+          elif key not in values and key != 1:
+            for value in values[1]: outputs.append((optionNodeID, value))
 
-        # If the key is unknown, fail.
-        #TODO Errors.
-        else:
-          print('UNKNOWN KEY: configurationClass.determineGraphOutputs', key)
-          self.errors.terminate()
+          # If the key is unknown, fail.
+          #TODO Errors.
+          else:
+            print('UNKNOWN KEY: configurationClass.determineGraphOutputs', key)
+            self.errors.terminate()
 
     return outputs
 
   # Determine all of the intermediate files in the graph.  This is all of the file nodes that have both
   # predecessor and successor nodes.
-  def determineGraphIntermediateFiles(self, graph, key):
+  def determineGraphIntermediateFiles(self, graph, taskList, key):
     intermediates = []
-    fileNodeIDs   = self.nodeMethods.getNodes(graph, 'file')
-    for nodeID in fileNodeIDs:
-      optionNodeID = self.nodeMethods.getOptionNodeIDFromFileNodeID(nodeID)
-      keepFiles    = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'keepFiles')
+    for task in taskList:
+      fileNodeIDs   = self.nodeMethods.getPredecessorFileNodes(graph, task)
+      for nodeID in fileNodeIDs:
+        optionNodeID = self.nodeMethods.getOptionNodeIDFromFileNodeID(nodeID)
+        keepFiles    = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'keepFiles')
 
-      # Determine if the node has any predecessors or successors.
-      hasPredecessor = self.nodeMethods.hasPredecessor(graph, nodeID)
-      hasSuccessor   = self.nodeMethods.hasSuccessor(graph, nodeID)
+        # Determine if the node has any predecessors or successors.
+        hasPredecessor = self.nodeMethods.hasPredecessor(graph, nodeID)
+        hasSuccessor   = self.nodeMethods.hasSuccessor(graph, nodeID)
 
-      if hasPredecessor and hasSuccessor and not keepFiles:
-        values = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values')
-        if key == 'all':
-          for iteration in values.keys():
-            for value in values[iteration]: intermediates.append(value)
+        if hasPredecessor and hasSuccessor and not keepFiles:
+          values = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values')
+          if key == 'all':
+            for iteration in values.keys():
+              for value in values[iteration]: intermediates.append((optionNodeID, value))
 
-        # Just get values for a particular key.
-        elif key in values:
-          for value in values[key]: intermediates.append(value)
+          # Just get values for a particular key.
+          elif key in values:
+            for value in values[key]: intermediates.append((optionNodeID, value))
 
-        # If the key is unknown, fail.
-        #TODO Errors.
-        else:
-          print('UNKNOWN KEY: configurationClass.determineGraphIntermediateFiles', key)
-          self.errors.terminate()
+          # TODO CHECK
+          elif key != 1:
+            for value in values[1]: intermediates.append((optionNodeID, value))
+
+          # If the key is unknown, fail.
+          #TODO Errors.
+          else:
+            print('UNKNOWN KEY: configurationClass.determineGraphIntermediateFiles', key)
+            self.errors.terminate()
 
     return intermediates
+
+  # Deterrmine when each intermediate file is last used,
+  def setWhenToDeleteFiles(self, graph, intermediates, workflow):
+    deleteList = {}
+
+    for nodeID, filename in intermediates:
+
+      # Find the successor task nodes.
+      successorNodeIDs = graph.successors(nodeID)
+
+      # Determine which of these tasks comes last in the workflow.
+      for task in reversed(workflow):
+        if task in successorNodeIDs: break
+
+      # Store the task when the file can be deleted.
+      if filename in deleteList:
+        # TODO ERROR
+        print('SAME FILENAME', filename, 'appears multiple times in the list of intermediate files - setWhenToDeleteFiles')
+        self.errors.terminate()
+      deleteList[filename] = task
+
+    return deleteList
+
+  # Get all of the outputs from a task.
+  def getTaskOutputs(self, graph, task, iteration):
+    outputs     = []
+    fileNodeIDs = self.nodeMethods.getSuccessorFileNodes(graph, task)
+    for fileNodeID in fileNodeIDs:
+      values = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values')
+      if iteration == 'all':
+        for counter in values:
+          for value in values[counter]: outputs.append(value)
+
+      elif iteration in values:
+        for value in values[iteration]: outputs.append(value)
+
+      elif iteration != 1:
+        for value in values[1]: outputs.append(value)
+
+      else:
+        #TODO ERROR
+        print('Unknown iteration in getTaskOutputs.')
+        self.errors.terminate()
+
+    return outputs
+
+  # Get all of the dependencies for a task.
+  def getTaskDependencies(self, graph, task, iteration):
+    dependencies = []
+    fileNodeIDs  = self.nodeMethods.getPredecessorFileNodes(graph, task)
+    for fileNodeID in fileNodeIDs:
+      values = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values')
+      if iteration == 'all':
+        for counter in values:
+          for value in values[counter]: dependencies.append(value)
+
+      elif iteration in values:
+        for value in values[iteration]: dependencies.append(value)
+
+      elif iteration != 1:
+        for value in values[1]: dependencies.append(value)
+
+      else:
+        #TODO ERROR
+        print('Unknown iteration in getTaskDependencies.')
+        self.errors.terminate()
+
+    return dependencies
+
+  # For each task, determine the maximum number of datasets associated with any option.
+  def getNumberOfDataSets(self, graph, workflow):
+    for task in workflow:
+      totalNumber = 0
+      for nodeID in self.nodeMethods.getPredecessorOptionNodes(graph, task):
+        numberOfDataSets = len(self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values'))
+        if numberOfDataSets > totalNumber: totalNumber = numberOfDataSets
+
+      self.nodeMethods.setGraphNodeAttribute(graph, task, 'numberOfDataSets', totalNumber)
 
   # Check all of tha provided information.
   def checkData(self, graph):

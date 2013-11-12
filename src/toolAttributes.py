@@ -13,13 +13,14 @@ import sys
 
 class toolAttributes:
   def __init__(self):
-    self.arguments   = {}
-    self.description = ''
-    self.executable  = ''
-    self.isHidden    = ''
-    self.modifier    = ''
-    self.path        = ''
-    self.precommand  = ''
+    self.arguments     = {}
+    self.argumentOrder = []
+    self.description   = ''
+    self.executable    = ''
+    self.isHidden      = ''
+    self.modifier      = ''
+    self.path          = ''
+    self.precommand    = ''
 
 class toolConfiguration:
   def __init__(self):
@@ -48,6 +49,10 @@ class toolConfiguration:
     self.setToolAttribute(attributes, tool, 'path', self.configurationData[tool]['path'])
     if 'precommand' in self.configurationData[tool]: self.setToolAttribute(attributes, tool, 'precommand', self.configurationData[tool]['precommand'])
     if 'hide tool' in self.configurationData[tool]: self.setToolAttribute(attributes, tool, 'isHidden', self.configurationData[tool]['hide tool'])
+
+    # Look to see if the 'argument order' section is present.
+    if 'argument order' in self.configurationData[tool]:
+      self.setToolAttribute(attributes, tool, 'argumentOrder', self.configurationData[tool]['argument order'])
     self.attributes[tool] = attributes
 
   # Validate the contents of the tool configuration file.
@@ -59,6 +64,23 @@ class toolConfiguration:
     # will look for extensions to use which will not exist!
     return True
 
+  def getToolAttribute(self, tool, attribute):
+    try: value = getattr(self.attributes[tool], attribute)
+    except:
+
+      if tool not in self.attributes:
+        #TODO ERROR
+        print('MISSING TOOL: getToolAttribute', tool)
+        self.errors.terminate()
+
+      else:
+        #TODO ERROR
+        print('MISSING ATTRIBUTE: getToolAttribute', attribute)
+        self.errors.terminate()
+
+    return value
+
+  # TODO CHECK THIS. GET INFO USING getToolAttribute.
   # Get information from the configuration file (not argument data).
   def getConfigurationData(self, tool, attribute):
     try: value = self.configurationData[tool][attribute]
@@ -103,11 +125,9 @@ class toolConfiguration:
     # error message.
     except:
 
-      # If the tool is not available.
-      if tool not in attributes: self.errors.invalidToolInSetToolAttribute(tool)
-
-      # If the attribute being set is not valid.
-      if attribute not in attributes: self.errors.invalidAttributeInSetToolAttribute(attribute)
+      # If the tool is not available.TODO
+      self.errors.invalidAttributeInSetToolAttribute(attribute)
+      self.errors.terminate()
 
     # Set the attribute.
     setattr(attributes, attribute, value)

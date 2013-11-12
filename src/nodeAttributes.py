@@ -18,10 +18,10 @@ import sys
 # Define a class for holding attributes for task nodes.
 class taskNodeAttributes:
   def __init__(self):
-    self.description            = 'No description provided'
-    self.isGreedy               = True
-    self.nodeType               = 'task'
-    self.tool                   = ''
+    self.description      = 'No description provided'
+    self.nodeType         = 'task'
+    self.numberOfDataSets = 0
+    self.tool             = ''
 
 # Define a class for holding attributes for options nodes.  These are nodes that
 # hold option data, but are not files.
@@ -42,6 +42,7 @@ class optionNodeAttributes:
     self.isOutput            = False
     self.isPipelineArgument  = False
     self.isRequired          = False
+    self.isStream            = False
     self.keepFiles           = False
     self.nodeType            = 'option'
     self.numberOfDataSets    = 0
@@ -80,18 +81,13 @@ class nodeClass:
     graph.add_node(nodeID, attributes = attributes)
 
     # Add an edge to the task node.
-    shortForm           = tools.getArgumentData(tool, argument, 'short form argument')
-    isFilenameStub      = tools.getArgumentData(tool, argument, 'is filename stub')
-    edge                = edgeAttributes()
-    edge.argument       = argument
-    edge.isFilenameStub = isFilenameStub
-    edge.shortForm      = shortForm
-    graph.add_edge(nodeID, task, attributes = edge)
+    self.edgeMethods.addEdge(graph, self, tools, nodeID, task, argument)
 
     # If the node represents an option for defining an input or output file, create
     # a file node.
-    if self.getGraphNodeAttribute(graph, nodeID, 'isInput'): self.buildTaskFileNodes(graph, nodeID, task, argument, shortForm, 'input')
-    elif self.getGraphNodeAttribute(graph, nodeID, 'isOutput'): self.buildTaskFileNodes(graph, nodeID, task, argument, shortForm, 'output')
+    shortForm = tools.getArgumentData(tool, argument, 'short form argument')
+    if self.getGraphNodeAttribute(graph, nodeID, 'isInput'): self.buildTaskFileNodes(graph, tools, nodeID, task, argument, shortForm, 'input')
+    elif self.getGraphNodeAttribute(graph, nodeID, 'isOutput'): self.buildTaskFileNodes(graph, tools, nodeID, task, argument, shortForm, 'output')
 
     return nodeID
 
@@ -142,7 +138,7 @@ class nodeClass:
     return attributes
 
   # Add input file nodes.
-  def buildTaskFileNodes(self, graph, nodeID, task, argument, shortForm, fileType):
+  def buildTaskFileNodes(self, graph, tools, nodeID, task, argument, shortForm, fileType):
 
     # Check if the node argument is a filename stub.  If it is, there are multiple file nodes to be
     # created.
@@ -169,11 +165,9 @@ class nodeClass:
 
     # Add the edges.
     for fileNodeID in fileNodeIDs:
-      edge           = edgeAttributes()
-      edge.argument  = argument
-      edge.shortForm = shortForm
-      if fileType == 'input': graph.add_edge(fileNodeID, task, attributes = edge)
-      elif fileType == 'output': graph.add_edge(task, fileNodeID, attributes = edge)
+      tool = self.getGraphNodeAttribute(graph, task, 'tool')
+      if fileType == 'input': self.edgeMethods.addEdge(graph, self, tools, fileNodeID, task, argument)
+      else: self.edgeMethods.addEdge(graph, self, tools, task, fileNodeID, argument)
 
       # Add the file node to the list of file nodes associated with the option node.
       self.setGraphNodeAttribute(graph, nodeID, 'associatedFileNodes', fileNodeID)
@@ -454,6 +448,30 @@ class nodeClass:
 
     return nodeIDs
 
+  # Get all file nodes associated with a task.
+  def getFileNodeIDs(self, graph, task):
+    nodeIDs = []
+
+    # Get all of the predecessor file nodes.
+    try: predecessorIDs = graph.predecessors(task)
+    except:
+      #TODO ERROR
+      print('FAILED')
+      self.errors.terminate()
+
+    for nodeID in predecessorIDs:
+      if self.getGraphNodeAttribute(graph, nodeID, 'nodeType') == 'file': nodeIDs.append(nodeID)
+
+    # Get all of the successor file nodes.
+    try: successorIDs = graph.successors(task)
+    except:
+      #TODO ERROR
+      print('FAILED')
+      self.errors.terminate()
+
+    for nodeID in successorIDs:
+      if self.getGraphNodeAttribute(graph, nodeID, 'nodeType') == 'file': nodeIDs.append(nodeID)
+
   # Get all predecessor file nodes for a task.
   def getPredecessorOptionNodes(self, graph, task):
     optionNodes = []
@@ -574,26 +592,18 @@ class nodeClass:
 
   # Rename a node.  This involves creating a new node with the same attributes as the node being
   # removed.  Then reproduce all of the edges, before removing the old node.
-  def renameNode(self, graph, originalNodeID, newNodeID):
+  def renameNode(self, graph, tools, originalNodeID, newNodeID):
     graph.add_node(newNodeID, attributes = graph.node[originalNodeID]['attributes'])
 
     # Set all of the predecessor edges.
     predecessorNodeIDs = graph.predecessors(originalNodeID)
     for nodeID in predecessorNodeIDs:
-      attributes                = edgeAttributes()
-      attributes.argument       = self.edgeMethods.getEdgeAttribute(graph, nodeID, originalNodeID, 'argument')
-      attributes.isFilenameStub = self.edgeMethods.getEdgeAttribute(graph, nodeID, originalNodeID, 'isFilenameStub')
-      attributes.shortForm      = self.edgeMethods.getEdgeAttribute(graph, nodeID, originalNodeID, 'shortForm')
-      graph.add_edge(nodeID, newNodeID, attributes = attributes)
+      self.edgeMethods.addEdge(graph, self, tools, nodeID, newNodeID, self.edgeMethods.getEdgeAttribute(graph, nodeID, originalNodeID, 'argument'))
 
     # Set all of the successor edges.
     successorNodeIDs = graph.successors(originalNodeID)
     for nodeID in successorNodeIDs:
-      attributes                = edgeAttributes()
-      attributes.argument       = self.edgeMethods.getEdgeAttribute(graph, originalNodeID, nodeID, 'argument')
-      attributes.isFilenameStub = self.edgeMethods.getEdgeAttribute(graph, originalNodeID, nodeID, 'isFilenameStub')
-      attributes.shortForm      = self.edgeMethods.getEdgeAttribute(graph, originalNodeID, nodeID, 'shortForm')
-      graph.add_edge(newNodeID, nodeID, attributes = attributes)
+      self.edgeMethods.addEdge(graph, self, tools, newNodeID, nodeID, self.edgeMethods.getEdgeAttribute(graph, originalNodeID, nodeID, 'argument'))
 
     # Remove the original node.
     graph.remove_node(originalNodeID)
