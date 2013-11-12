@@ -13,11 +13,13 @@ import sys
 
 class edgeAttributes:
   def __init__(self):
-    self.argument       = ''
-    self.isFilenameStub = False
-    self.isGreedy       = False
-    self.isRequired     = False
-    self.shortForm      = ''
+    self.argument             = ''
+    self.commandLineArgument  = ''
+    self.includeOnCommandLine = True
+    self.isFilenameStub       = False
+    self.isGreedy             = False
+    self.isRequired           = False
+    self.shortForm            = ''
 
 class edgeClass:
   def __init__(self):
@@ -43,10 +45,15 @@ class edgeClass:
     attributes                = edgeAttributes()
 
     # Find the values from the tool configuration file for this argument.
-    attributes.argument       = tools.getLongFormArgument(tool, argument)
-    attributes.shortForm      = tools.getArgumentData(tool, attributes.argument, 'short form argument')
-    attributes.isFilenameStub = tools.getArgumentData(tool, attributes.argument, 'is filename stub')
+    attributes.argument             = tools.getLongFormArgument(tool, argument)
+    attributes.shortForm            = tools.getArgumentData(tool, attributes.argument, 'short form argument')
+    attributes.commandLineArgument  = tools.getArgumentData(tool, attributes.argument, 'command line argument')
+    attributes.isFilenameStub       = tools.getArgumentData(tool, attributes.argument, 'is filename stub')
     if attributes.isFilenameStub == None: attributes.isFilenameStub = False
+
+    # Check if the argument should be written to the comand line or not.
+    includeOnCommandLine = tools.getArgumentData(tool, attributes.argument, 'include on command line')
+    if includeOnCommandLine != None: attributes.includeOnCommandLine = includeOnCommandLine
 
     # Add the edge to the graph.
     graph.add_edge(sourceNodeID, targetNodeID, attributes = attributes)

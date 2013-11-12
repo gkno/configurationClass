@@ -236,7 +236,7 @@ class nodeClass:
       # If the node to which this argument points has not been defined, no edge linking the node
       # to the task will be found.  Thus, the node and edge need to be created.
       if not foundArgument:
-        attributes = self.buildNodeFromToolConfiguration(tools, tool, taskArgument)
+        attributes        = self.buildNodeFromToolConfiguration(tools, tool, taskArgument)
         predecessorNodeID = self.buildOptionNode(graph, tools, task, tool, taskArgument, attributes)
 
       # Set the nodeID to a graph nodeID.

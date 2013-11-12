@@ -109,7 +109,7 @@ class toolConfiguration:
 
       if argument not in self.configurationData[tool]['arguments']:
         print('MISSING ARGUMENT: tools.getArgumentData', tool, argument, attribute)
-        print(self.configurationData[tool])
+        for argument in self.configurationData[tool]['arguments']: print(argument)
         self.errors.terminate()
 
       if attribute not in self.configurationData[tool]['arguments'][argument]:

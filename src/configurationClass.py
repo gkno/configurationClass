@@ -42,10 +42,9 @@ class configurationClass:
 
   # Build a graph for an individual task.  The pipeline is built by merging nodes between
   # different tasks.  This step is performed later.
-  def buildTaskGraph(self, graph):
-
-    for task in self.pipeline.tasks:
-      tool = self.pipeline.tasks[task]
+  def buildTaskGraph(self, graph, tasks):
+    for task in tasks:
+      tool = tasks[task]
 
       # Generate the task node.
       self.nodeMethods.buildTaskNode(graph, self.tools, task, tool)
