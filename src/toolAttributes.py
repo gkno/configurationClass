@@ -55,6 +55,8 @@ class toolConfiguration:
       self.setToolAttribute(attributes, tool, 'argumentOrder', self.configurationData[tool]['argument order'])
     self.attributes[tool] = attributes
 
+    return data['instances']
+
   # Validate the contents of the tool configuration file.
   def validateConfigurationData(self, tool, data):
     self.configurationData[tool] = data
@@ -91,9 +93,10 @@ class toolConfiguration:
         print('MISSING TOOL: tools.getConfigurationData', tool)
         self.errors.terminate()
   
-      if attribute not in self.configurationData[tool]:
-        print('MISSING ATTRIBUTE: tools.getConfigurationData', tool, attribute)
-        self.errors.terminate()
+      # If the attribute cannot be found, return None.
+      # TODO Include a check that the attribute is valid. Want to return None for
+      # cases where attribute is allowed, but not present (e.g. precommand).
+      if attribute not in self.configurationData[tool]: return None
 
     return value
  

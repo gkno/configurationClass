@@ -36,7 +36,6 @@ class pipelineConfiguration:
     self.errors              = configurationClassErrors()
     self.filename            = ''
     self.greedyTasks         = {}
-    self.instances           = {}
     self.keepFiles           = {}
     self.nodeTaskInformation = {}
     self.nodeMethods         = nodeClass()
@@ -54,10 +53,11 @@ class pipelineConfiguration:
 
     # Now put all of the data into data structures.
     self.configurationData = data
-    self.instances         = data['instances']
 
     # Get and store information on the pipeline arguments.
     self.getPipelineNodeData(data['nodes'])
+
+    return data['instances']
 
   #TODO
   # Check that the pipeline configuration file is valid.  If so, put all the information in
@@ -145,14 +145,6 @@ class pipelineConfiguration:
     for pipelineArgument in self.argumentData:
       if pipelineArgument == argument: return pipelineArgument
       elif self.argumentData[pipelineArgument].shortForm == argument: return pipelineArgument
-
-    # Next, check if the argument is a gkno specific pipeline argument.
-    for nodeID in graph.nodes(data = False):
-      if self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'nodeType') == 'general':
-        edgeArgument = self.edgeMethods.getEdgeAttribute(graph, nodeID, 'gkno', 'argument')
-        shortForm    = self.edgeMethods.getEdgeAttribute(graph, nodeID, 'gkno', 'shortForm')
-        if edgeArgument == argument: return edgeArgument
-        elif shortForm == argument: return edgeArgument
 
     # FIXME
     print('ERROR FINDING LONG FORM ARGUMENT', argument)

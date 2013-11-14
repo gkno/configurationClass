@@ -21,7 +21,12 @@ class taskNodeAttributes:
     self.description      = 'No description provided'
     self.nodeType         = 'task'
     self.numberOfDataSets = 0
-    self.tool             = ''
+
+    # Define characteristics of the tool which this node will run.
+    self.tool       = None
+    self.executable = None
+    self.modifier   = None
+    self.precommand = None
 
 # Define a class for holding attributes for options nodes.  These are nodes that
 # hold option data, but are not files.
@@ -177,6 +182,9 @@ class nodeClass:
   def buildTaskNode(self, graph, tools, task, tool):
     attributes             = taskNodeAttributes()
     attributes.tool        = tool
+    attributes.executable  = tools.getConfigurationData(attributes.tool, 'executable')
+    attributes.precommand  = tools.getConfigurationData(attributes.tool, 'precommand')
+    attributes.modifier    = tools.getConfigurationData(attributes.tool, 'modifier')
     attributes.description = tools.getConfigurationData(attributes.tool, 'description')
     graph.add_node(task, attributes = attributes)
 

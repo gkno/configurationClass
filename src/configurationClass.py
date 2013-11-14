@@ -356,19 +356,16 @@ class configurationClass:
     return workflow
 
   # Get the instance information or fail if the instance does not exist.
-  def getInstanceData(self, path, isPipeline, pipelineName, instanceName, instances):
+  def getInstanceData(self, path, name, instanceName, instances, availableInstances):
 
-    # TODO HANDLE TOOL OPERATION - NOT PIPELINE
     # If the instance is available in the pipeline configuration file, return the data.
-    if instanceName in self.pipeline.instances: return self.pipeline.instances[instanceName]
+    if instanceName in instances: return instances[instanceName]
 
     # If the instance is not in the pipeline configuration file, check the associated instance file
     # it exists.
-    instanceFilename = pipelineName + '_instances.json'
-    if instanceFilename in instances.keys():
-      #TODO REMOVE 'temp'
-      if isPipeline: filePath = path + '/config_files/temp/pipes/' + instanceFilename
-      else: filePath = path + '/config_files/temp/tools/' + instanceFilename
+    instanceFilename = name + '_instances.json'
+    if instanceFilename in availableInstances.keys():
+      filePath     = path + instanceFilename
       data         = self.fileOperations.readConfigurationFile(filePath)
       instanceData = data['instances']
 
@@ -386,17 +383,38 @@ class configurationClass:
 
   # Attach the instance arguments to the relevant nodes.
   def attachInstanceArgumentsToNodes(self, graph, data):
-    for node in data['nodes']:
+    if 'nodes' in data:
+      for node in data['nodes']:
+  
+        # Get the ID of the node in the graph that this argument points to.  Since nodes were merged in
+        # the generation of the pipeline graph, the dictionary config.nodeIDs retains information about
+        # which node this value refers to.
+        try: nodeID = self.nodeIDs[node['ID']]
+        except:
+  
+          # If gkno is being run in tool mode, the nodeIDs structure does not exist. Check to see if the
+          # instance data for this ID includes the field 'argument'.
+          try: argument = node['argument']
+          except:
+            #TODO ERROR. NEEDED if validtaed?
+            print('Unknown ID')
+            self.errors.terminate()
+  
+          # Find the nodeID of the tool argument.
+          tool   = self.nodeMethods.getNodes(graph, 'task')[0]
+          try: nodeID = self.nodeMethods.getNodeForTaskArgument(graph, tool, argument)[0]
+          except:
 
-      # Get the ID of the node in the graph that this argument points to.  Since nodes were merged in
-      # the generation of the pipeline graph, the dictionary config.nodeIDs retains information about
-      # which node this value refers to.
-      nodeID = self.nodeIDs[node['id']]
-
-      # All of the values extracted from the instance json file are unicode.  Convert them to strings.
-      for counter, value in enumerate(node['values']): node['values'][counter] = str(value)
-
-      self.nodeMethods.addValuesToGraphNode(graph, nodeID, node['values'], write = 'replace')
+            # If there is no node associated with this argument, create the node.
+            attributes = self.nodeMethods.buildNodeFromToolConfiguration(self.tools, tool, argument)
+            nodeID = 'OPTION_' + str(self.nodeMethods.optionNodeID)
+            self.nodeMethods.optionNodeID += 1
+            graph.add_node(nodeID, attributes = attributes)
+            self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, nodeID, tool, argument)
+  
+        # All of the values extracted from the instance json file are unicode.  Convert them to strings.
+        for counter, value in enumerate(node['values']): node['values'][counter] = str(value)
+        self.nodeMethods.addValuesToGraphNode(graph, nodeID, node['values'], write = 'replace')
 
   # Check that all defined parameters are valid.
   def checkParameters(self, graph):
