@@ -103,7 +103,7 @@ class nodeClass:
     # Set the tool argument information.
     contents   = tools.configurationData[tool]['arguments'][argument]
     attributes = optionNodeAttributes()
-    self.setNodeAttribute(attributes, 'dataType', contents['type'])
+    self.setNodeAttribute(attributes, 'dataType', contents['data type'])
     self.setNodeAttribute(attributes, 'description', contents['description'])
     self.setNodeAttribute(attributes, 'isInput', contents['input'])
     self.setNodeAttribute(attributes, 'isOutput', contents['output'])
