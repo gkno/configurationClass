@@ -411,6 +411,14 @@ class configurationMethods:
             self.nodeMethods.optionNodeID += 1
             graph.add_node(nodeID, attributes = attributes)
             self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, nodeID, tool, argument)
+
+            # If the option node corresponds to a file, build a file node.
+            if self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'isFile'):
+              shortForm = self.edgeMethods.getEdgeAttribute(graph, nodeID, tool, 'shortForm')
+              if self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'isInput'):
+                self.nodeMethods.buildTaskFileNodes(graph, self.tools, nodeID, tool, argument, shortForm, 'input')
+              else:
+                self.nodeMethods.buildTaskFileNodes(graph, self.tools, nodeID, tool, argument, shortForm, 'input')
   
         # All of the values extracted from the instance json file are unicode.  Convert them to strings.
         for counter, value in enumerate(node['values']): node['values'][counter] = str(value)
