@@ -24,6 +24,7 @@ class taskNodeAttributes:
 
     # Define characteristics of the tool which this node will run.
     self.tool       = None
+    self.delimiter  = None
     self.executable = None
     self.modifier   = None
     self.precommand = None
@@ -182,10 +183,11 @@ class nodeClass:
   def buildTaskNode(self, graph, tools, task, tool):
     attributes             = taskNodeAttributes()
     attributes.tool        = tool
-    attributes.executable  = tools.getConfigurationData(attributes.tool, 'executable')
-    attributes.precommand  = tools.getConfigurationData(attributes.tool, 'precommand')
-    attributes.modifier    = tools.getConfigurationData(attributes.tool, 'modifier')
-    attributes.description = tools.getConfigurationData(attributes.tool, 'description')
+    attributes.delimiter   = tools.getToolAttribute(attributes.tool, 'delimiter')
+    attributes.executable  = tools.getToolAttribute(attributes.tool, 'executable')
+    attributes.precommand  = tools.getToolAttribute(attributes.tool, 'precommand')
+    attributes.modifier    = tools.getToolAttribute(attributes.tool, 'modifier')
+    attributes.description = tools.getToolAttribute(attributes.tool, 'description')
     graph.add_node(task, attributes = attributes)
 
   # Build all of the predecessor nodes for the task and attach them to the task node.

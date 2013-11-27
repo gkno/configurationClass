@@ -60,7 +60,7 @@ class edgeClass:
 
     # Check if the argument needs to be modified when written to the command line.
     modifyArgument = tools.getArgumentData(tool, attributes.argument, 'modify argument name on command line')
-    if modifyArgument == 'stdout': attributes.modifyArgument = modifyArgument
+    if modifyArgument: attributes.modifyArgument = modifyArgument
 
     # Add the edge to the graph.
     graph.add_edge(sourceNodeID, targetNodeID, attributes = attributes)

@@ -15,6 +15,7 @@ class toolAttributes:
   def __init__(self):
     self.arguments     = {}
     self.argumentOrder = []
+    self.delimiter     = ' '
     self.description   = ''
     self.executable    = ''
     self.isHidden      = ''
@@ -53,6 +54,14 @@ class toolConfiguration:
     # Look to see if the 'argument order' section is present.
     if 'argument order' in self.configurationData[tool]:
       self.setToolAttribute(attributes, tool, 'argumentOrder', self.configurationData[tool]['argument order'])
+
+    # Check if there is an argument delimiter. This allows the command line to be written in a format
+    # other than '--arg value'. For example, there are tools that require a format 'arg=value'. In this
+    # case, the argument delimiter would be '='. If no delimiter is provided, the default is ' '.
+    if 'argument delimiter' in self.configurationData[tool]:
+      self.setToolAttribute(attributes, tool, 'delimiter', self.configurationData[tool]['argument delimiter'])
+
+    # Push all of the attributes to the tool.
     self.attributes[tool] = attributes
 
     return data['instances']
@@ -152,6 +161,8 @@ class toolConfiguration:
 
     # Set the attribute.
     setattr(attributes, attribute, value)
+
+    return attributes
 
   # Get the long form of a tool argument.
   def getLongFormArgument(self, tool, argument):
