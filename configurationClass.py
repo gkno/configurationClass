@@ -382,46 +382,69 @@ class configurationMethods:
       self.errors.terminate()
 
   # Attach the instance arguments to the relevant nodes.
-  def attachInstanceArgumentsToNodes(self, graph, data):
+  def attachPipelineInstanceArgumentsToNodes(self, graph, data):
     if 'nodes' in data:
       for node in data['nodes']:
-  
+
+        # The ID of the instance data must exist in the 'nodes' section of the pipeline configuration
+        # file and be associated with a pipeline argument. If not, a new node can be created for the
+        # value.
+        ID = node['ID']
+
         # Get the ID of the node in the graph that this argument points to.  Since nodes were merged in
         # the generation of the pipeline graph, the dictionary config.nodeIDs retains information about
         # which node this value refers to.
-        try: nodeID = self.nodeIDs[node['ID']]
+        try: nodeID = self.nodeIDs[ID]
         except:
+
+          # Get one of the tasks associated with this ID. This can be used to determine the node to attach
+          # the values to.
+          task     = self.pipeline.nodeTaskInformation[ID][0][0]
+          tool     = self.pipeline.tasks[task]
+          argument = self.pipeline.nodeTaskInformation[ID][0][1]
   
           # If gkno is being run in tool mode, the nodeIDs structure does not exist. Check to see if the
           # instance data for this ID includes the field 'argument'.
-          try: argument = node['argument']
+          try: nodeID = self.nodeMethods.getNodeForTaskArgument(graph, task, argument)[0]
           except:
-            #TODO ERROR. NEEDED if validtaed?
-            print('Unknown ID')
+            #TODO ERROR
+            print('WOOPS - configurationData.attachPipelineInstanceArgumentsToNodes')
             self.errors.terminate()
-  
-          # Find the nodeID of the tool argument.
-          tool   = self.nodeMethods.getNodes(graph, 'task')[0]
-          try: nodeID = self.nodeMethods.getNodeForTaskArgument(graph, tool, argument)[0]
-          except:
 
-            # If there is no node associated with this argument, create the node.
-            attributes = self.nodeMethods.buildNodeFromToolConfiguration(self.tools, tool, argument)
-            nodeID = 'OPTION_' + str(self.nodeMethods.optionNodeID)
-            self.nodeMethods.optionNodeID += 1
-            graph.add_node(nodeID, attributes = attributes)
-            self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, nodeID, tool, argument)
-
-            # If the option node corresponds to a file, build a file node.
-            if self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'isFile'):
-              shortForm = self.edgeMethods.getEdgeAttribute(graph, nodeID, tool, 'shortForm')
-              if self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'isInput'):
-                self.nodeMethods.buildTaskFileNodes(graph, self.tools, nodeID, tool, argument, shortForm, 'input')
-              else:
-                self.nodeMethods.buildTaskFileNodes(graph, self.tools, nodeID, tool, argument, shortForm, 'input')
-  
         # All of the values extracted from the instance json file are unicode.  Convert them to strings.
         for counter, value in enumerate(node['values']): node['values'][counter] = str(value)
+        self.nodeMethods.addValuesToGraphNode(graph, nodeID, node['values'], write = 'replace')
+
+  # Attach the instance arguments to the relevant nodes.
+  def attachToolInstanceArgumentsToNodes(self, graph, data, tool):
+    if 'nodes' in data:
+      for node in data['nodes']:
+
+        # The ID of the instance data must exist in the 'nodes' section of the pipeline configuration
+        # file and be associated with a pipeline argument. If not, a new node can be created for the
+        # value.
+        ID       = node['ID']
+        argument = node['argument']
+
+        try: nodeID = self.nodeMethods.getNodeForTaskArgument(graph, tool, argument)[0]
+        except:
+
+          # If there is no node associated with this argument, create the node.
+          attributes = self.nodeMethods.buildNodeFromToolConfiguration(self.tools, tool, argument)
+          nodeID = 'OPTION_' + str(self.nodeMethods.optionNodeID)
+          self.nodeMethods.optionNodeID += 1
+          graph.add_node(nodeID, attributes = attributes)
+          self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, nodeID, tool, argument)
+
+          # If the option node corresponds to a file, build a file node.
+          if self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'isFile'):
+            shortForm = self.edgeMethods.getEdgeAttribute(graph, nodeID, tool, 'shortForm')
+            if self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'isInput'):
+              self.nodeMethods.buildTaskFileNodes(graph, self.tools, nodeID, tool, argument, shortForm, 'input')
+            else:
+              self.nodeMethods.buildTaskFileNodes(graph, self.tools, nodeID, tool, argument, shortForm, 'input')
+
+        # Add the values to the node.
         self.nodeMethods.addValuesToGraphNode(graph, nodeID, node['values'], write = 'replace')
 
   # Check that all defined parameters are valid.
@@ -509,6 +532,7 @@ class configurationMethods:
   # predecessor and successor nodes.
   def determineGraphIntermediateFiles(self, graph, taskList, key):
     intermediates = []
+    seenNodes     = {}
     for task in taskList:
       fileNodeIDs   = self.nodeMethods.getPredecessorFileNodes(graph, task)
       for nodeID in fileNodeIDs:
@@ -519,25 +543,32 @@ class configurationMethods:
         hasPredecessor = self.nodeMethods.hasPredecessor(graph, nodeID)
         hasSuccessor   = self.nodeMethods.hasSuccessor(graph, nodeID)
 
-        if hasPredecessor and hasSuccessor and not keepFiles:
-          values = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values')
-          if key == 'all':
-            for iteration in values.keys():
-              for value in values[iteration]: intermediates.append((optionNodeID, value))
-
-          # Just get values for a particular key.
-          elif key in values:
-            for value in values[key]: intermediates.append((optionNodeID, value))
-
-          # TODO CHECK
-          elif key != 1:
-            for value in values[1]: intermediates.append((optionNodeID, value))
-
-          # If the key is unknown, fail.
-          #TODO Errors.
-          else:
-            print('UNKNOWN KEY: configurationClass.determineGraphIntermediateFiles', key)
-            self.errors.terminate()
+        # Store this node in the list of nodes that have been checked. This ensures that the same nodes
+        # values aren't added to the list multiple times. For example, if a file is produced by one task
+        # and is then used by multiple subsequent tasks, the same node will come up for each of the tasks
+        # that use the file, but it should only be listed as an intermediate file once.
+        if optionNodeID not in seenNodes:
+          seenNodes[optionNodeID] = True
+          if hasPredecessor and hasSuccessor and not keepFiles:
+            values = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values')
+  
+            if key == 'all':
+              for iteration in values.keys():
+                for value in values[iteration]: intermediates.append((optionNodeID, value))
+  
+            # Just get values for a particular key.
+            elif key in values:
+              for value in values[key]: intermediates.append((optionNodeID, value))
+  
+            # TODO CHECK
+            elif key != 1:
+              for value in values[1]: intermediates.append((optionNodeID, value))
+  
+            # If the key is unknown, fail.
+            #TODO Errors.
+            else:
+              print('UNKNOWN KEY: configurationClass.determineGraphIntermediateFiles', key)
+              self.errors.terminate()
 
     return intermediates
 

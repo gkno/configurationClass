@@ -74,6 +74,9 @@ class pipelineConfiguration:
   #FIXME ERRORS
   # Get information about the pipeline arguments.
   def getPipelineNodeData(self, data):
+    self.argumentData        = {}
+    self.nodeTaskInformation = {}
+
     for information in data:
       try: nodeID = information['ID']
       except:
