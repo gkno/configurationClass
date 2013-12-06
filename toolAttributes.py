@@ -183,7 +183,7 @@ class toolConfiguration:
 
         # If all the short form arguments for this tool were searched and none of them
         # were the supplied argument, the argument is not valid for this tool.
-        print('tools.getLongFormArgument: invalid argument,', argument)
+        print('tools.getLongFormArgument: invalid argument,', tool, argument)
         self.errors.terminate()
 
     # If the supplied argument was already the long form version, return the original

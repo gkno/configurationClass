@@ -29,6 +29,9 @@ class taskNodeAttributes:
     self.modifier   = None
     self.precommand = None
 
+    # Record if this task outputs to a stream.
+    self.outputToStream = False
+
 # Define a class for holding attributes for options nodes.  These are nodes that
 # hold option data, but are not files.
 class optionNodeAttributes:
@@ -54,6 +57,9 @@ class optionNodeAttributes:
     self.numberOfDataSets    = 0
     self.values              = {}
 
+    # Store the extension that an option expects.
+    self.linkedExtension = ''
+
     # Node markings for node removal.
     self.isMarkedForRemoval = False
 
@@ -73,6 +79,9 @@ class fileNodeAttributes:
  
     # Node markings for node removal.
     self.isMarkedForRemoval = False
+
+    # File node represents a streaming file.
+    self.isStreaming = False
 
 class nodeClass:
   def __init__(self):
@@ -516,7 +525,7 @@ class nodeClass:
 
   # Get all successor file nodes for a task.
   def getSuccessorFileNodes(self, graph, task):
-    fileNodes = []
+    fileNodeIDs = []
 
     try: successors = graph.successors(task)
     except:
@@ -525,9 +534,24 @@ class nodeClass:
       print('failed')
 
     for successor in successors:
-      if self.getGraphNodeAttribute(graph, successor, 'nodeType') == 'file': fileNodes.append(successor)
+      if self.getGraphNodeAttribute(graph, successor, 'nodeType') == 'file': fileNodeIDs.append(successor)
 
-    return fileNodes
+    return fileNodeIDs
+
+  # Get all successor task nodes for an option/file node.
+  def getSuccessorTaskNodes(self, graph, nodeID):
+    tasks = []
+
+    try: successors = graph.successors(nodeID)
+    except:
+
+      #TODO SORT OUT ERROR MESSAGE.
+      print('failed')
+
+    for successor in successors:
+      if self.getGraphNodeAttribute(graph, successor, 'nodeType') == 'task': tasks.append(successor)
+
+    return tasks
 
   # Given a file node ID, return the corresponding option node ID.
   def getOptionNodeIDFromFileNodeID(self, nodeID):
@@ -552,7 +576,7 @@ class nodeClass:
     if self.getGraphNodeAttribute(graph, optionNodeID, 'nodeType') != 'option':
       #TODO SORT ERROR
       print('ATTEMPTING TO FIND FILE NODES ASSOCIATED WTH OPTION NODE, BUT AN OPTION NODE WAS NOT PROVIDED.')
-      print(optionNodeID, 'nodeMethods.getAssociatedFileNodes')
+      print(optionNodeID, 'nodeMethods.getAssociatedFileNodeIDs')
       self.errors.terminate()
 
     fileNodeIDs = []

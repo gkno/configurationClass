@@ -43,9 +43,15 @@ class pipelineConfiguration:
     self.streamingNodes      = {}
     self.tasks               = {}
 
+    # Define a dictionary to store information about extensions.
+    self.linkedExtension     = {}
+
     # Define a structure that links the task and argument described in the 'tasks' list in
     # the nodes section with the pipeline argument.
     self.pipelineArgument = {}
+
+    # Keep track of tasks that output to the stream
+    self.tasksOutputtingToStream = {}
 
   #TODO
   # Validate the contents of the tool configuration file.
@@ -98,6 +104,15 @@ class pipelineConfiguration:
           self.nodeTaskInformation[nodeID].append((str(task), str(information['greedy tasks'][task])))
           self.greedyTasks[task] = str(information['greedy tasks'][task])
 
+      # If 'extension' is in the node, this is used to identify the extension of the file that is
+      # being linked. Consider the following case. A tool has an output filename stub 'test' and the
+      # tool actually produces the files test.A and test.B. In the pipeline, a tool needs to use the
+      # output test.A, but the information in the node only links the input argument with the output
+      # filename stub and not which of the outputs in particular. The extension field would have the
+      # value 'A' and so the file node for this file can be identified.
+      if 'extension' in information:
+        self.linkedExtension[nodeID] = information['extension']
+
       # Now look for information pertaining to pipeline arguments.
       if 'long form argument' in information:
         argument                           = information['long form argument']
@@ -135,6 +150,10 @@ class pipelineConfiguration:
     for task in self.configurationData['tasks']:
       tool             = self.configurationData['tasks'][task]['tool']
       self.tasks[task] = tool
+
+      # Check if the tasks output to the stream.
+      if 'output to stream' in self.configurationData['tasks'][task]:
+        self.tasksOutputtingToStream[task] = True
 
     # Add the tasks listed as 'greedy tasks'.
     if 'greedy tasks' in self.configurationData:
