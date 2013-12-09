@@ -176,9 +176,7 @@ class pipelineConfiguration:
       if pipelineArgument == argument: return pipelineArgument
       elif self.argumentData[pipelineArgument].shortForm == argument: return pipelineArgument
 
-    # FIXME
-    print('ERROR FINDING LONG FORM ARGUMENT', argument)
-    self.errors.terminate()
+    self.errors.unknownPipelineArgument(argument)
 
   # Check if an argument is a pipeline argument.  If so, return the nodeID.
   def isArgumentAPipelineArgument(self, argument):
