@@ -25,19 +25,25 @@ class toolAttributes:
 
 class argumentAttributes:
   def __init__(self):
+    self.allowMultipleValues      = False
     self.commandLineArgument      = None
     self.constructionInstructions = None
     self.description              = None
     self.dataType                 = None
     self.extension                = None
+    self.filenameExtensions       = None
     self.hideInHelp               = False
-    self.ID                       = None
     self.includeOnCommandLine     = True
+    self.inputStream              = False
+    self.isFilenameStub           = False
     self.isInput                  = False
+    self.isInputList              = False
     self.isOutput                 = False
+    self.isRequired               = False
     self.longFormArgument         = None
     self.modifyArgument           = None
-    self.required                 = False
+    self.outputStream             = False
+    self.repeatArgument           = None
     self.shortFormArgument        = None
 
 class toolConfiguration:
@@ -52,6 +58,10 @@ class toolConfiguration:
 
     # Define a structure to hold all the information about a tools arguments.
     self.argumentAttributes = {}
+
+    # Define dictionaries to store the long and short form arguments.
+    self.longFormArguments  = {}
+    self.shortFormArguments = {}
 
   # Process the tool data.
   def processConfigurationData(self, tool, data):
@@ -69,8 +79,14 @@ class toolConfiguration:
     # Check the validity of all of the supplied arguments.
     self.checkToolArguments(tool, data['arguments'])
 
+    # Generate a dictionary that links the long and short form arguments with each other..
+    self.consolidateArguments(tool)
+
     # Look to see if the 'argument order' section is present and check its validity.
     self.checkArgumentOrder(tool, attributes)
+
+    # Check the instance information.
+    self.checkInstanceInformation(tool, data['instances'])
 
     # Push all of the attributes to the tool.
     self.attributes[tool] = attributes
@@ -116,11 +132,11 @@ class toolConfiguration:
       # convert to a string first.
       value = str(data[attribute]) if isinstance(data[attribute], unicode) else data[attribute]
       if allowedAttributes[attribute][0] != type(value):
-        self.errors.incorrectTypeInToolConfigurationFile(tool, attribute, value, allowedAttributes[attribute][0], ID = None)
+        self.errors.incorrectTypeInToolConfigurationFile(tool, attribute, None, value, allowedAttributes[attribute][0])
 
       # At this point, the attribute in the configuration file is allowed and of valid type. Check that 
       # the value itself is valid (if necessary) and store the value.
-      if allowedAttributes[attribute][2]: self.setToolAttribute(attributes, tool, allowedAttributes[attribute][3], value)
+      if allowedAttributes[attribute][2]: self.setAttribute(attributes, tool, allowedAttributes[attribute][3], value)
 
     # Having parsed all of the general attributes attributes, check that all those that are required
     # are present.
@@ -136,27 +152,32 @@ class toolConfiguration:
     # Initialise the data structure for this tool.
     self.argumentAttributes[tool] = {}
 
-    # Keep track of the arguments (long and short forms) seen for this tool.
-    observedLongForms  = {}
+    # Keep track of the short from arguments for this tool.
     observedShortForms = {}
 
     # Define the allowed attributes. The structure describes the expected data type, whether the
     # attribute is requred and finally, the name of the attribute in the data structure storing the
     # values.
     allowedAttributes                                         = {}
+    allowedAttributes['allow multiple values']                = (bool, False, 'allowMultipleValues')
+    allowedAttributes['apply by repeating this argument']     = (str, False, 'repeatArgument')
     allowedAttributes['command line argument']                = (str, True, 'commandLineArgument')
     allowedAttributes['construct filename']                   = (dict, False, 'constructionInstructions')
     allowedAttributes['data type']                            = (str, True, 'dataType')
     allowedAttributes['description']                          = (str, True, 'description')
     allowedAttributes['extension']                            = (str, True, 'extension')
+    allowedAttributes['filename extensions']                  = (list, False, 'filenameExtensions')
     allowedAttributes['hide in help']                         = (bool, False, 'hideInHelp')
-    allowedAttributes['ID']                                   = (str, True, 'ID')
+    allowedAttributes['if input is stream']                   = (str, False, 'inputStream')
+    allowedAttributes['if output to stream']                  = (str, False, 'outputStream')
     allowedAttributes['include on command line']              = (bool, False, 'includeOnCommandLine')
     allowedAttributes['input']                                = (bool, True, 'isInput')
+    allowedAttributes['is filename stub']                     = (bool, False, 'isFilenameStub')
+    allowedAttributes['list of input files']                  = (bool, False, 'isInputList')
     allowedAttributes['long form argument']                   = (str, True, 'longFormArgument')
     allowedAttributes['modify argument name on command line'] = (str, False, 'modifyArgument')
     allowedAttributes['output']                               = (bool, True, 'isOutput')
-    allowedAttributes['required']                             = (bool, True, 'required')
+    allowedAttributes['required']                             = (bool, True, 'isRequired')
     allowedAttributes['short form argument']                  = (str, False, 'shortFormArgument')
 
     for argumentDescription in arguments:
@@ -167,31 +188,28 @@ class toolConfiguration:
       # First check that the argument defines a dictionary of values.
       if not isinstance(argumentDescription, dict): self.errors.toolArgumentHasNoDictionary(tool)
 
-      # First get the 'ID' for this argument. This will be used to identify the argument in error messages and
+      # First get the 'long form' for this argument. This will be used to identify the argument in error messages and
       # will be used as the key when storing attributes in a dictionary.
-      try: ID = argumentDescription['ID']
-      except: self.errors.noIDForToolArgument(tool)
+      try: longForm = argumentDescription['long form argument']
+      except: self.errors.noLongFormForToolArgument(tool)
 
-      # Check that this ID is unique.
-      if ID in self.argumentAttributes[tool]: self.errors.repeatedArgumentIDInToolConfigurationFile(tool, ID)
+      # Check that this argument is unique.
+      if longForm in self.argumentAttributes[tool]: self.errors.repeatedToolArgumentToolConfigurationFile(tool, longForm, isLongForm = True)
 
       # Initialise the data structure for holding the argument information.
       attributes = argumentAttributes()
 
       # Store the long and short form arguments. If these aren't included, the routine will fail at the final check
       # since these are required argument. If the value is already included, fail.
-      if 'long form argument' in argumentDescription:
-        longForm  = argumentDescription['long form argument']
-        if longForm in observedLongForms: self.errors.repeatedToolArgumentInToolConfigurationFile(tool, ID, longForm, isLongForm = True)
-        else: observedLongForms[longForm] = True
       if 'short form argument' in argumentDescription:
         shortForm  = argumentDescription['short form argument']
-        if shortForm in observedShortForms: self.errors.repeatedToolArgumentInToolConfigurationFile(tool, ID, shortForm, isLongForm = False)
+        if shortForm in observedShortForms: self.errors.repeatedToolArgumentInToolConfigurationFile(tool, shortForm, isLongForm = False)
         else: observedShortForms[shortForm] = True
 
       # Loop over all entries in the argument description, checking that the attributes are allowed and valid.
       for attribute in argumentDescription:
-        if attribute not in allowedAttributes: self.errors.invalidArgumentAttributeInToolConfigurationFile(tool, ID, attribute, allowedAttributes)
+        if attribute not in allowedAttributes:
+          self.errors.invalidArgumentAttributeInToolConfigurationFile(tool, longForm, attribute, allowedAttributes)
 
         # Mark the attribute as observed.
         observedAttributes[attribute] = True
@@ -200,18 +218,27 @@ class toolConfiguration:
         # convert to a string first.
         value = str(argumentDescription[attribute]) if isinstance(argumentDescription[attribute], unicode) else argumentDescription[attribute]
         if allowedAttributes[attribute][0] != type(value):
-          self.errors.incorrectTypeInToolConfigurationFile(tool, attribute, value, allowedAttributes[attribute][0], ID)
+          self.errors.incorrectTypeInToolConfigurationFile(tool, attribute, longForm, value, allowedAttributes[attribute][0])
 
         # Store the information in the attributes structure.
-        self.setToolAttribute(attributes, tool, allowedAttributes[attribute][2], value)
+        self.setAttribute(attributes, tool, allowedAttributes[attribute][2], value)
 
       # Check if any required arguments are missing.
       for attribute in allowedAttributes:
         if allowedAttributes[attribute][1] and attribute not in observedAttributes:
-          self.errors.missingArgumentAttributeInToolConfigurationFile(tool, ID, attribute, allowedAttributes)
+          self.errors.missingArgumentAttributeInToolConfigurationFile(tool, longForm, attribute, allowedAttributes)
 
       # Store the attributes.
-      self.argumentAttributes[tool][ID] = attributes
+      self.argumentAttributes[tool][longForm] = attributes
+
+  # Generate a dictionary that links the long and short form arguments with each other.
+  def consolidateArguments(self, tool):
+    self.longFormArguments[tool]  = {}
+    self.shortFormArguments[tool] = {}
+    for longForm in self.argumentAttributes[tool]:
+      shortForm = self.getArgumentAttribute(tool, longForm, 'shortFormArgument')
+      self.longFormArguments[tool][longForm]   = shortForm
+      self.shortFormArguments[tool][shortForm] = longForm
 
   # If the order in which the arguments should be used is included, check that all of the arguments are
   # included in the list and no invalid arguments are present.
@@ -221,79 +248,60 @@ class toolConfiguration:
     if not attributes.argumentOrder: return
 
     # Loop over all of the arguments and check that they are represented in the argument order.
-    for argumentID in self.argumentAttributes[tool]:
-      if argumentID not in attributes.argumentOrder:
-        self.errors.missingArgumentIDInArgumentOrder(tool, argumentID, self.getArgumentAttribute(tool, argumentID, 'longFormArgument'))
+    for argument in self.argumentAttributes[tool]:
+      if argument not in attributes.argumentOrder:
+        self.errors.missingArgumentInArgumentOrder(tool, argument, self.getArgumentAttribute(tool, argument))
 
-    # Loop over all of the argument in the argument order and check that no arguments are invalid or repeated.
-    observedIDs = []
-    for argumentID in attributes.argumentOrder:
-      if argumentID not in self.argumentAttributes[tool]: self.errors.invalidArgumentIDInArgumentOrder(tool, argumentID)
-      if argumentID in observedIDs: self.errors.repeatedArgumentIDInArgumentOrder(tool, argumentID)
-      observedIDs.append(argumentID)
+    # Loop over all of the arguments in the argument order and check that no arguments are invalid or repeated.
+    observedArguments = []
+    for argument in attributes.argumentOrder:
+      if argument not in self.argumentAttributes[tool]: self.errors.invalidArgumentInArgumentOrder(tool, argument)
+      if argument in observedArguments: self.errors.repeatedArgumentInArgumentOrder(tool, argument)
+      observedArguments.append(argument)
+
+  # TODO
+  # Check all of the instance information.
+  def checkInstanceInformation(self, tool, instances):
+    pass
 
   # Get a tool argument attribute.
-  def getArgumentAttribute(self, tool, argumentID, attribute):
-    try: value = getattr(self.argumentAttributes[tool][argumentID], attribute)
+  def getGeneralAttribute(self, tool, attribute):
+    try: value = getattr(self.attributes[tool], attribute)
     except:
 
       # Identify the source of the error.
-      if tool not in self.argumentAttributes:
-        self.errors.invalidToolInArgumentAttributes(tool, argumentID, attribute, problemID = 'tool')
-      elif argumentID not in self.argumentAttributes[tool]:
-        self.errors.invalidToolInArgumentAttributes(tool, argumentID, attribute, problemID = 'ID')
+      if tool not in self.attributes: self.errors.invalidToolInGeneralToolAttributes(tool, attribute)
       else: return None
 
     return value
 
+  # Get all of the arguments for a tool.
+  def getArguments(self, tool):
+    arguments = []
 
+    # If the supplied tool is invalid.
+    if tool not in self.argumentAttributes: self.errors.invalidToolInGetArguments(tool)
 
+    # Find all the arguments.
+    for argument in self.argumentAttributes[tool]: arguments.append(argument)
+    return arguments
 
-
-
-
-
-
-  # TODO CHECK THIS. GET INFO USING getToolAttribute.
-  # Get information from the configuration file (not argument data).
-  def getConfigurationData(self, tool, attribute):
-    try: value = self.configurationData[tool][attribute]
+  # Get a tool argument attribute.
+  def getArgumentAttribute(self, tool, argument, attribute):
+    try: value = getattr(self.argumentAttributes[tool][argument], attribute)
     except:
 
-      #FIXME
-      if tool not in self.configurationData:
-        print('MISSING TOOL: tools.getConfigurationData', tool)
-        self.errors.terminate()
-  
-      # If the attribute cannot be found, return None.
-      # TODO Include a check that the attribute is valid. Want to return None for
-      # cases where attribute is allowed, but not present (e.g. precommand).
-      if attribute not in self.configurationData[tool]: return None
-
-    return value
- 
-  # Get information about a tool argument from the configuration data.
-  def getArgumentData(self, tool, argument, attribute):
-    try: value = self.configurationData[tool]['arguments'][argument][attribute]
-    except:
-
-      #FIXME Sort all the errors.
-      if tool not in self.configurationData:
-        print('MISSING TOOL: tools.getArgumentData', tool)
-        self.errors.terminate()
-
-      if argument not in self.configurationData[tool]['arguments']:
-        print('MISSING ARGUMENT: tools.getArgumentData', tool, argument, attribute)
-        for argument in self.configurationData[tool]['arguments']: print(argument)
-        self.errors.terminate()
-
-      if attribute not in self.configurationData[tool]['arguments'][argument]:
-        return None
+      # Identify the source of the error.
+      if tool not in self.argumentAttributes:
+        self.errors.invalidToolInToolArgumentAttributes(tool, argument, attribute, problemID = 'tool')
+      elif argument not in self.argumentAttributes[tool]:
+        self.errors.invalidToolInToolArgumentAttributes(tool, argument, attribute, problemID = 'argument')
+      else: return None
 
     return value
 
   # Set a value in the toolAttributes.
-  def setToolAttribute(self, attributes, tool, attribute, value):
+  def setAttribute(self, attributes, tool, attribute, value):
     try: test = getattr(attributes, attribute)
 
     # If the attribute can't be set, determine the source of the problem and provide an
@@ -311,26 +319,16 @@ class toolConfiguration:
 
   # Get the long form of a tool argument.
   def getLongFormArgument(self, tool, argument):
-    try: value = self.configurationData[tool]['arguments'][argument]['shortForm']
-    except:
 
-      #FIXME Sort all the errors.
-      if tool not in self.configurationData:
-        print('MISSING TOOL: tools.getLongFormArgument', tool)
-        self.errors.terminate()
+    # Check that the tool is valid.
+    if tool not in self.longFormArguments: self.errors.missingToolInGetLongFormArgument(tool)
 
-      # If the argument is not in the configurationData structure, this might be because
-      # the short form of the argument was supplied.
-      if argument not in self.configurationData[tool]['arguments']:
-        for toolArgument in self.configurationData[tool]['arguments']:
-          shortForm = self.getArgumentData(tool, toolArgument, 'short form argument')
-          if shortForm == argument: return toolArgument
+    # If the argument is already in its long form, return the argument.
+    if argument in self.longFormArguments[tool]: return argument
 
-        # If all the short form arguments for this tool were searched and none of them
-        # were the supplied argument, the argument is not valid for this tool.
-        self.errors.unknownToolArgument(tool, argument)
-        argument = None
+    # Check if the argument is in the short form.
+    if argument in self.shortFormArguments[tool]: return self.shortFormArguments[tool][argument]
 
-    # If the supplied argument was already the long form version, return the original
-    # argument.
-    return argument
+    # If this argument is in neither of the previous dictionaries, the argument is not valid for this tool.
+    # were the supplied argument, the argument is not valid for this tool.
+    self.errors.unknownToolArgument(tool, argument)

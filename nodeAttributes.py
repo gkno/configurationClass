@@ -18,16 +18,16 @@ import sys
 # Define a class for holding attributes for task nodes.
 class taskNodeAttributes:
   def __init__(self):
-    self.description      = 'No description provided'
-    self.nodeType         = 'task'
-    self.numberOfDataSets = 0
 
-    # Define characteristics of the tool which this node will run.
-    self.tool       = None
-    self.delimiter  = None
-    self.executable = None
-    self.modifier   = None
-    self.precommand = None
+    # Specify that this node is a task node.
+    self.nodeType = 'task'
+
+    # Define the name of the tool that this task uses.
+    self.tool = None
+
+    #TODO IS THIS NEEDED.
+    # Store the number of data sets that this task is associated with.
+    self.numberOfDataSets = 0
 
     # Record if this task outputs to a stream.
     self.outputToStream = False
@@ -100,7 +100,7 @@ class nodeClass:
 
     # If the node represents an option for defining an input or output file, create
     # a file node.
-    shortForm = tools.getArgumentData(tool, argument, 'short form argument')
+    shortForm = tools.getArgumentAttribute(tool, argument, 'shortFormArgument')
     if self.getGraphNodeAttribute(graph, nodeID, 'isInput'): self.buildTaskFileNodes(graph, tools, nodeID, task, argument, shortForm, 'input')
     elif self.getGraphNodeAttribute(graph, nodeID, 'isOutput'): self.buildTaskFileNodes(graph, tools, nodeID, task, argument, shortForm, 'output')
 
@@ -111,33 +111,30 @@ class nodeClass:
     isFilenameStub = False
 
     # Set the tool argument information.
-    contents   = tools.configurationData[tool]['arguments'][argument]
     attributes = optionNodeAttributes()
-    self.setNodeAttribute(attributes, 'dataType', contents['data type'])
-    self.setNodeAttribute(attributes, 'description', contents['description'])
-    self.setNodeAttribute(attributes, 'isInput', contents['input'])
-    self.setNodeAttribute(attributes, 'isOutput', contents['output'])
-    if contents['input'] or contents['output']: self.setNodeAttribute(attributes, 'isFile', True)
-    self.setNodeAttribute(attributes, 'isRequired', contents['required'])
-    if 'allow multiple values' in contents: self.setNodeAttribute(attributes, 'allowMultipleValues', contents['allow multiple values'])
-    if 'is filename stub' in contents:
-      self.setNodeAttribute(attributes, 'isFilenameStub', contents['is filename stub'])
+    self.setNodeAttribute(attributes, 'dataType', tools.getArgumentAttribute(tool, argument, 'dataType'))
+    self.setNodeAttribute(attributes, 'description', tools.getArgumentAttribute(tool, argument, 'description'))
+    self.setNodeAttribute(attributes, 'isInput', tools.getArgumentAttribute(tool, argument, 'isInput'))
+    self.setNodeAttribute(attributes, 'isOutput', tools.getArgumentAttribute(tool, argument, 'isOutput'))
+    if tools.getArgumentAttribute(tool, argument, 'isInput') or tools.getArgumentAttribute(tool, argument, 'isOutput'):
+      self.setNodeAttribute(attributes, 'isFile', True)
+    self.setNodeAttribute(attributes, 'isRequired', tools.getArgumentAttribute(tool, argument, 'isRequired'))
+    self.setNodeAttribute(attributes, 'allowMultipleValues', tools.getArgumentAttribute(tool, argument, 'allowMultipleValues'))
+    self.setNodeAttribute(attributes, 'isFilenameStub', tools.getArgumentAttribute(tool, argument, 'isFilenameStub'))
+    if tools.getArgumentAttribute(tool, argument, 'isFilenameStub'):
 
       # If the option node refers to a filename stub, a list of output files must also be present.
-      try: extensions = contents['filename extensions']
-      except:
-        #TODO DEAL WITH ERROR.
-        print('filename stub, but no filename extensions provided.', tool, argument)
-        self.errors.terminate()
+      extensions = tools.getArgumentAttribute(tool, argument, 'filenameExtensions')
+      if extensions == None: self.errors.filenameStubWithNoExtensions(tool, argument)
 
       for counter, extension in enumerate(extensions): extensions[counter] = str(extension)
       self.setNodeAttribute(attributes, 'filenameExtensions', extensions)
       isFilenameStub = True
 
     # If multiple extensions are allowed, they will be separated by pipes in the configuration
-    # file.  Add all allowed extensions to the list.
-    if not isFilenameStub:
-      extension = contents['extension']
+    # file. Add all allowed extensions to the list.
+    else:
+      extension = tools.getArgumentAttribute(tool, argument, 'extension')
       if '|' in extension:
         extensions       = extension.split('|')
         stringExtensions = []
@@ -187,21 +184,25 @@ class nodeClass:
       # Add the file node to the list of file nodes associated with the option node.
       self.setGraphNodeAttribute(graph, nodeID, 'associatedFileNodes', fileNodeID)
 
-  # TODO FINISH THIS
   # Build a task node.
   def buildTaskNode(self, graph, tools, task, tool):
     attributes             = taskNodeAttributes()
     attributes.tool        = tool
-    attributes.delimiter   = tools.getToolAttribute(attributes.tool, 'delimiter')
-    attributes.executable  = tools.getToolAttribute(attributes.tool, 'executable')
-    attributes.precommand  = tools.getToolAttribute(attributes.tool, 'precommand')
-    attributes.modifier    = tools.getToolAttribute(attributes.tool, 'modifier')
-    attributes.description = tools.getToolAttribute(attributes.tool, 'description')
+
+    # Copy the information about the tool to the task node.
+    attributes.delimiter   = tools.getGeneralAttribute(tool, 'delimiter')
+    attributes.description = tools.getGeneralAttribute(tool, 'description')
+    attributes.executable  = tools.getGeneralAttribute(tool, 'executable')
+    attributes.isHidden    = tools.getGeneralAttribute(tool, 'isHidden')
+    attributes.modifier    = tools.getGeneralAttribute(tool, 'modifier')
+    attributes.path        = tools.getGeneralAttribute(tool, 'path')
+    attributes.precommand  = tools.getGeneralAttribute(tool, 'precommand')
     graph.add_node(task, attributes = attributes)
 
   # Build all of the predecessor nodes for the task and attach them to the task node.
-  def buildRequiredPredecessorNodes(self, graph, tools, task, tool):
-    for argument in tools.configurationData[tool]['arguments']:
+  def buildRequiredPredecessorNodes(self, graph, tools, task):
+    tool = self.getGraphNodeAttribute(graph, task, 'tool')
+    for argument in tools.getArguments(tool):
       attributes = self.buildNodeFromToolConfiguration(tools, tool, argument)
       isRequired = self.getNodeAttribute(attributes, 'isRequired')
       if isRequired: self.buildOptionNode(graph, tools, task, tool, argument, attributes)
@@ -221,7 +222,7 @@ class nodeClass:
           task           = edge[1] 
           associatedTool = self.getGraphNodeAttribute(graph, task, 'tool') 
           toolArgument   = self.edgeMethods.getEdgeAttribute(graph, nodeID, task, 'argument') 
-          isRequired     = tools.getArgumentData(associatedTool, toolArgument, 'required') 
+          isRequired     = self.getGraphNodeAttribute(graph, nodeID, 'isRequired') 
           if isRequired: self.setGraphNodeAttribute(graph, nodeID, 'isRequired', True) 
           break
 
@@ -510,7 +511,7 @@ class nodeClass:
 
   # Get all predecessor file nodes for a task.
   def getPredecessorFileNodes(self, graph, task):
-    fileNodes = []
+    fileNodeIDs = []
 
     try: predecessors = graph.predecessors(task)
     except:
@@ -519,9 +520,9 @@ class nodeClass:
       print('failed')
 
     for predecessor in predecessors:
-      if self.getGraphNodeAttribute(graph, predecessor, 'nodeType') == 'file': fileNodes.append(predecessor)
+      if self.getGraphNodeAttribute(graph, predecessor, 'nodeType') == 'file': fileNodeIDs.append(predecessor)
 
-    return fileNodes
+    return fileNodeIDs
 
   # Get all successor file nodes for a task.
   def getSuccessorFileNodes(self, graph, task):

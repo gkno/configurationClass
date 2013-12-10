@@ -124,7 +124,7 @@ class configurationClassErrors:
     self.terminate()
 
   # Attribute has the wrong type.
-  def incorrectTypeInToolConfigurationFile(self, tool, attribute, value, expectedType, ID):
+  def incorrectTypeInToolConfigurationFile(self, tool, attribute, argument, value, expectedType):
 
     # Find the given type.
     isType    = self.findType(type(value))
@@ -133,7 +133,7 @@ class configurationClassErrors:
     if needsType == None: needsType = 'Unknown'
     self.text.append('Invalid attribute value in tool configuration file.')
     text = 'The attribute \'' + str(attribute) + '\' in the configuration file for tool \'' + str(tool) + '\''
-    text += ', argument ID \'' + ID + '\' ' if ID else ' '
+    text += ', argument \'' + argument + '\' ' if argument else ' '
     if isType == 'list' or isType == 'dictionary':  text += 'is given a value '
     else: text += 'is given the value \'' + str(value) + '\'. This value is '
     text += 'of an incorrect type (' + isType + '); the expected type is \'' + needsType + '\'. Please correct ' + \
@@ -152,19 +152,20 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
-  # If a tool argument does not have an ID.
-  def noIDForToolArgument(self, tool):
-    self.text.append('Missing ID for tool argument in configuration file')
-    self.text.append('All arguments defined in a tool configuration file, must have an ID. This is used to identify the argument in ' + \
-    'all of the relevant data structures as well as for identifying problematic arguments in error messages. Please check the configuration ' + \
-    'file for tool \'' + tool + '\' and ensure that the \'ID\' attribute is present for all arguments.')
+  # If a tool argument does not have a long form argument.
+  def noLongFormForToolArgument(self, tool):
+    self.text.append('Missing long form for tool argument in configuration file')
+    self.text.append('All arguments defined in a tool configuration file, must have a long and short form defined. The long form version is' + \
+    'used to identify the argument in all of the relevant data structures as well as for identifying problematic arguments in error messages. ' + \
+    'Please check the configuration file for tool \'' + tool + '\' and ensure that the \'long form argument\' attribute is present for all ' + \
+    'arguments.')
     self.writeFormattedText()
     self.terminate()
 
   # An argument attribute in the configuration file is invalid.
-  def invalidArgumentAttributeInToolConfigurationFile(self, tool, ID, attribute, allowedAttributes):
+  def invalidArgumentAttributeInToolConfigurationFile(self, tool, argument, attribute, allowedAttributes):
     self.text.append('Invalid argument attribute in tool configuration file: ' + attribute)
-    text = 'The configuration file for tool \'' + tool + '\' contains the argument with the ID \'' + ID + '\'. This argument contains the ' + \
+    text = 'The configuration file for tool \'' + tool + '\' contains the argument \'' + argument + '\'. This argument contains the ' + \
     'attribute \'' + attribute + '\', which is not recognised. The argument attributes allowed in a tool configuration file are:'
     self.text.append(text)
     self.text.append('\t')
@@ -183,9 +184,9 @@ class configurationClassErrors:
     self.terminate()
 
   # An argument attribute in the configuration file is missing.
-  def missingArgumentAttributeInToolConfigurationFile(self, tool, ID, attribute, allowedAttributes):
-    self.text.append('Missing attribute in tool configuration file for argument ID: ' + ID)
-    text = 'The configuration file for tool \'' + tool + '\', argument ID \'' + ID + '\' is missing the attribute \'' + attribute + '\'. The ' + \
+  def missingArgumentAttributeInToolConfigurationFile(self, tool, argument, attribute, allowedAttributes):
+    self.text.append('Missing attribute in tool configuration file for argument: ' + argument)
+    text = 'The configuration file for tool \'' + tool + '\', argument \'' + argument + '\' is missing the attribute \'' + attribute + '\'. The ' + \
     'following attributes are required for each argument in a tool configuration file:'
     self.text.append(text)
     self.text.append('\t')
@@ -203,60 +204,49 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
-  # An argument ID is repeated.
-  def repeatedArgumentIDInToolConfigurationFile(self, tool, ID):
-    self.text.append('Repeated argument ID in tool configuration file: ' + ID)
-    self.text.append('Each argument in the tool configuration file requires a unique ID for identifying the argument in certain data ' + \
-    'structures. The argument ID \'' + ID + '\' for tool \'' + tool + '\' is repeated. Please ensure that each argument for this has a ' + \
-    'unique ID in the configuration file.')
-    self.writeFormattedText()
-    self.terminate()
-
   # A tool argument is repeated although the supplied IDs are different.
-  def repeatedToolArgumentInToolConfigurationFile(self, tool, ID, argument, isLongForm):
+  def repeatedToolArgumentInToolConfigurationFile(self, tool, argument, isLongForm):
     self.text.append('Repeated argument in tool configuration file.')
     text = 'long' if isLongForm else 'short'
-    self.text.append('Each argument supplied in the tool configuration file must be unique. The argument for tool \'' + tool + \
-    '\', identified with the ID \'' + ID + '\' has the ' + text + ' form argument \'' + argument + '\', but this has already been ' + \
+    self.text.append('Each argument supplied in the tool configuration file must be unique. An argument for tool \'' + tool + \
+    '\' has the ' + text + ' form argument \'' + argument + '\', but this has already been ' + \
     'defined for this tool. Please ensure that each argument defined in the configuration file has a unique long and short form argument.')
     self.writeFormattedText()
     self.terminate()
 
-  # Attempt to get information on a tool argument when the requested tool does not exist.
-  def invalidToolInArgumentAttributes(self, tool, ID, attribute, problemID):
-    self.text.append('Attempt to get argument attributes for a non-existent tool: ' + tool)
-    self.text.append('The configurationClass method \'getToolArgumentAttribute\' was called to get the attribute \'' + attribute + \
-    '\' for argument ID \'' + ID + '\' for tool \'' + tool)
-    self.text.append('\t')
-    if problemID == 'tool': self.text.append('The requested tool does not exist.')
-    elif problemID == 'ID': self.text.append('The requested argument ID does not exist.')
-    else: self.text.append('An unknown problem with this request has occurred.')
-    self.writeFormattedText()
-    self.terminate()
-
-  # An argument ID is missing from the argument order.
-  def missingArgumentIDInArgumentOrder(self, tool, ID, argument):
-    self.text.append('Missing argument in argument order: ' + ID)
+  # An argument is missing from the argument order.
+  def missingArgumentInArgumentOrder(self, tool, argument):
+    self.text.append('Missing argument in argument order: ' + argument)
     self.text.append('The argument order list in the tool configuration file must contain all of the argument IDs available to the tool. ' + \
-    'The argument \'' + argument + '\' with ID \'' + ID + '\' for tool \'' + tool + '\' is not present in the argument order. Please ensure ' + \
+    'The argument \'' + argument + '\' for tool \'' + tool + '\' is not present in the argument order. Please ensure ' + \
     'that the argument order contains all of the arguments for the tool.')
     self.writeFormattedText()
     self.terminate()
 
-  # An invalid argument ID appears in the argument order.
-  def invalidArgumentIDInArgumentOrder(self, tool, ID):
-    self.text.append('Invalid argument ID in argument order: ' + ID)
-    self.text.append('The argument order list must contain only argument IDs that are available to the tool. The configuration file for tool \'' + \
-    tool + '\' contains the argument ID \'' + ID + '\' which does not correspond to any argument ID for the tool. Please check and repair ' + \
+  # An invalid argument appears in the argument order.
+  def invalidArgumentInArgumentOrder(self, tool, argument):
+    self.text.append('Invalid argument in argument order: ' + argument)
+    self.text.append('The argument order list must contain only arguments that are available to the tool. The configuration file for tool \'' + \
+    tool + '\' contains the argument \'' + argument + '\' which does not correspond to any argument for the tool. Please check and repair ' + \
     'the tool configuration file.')
     self.writeFormattedText()
     self.terminate()
 
-  # An argument ID appears multiple times in the argument order.
-  def repeatedArgumentIDInArgumentOrder(self, tool, ID):
-    self.text.append('Repeated argument ID in argument order: ' + ID)
-    self.text.append('The argument order list must contain only argument IDs that are available to the tool. Each ID can only appear once in ' + \
-    'list, but ID \'' + ID + '\' appears multiple times. Please check and repair the tool configuration file.')
+  # An argument is repeated in the argument order.
+  def repeatedArgumentInArgumentOrder(self, tool, argument):
+    self.text.append('Repeated argument in argument order: ' + argument)
+    self.text.append('The argument order list must contain only arguments that are available to the tool and each argument only once. ' + \
+    'The configuration file for tool \'' + tool + '\' contains the repeated argument \'' + argument + '\'. Please ensure that each ' + \
+    'argument appears only once in the list.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # An argument is listed as a filename stub, but has no supplied extensions.
+  def filenameStubWithNoExtensions(self, tool, argument):
+    self.text.append('Argument defined as filename stub with no filename extensions provided.')
+    self.text.append('The tool \'' + tool + '\' has an argument \'' + argument + '\' defined as a filename stub. All ' + \
+    'filename stub arguments must also provide a list of extensions that are associated with this stub, but this argument does not. ' + \
+    'Please check and fix the argument in the configuration file.')
     self.writeFormattedText()
     self.terminate()
 
@@ -269,6 +259,55 @@ class configurationClassErrors:
     elif providedType == dict: return 'dictionary'
     elif providedType == list: return 'list'
     else: return None
+
+  ##########################################################
+  # Errors associated with trying to get tool information. #
+  ##########################################################
+
+  # Attempt to get information on a general tool attribute when the requested tool does not exist.
+  def invalidToolInGeneralToolAttributes(self, tool, attribute):
+    self.text.append('Attempt to get attributes for a non-existent tool: ' + tool)
+    self.text.append('The configurationClass method \'getGeneralAttribute\' was called to get the attribute \'' + attribute + \
+    '\' for tool \'' + tool + '\', however, the requested tool does not exist.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # Attempt to get information on a tool argument when the requested tool does not exist.
+  def invalidToolInToolArgumentAttributes(self, tool, argument, attribute, problemID):
+    self.text.append('Attempt to get argument attributes for a non-existent tool: ' + tool)
+    self.text.append('The configurationClass method \'getArgumentAttribute\' was called to get the attribute \'' + attribute + \
+    '\' for argument \'' + argument + '\' for tool \'' + tool + '\'.')
+    self.text.append('\t')
+    if problemID == 'tool': self.text.append('The requested tool does not exist.')
+    elif problemID == 'argument': self.text.append('The requested argument does not exist.')
+    else: self.text.append('An unknown problem with this request has occurred.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # Attempt to get a specific argument for an invalid tool.
+  def invalidToolInGetArguments(self, tool):
+    self.text.append('Attempt to get all arguments for a non-existent tool: ' + tool)
+    self.text.append('The configurationClass method \'getArguments\' was called to get the all of the arguments for the tool \'' + tool + \
+    '\'. The requested tool does not exist.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # Requested tool is not present in the dictionaries of long and short form arguments.
+  def missingToolInGetLongFormArgument(self, tool):
+    self.text.append('Unknown tool: ' + tool)
+    self.text.append('The configurationClass method \'getLongFormArgument\' was called to find the long form of an argument for the ' + \
+    'tool \'' + tool + '\'. This is an unknown tool and so the argument cannot be processed.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # An unknown command line argument was requested,
+  def unknownToolArgument(self, tool, argument):
+    self.text.append('Unknown argument: ' + argument)
+    text = 'The argument \'' + argument + '\' was included on the command line, but is not a valid argument for the current tool (' + \
+    tool + ').'
+    self.text.append(text)
+    self.writeFormattedText()
+    self.terminate()
 
   #######################################
   # Errors associated with node values. #
@@ -476,6 +515,7 @@ class configurationClassErrors:
   # Errors associated with extracting tool information
   ####################################################
 
+  #TODO NEEDED?
   # If data about an invalid tool is requested.
   def invalidTool(self, tool, function):
     text = 'Requested data about an invalid tool: ' + tool
@@ -486,20 +526,12 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
     
+  #TODO NEEDED?
   # If no arguments data has been supplied for the tool.
   def noArgumentsInformation(self, tool, function):
     self.text.append('No arguments information for tool: ' + tool)
     text = 'A call was made to a function (' + function + ') to extract argument information for tool \'' + tool + '\'.  No argument ' + \
     'is available for this tool.'
-    self.text.append(text)
-    self.writeFormattedText()
-    self.terminate()
-
-  # An unknown command line argument was requested,
-  def unknownToolArgument(self, tool, argument):
-    self.text.append('Unknown argument: ' + argument)
-    text = 'The argument \'' + argument + '\' was included on the command line, but is not a valid argument for the current tool (' + \
-    tool + ').'
     self.text.append(text)
     self.writeFormattedText()
     self.terminate()

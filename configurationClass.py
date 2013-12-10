@@ -51,7 +51,7 @@ class configurationMethods:
 
       # Find all required arguments for this task and build nodes for them all.  Link these nodes
       # to the task node.
-      self.nodeMethods.buildRequiredPredecessorNodes(graph, self.tools, task, tool)
+      self.nodeMethods.buildRequiredPredecessorNodes(graph, self.tools, task)
 
       # TODO ENSURE THAT ADDITIONAL FILES, E.G. STUBS AND INDEXES ARE INCLUDED.
 
@@ -626,9 +626,8 @@ class configurationMethods:
 
   # Get all of the outputs from a task.
   def getTaskOutputs(self, graph, task, iteration):
-    outputs     = []
-    fileNodeIDs = self.nodeMethods.getSuccessorFileNodes(graph, task)
-    for fileNodeID in fileNodeIDs:
+    outputIDs = []
+    for fileNodeID in self.nodeMethods.getSuccessorFileNodes(graph, task):
 
       # If this node is a streaming node, no output file is produced, so do not include
       # it in the lise.
@@ -636,26 +635,25 @@ class configurationMethods:
         values = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values')
         if iteration == 'all':
           for counter in values:
-            for value in values[counter]: outputs.append(value)
+            for value in values[counter]: outputIDs.append(value)
   
         elif iteration in values:
-          for value in values[iteration]: outputs.append(value)
+          for value in values[iteration]: outputIDs.append(value)
   
         elif iteration != 1:
-          for value in values[1]: outputs.append(value)
+          for value in values[1]: outputIDs.append(value)
   
         else:
           #TODO ERROR
           print('Unknown iteration in getTaskOutputs.')
           self.errors.terminate()
 
-    return outputs
+    return outputIDs
 
   # Get all of the dependencies for a task.
   def getTaskDependencies(self, graph, task, iteration):
     dependencies = []
-    fileNodeIDs  = self.nodeMethods.getPredecessorFileNodes(graph, task)
-    for fileNodeID in fileNodeIDs:
+    for fileNodeID in self.nodeMethods.getPredecessorFileNodes(graph, task):
 
       # If this node is a streaming node, no output file is produced, so do not include
       # it in the lise.

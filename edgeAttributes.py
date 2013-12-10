@@ -56,32 +56,32 @@ class edgeClass:
 
     # Find the values from the tool configuration file for this argument.
     attributes.argument  = tools.getLongFormArgument(tool, argument)
-    attributes.shortForm = tools.getArgumentData(tool, attributes.argument, 'short form argument')
+    attributes.shortForm = tools.getArgumentAttribute(tool, attributes.argument, 'shortFormArgument')
 
     # Find the command line argument that should be used in the makefile, e.g. that the tool expects.
     # The configuration file may define a different value for consistency across the tools, but the
     # tool itself must be supplied with what it expects.
-    if tools.getArgumentData(tool, attributes.argument, 'command line argument') == None: attributes.commandLineArgument  = attributes.argument
-    else: attributes.commandLineArgument  = tools.getArgumentData(tool, attributes.argument, 'command line argument')
+    if tools.getArgumentAttribute(tool, attributes.argument, 'commandLineArgument') == None: attributes.commandLineArgument = attributes.argument
+    else: attributes.commandLineArgument = tools.getArgumentAttribute(tool, attributes.argument, 'commandLineArgument')
 
     # Identify if the edge represents a filename stub.
-    attributes.isFilenameStub       = tools.getArgumentData(tool, attributes.argument, 'is filename stub')
+    attributes.isFilenameStub = tools.getArgumentAttribute(tool, attributes.argument, 'isFilenameStub')
     if attributes.isFilenameStub == None: attributes.isFilenameStub = False
 
     # Determine if the option represents an input file.
-    attributes.isInput = tools.getArgumentData(tool, attributes.argument, 'input')
+    attributes.isInput = tools.getArgumentAttribute(tool, attributes.argument, 'isInput')
 
     # Check if the argument should be written to the comand line or not.
-    includeOnCommandLine = tools.getArgumentData(tool, attributes.argument, 'include on command line')
+    includeOnCommandLine = tools.getArgumentAttribute(tool, attributes.argument, 'includeOnCommandLine')
     if includeOnCommandLine != None: attributes.includeOnCommandLine = includeOnCommandLine
 
     # Check if the argument needs to be modified when written to the command line.
-    modifyArgument = tools.getArgumentData(tool, attributes.argument, 'modify argument name on command line')
+    modifyArgument = tools.getArgumentAttribute(tool, attributes.argument, 'modifyArgument')
     if modifyArgument: attributes.modifyArgument = modifyArgument
 
     # Define how to handle streaming files.
-    attributes.ifOutputIsStream = tools.getArgumentData(tool, attributes.argument, 'if output to stream')
-    attributes.ifInputIsStream  = tools.getArgumentData(tool, attributes.argument, 'if input is stream')
+    attributes.ifOutputIsStream = tools.getArgumentAttribute(tool, attributes.argument, 'outputStream')
+    attributes.ifInputIsStream  = tools.getArgumentAttribute(tool, attributes.argument, 'inputStream')
 
     # Add the edge to the graph.
     graph.add_edge(sourceNodeID, targetNodeID, attributes = attributes)
