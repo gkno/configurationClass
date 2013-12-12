@@ -18,6 +18,7 @@ class toolAttributes:
     self.delimiter     = ' '
     self.description   = None
     self.executable    = None
+    self.inputIsStream = False
     self.isHidden      = None
     self.modifier      = None
     self.path          = None
@@ -44,6 +45,7 @@ class argumentAttributes:
     self.modifyArgument           = None
     self.outputStream             = False
     self.repeatArgument           = None
+    self.replaceArgument          = None
     self.shortFormArgument        = None
 
 class toolConfiguration:
@@ -74,22 +76,22 @@ class toolConfiguration:
     # as the checks are performed.
     #
     # Check the general tool information.
-    attributes = self.checkGeneralAttributes(tool, data)
+    self.attributes[tool] = self.checkGeneralAttributes(tool, data)
 
     # Check the validity of all of the supplied arguments.
     self.checkToolArguments(tool, data['arguments'])
+
+    # Check general and argument attribute dependencies.
+    self.checkAttributeDependencies(tool)
 
     # Generate a dictionary that links the long and short form arguments with each other..
     self.consolidateArguments(tool)
 
     # Look to see if the 'argument order' section is present and check its validity.
-    self.checkArgumentOrder(tool, attributes)
+    self.checkArgumentOrder(tool, self.attributes[tool])
 
     # Check the instance information.
     self.checkInstanceInformation(tool, data['instances'])
-
-    # Push all of the attributes to the tool.
-    self.attributes[tool] = attributes
 
     return data['instances']
 
@@ -110,6 +112,7 @@ class toolConfiguration:
     allowedAttributes['executable']         = (str, True, True, 'executable')
     allowedAttributes['help']               = (str, True, False, None)
     allowedAttributes['hide tool']          = (bool, False, True, 'isHidden')
+    allowedAttributes['input is stream']    = (bool, False, True, 'inputIsStream')
     allowedAttributes['instances']          = (dict, True, False, None)
     allowedAttributes['modifier']           = (str, False, True, 'modifier')
     allowedAttributes['path']               = (str, True, True, 'path')
@@ -123,7 +126,7 @@ class toolConfiguration:
 
       # If the value is not in the allowedAttributes, it is not an allowed value and execution
       # should be terminate with an error.
-      if attribute not in allowedAttributes: self.errors.invalidGeneralAttributeInToolConfigurationFile(tool, attribute, allowedAttributes)
+      if attribute not in allowedAttributes: self.errors.invalidGeneralAttributeInConfigurationFile(tool, attribute, allowedAttributes, False)
 
       # Mark this values as having been observed,
       observedAttributes[attribute] = True
@@ -142,7 +145,7 @@ class toolConfiguration:
     # are present.
     for attribute in allowedAttributes:
       if allowedAttributes[attribute][1] and attribute not in observedAttributes:
-        self.errors.missingGeneralAttributeInToolConfigurationFile(tool, attribute, allowedAttributes)
+        self.errors.missingGeneralAttributeInConfigurationFile(tool, attribute, allowedAttributes, False)
 
     return attributes
 
@@ -177,6 +180,7 @@ class toolConfiguration:
     allowedAttributes['long form argument']                   = (str, True, 'longFormArgument')
     allowedAttributes['modify argument name on command line'] = (str, False, 'modifyArgument')
     allowedAttributes['output']                               = (bool, True, 'isOutput')
+    allowedAttributes['replace argument with']                = (dict, False, 'replaceArgument')
     allowedAttributes['required']                             = (bool, True, 'isRequired')
     allowedAttributes['short form argument']                  = (str, False, 'shortFormArgument')
 
@@ -194,7 +198,7 @@ class toolConfiguration:
       except: self.errors.noLongFormForToolArgument(tool)
 
       # Check that this argument is unique.
-      if longForm in self.argumentAttributes[tool]: self.errors.repeatedToolArgumentToolConfigurationFile(tool, longForm, isLongForm = True)
+      if longForm in self.argumentAttributes[tool]: self.errors.repeatedToolArgumentInToolConfigurationFile(tool, longForm, isLongForm = True)
 
       # Initialise the data structure for holding the argument information.
       attributes = argumentAttributes()
@@ -218,7 +222,7 @@ class toolConfiguration:
         # convert to a string first.
         value = str(argumentDescription[attribute]) if isinstance(argumentDescription[attribute], unicode) else argumentDescription[attribute]
         if allowedAttributes[attribute][0] != type(value):
-          self.errors.incorrectTypeInToolConfigurationFile(tool, attribute, longForm, value, allowedAttributes[attribute][0])
+          self.errors.incorrectiTypeInConfigurationFile(tool, attribute, longForm, value, allowedAttributes[attribute][0])
 
         # Store the information in the attributes structure.
         self.setAttribute(attributes, tool, allowedAttributes[attribute][2], value)
@@ -230,6 +234,22 @@ class toolConfiguration:
 
       # Store the attributes.
       self.argumentAttributes[tool][longForm] = attributes
+
+  # Check all argument attribute dependencies.
+  def checkAttributeDependencies(self, tool):
+
+    # Define any dependencies. For each attribute, a list is provided allowing for different values associated
+    # with the attribute being defined. It may be that there are different dependencies depending on the value
+    # that the attribute takes. The format of the dictionary is as follows:
+    #
+    # (A, B, [])
+    #
+    # A: Is the value a general or argument attribute.
+    # B: If defined, does the attribute require a value or just needs to be present. This takes the values 'present' or
+    # the value that is being checked.
+    dependencies = {}
+    dependencies['inputIsStream'] = [('general', 'present', 'any', [('argument', 'includeOnCommandLine', False)])]
+    dependencies['inputStream']   = [('argument', True)]
 
   # Generate a dictionary that links the long and short form arguments with each other.
   def consolidateArguments(self, tool):
@@ -250,7 +270,7 @@ class toolConfiguration:
     # Loop over all of the arguments and check that they are represented in the argument order.
     for argument in self.argumentAttributes[tool]:
       if argument not in attributes.argumentOrder:
-        self.errors.missingArgumentInArgumentOrder(tool, argument, self.getArgumentAttribute(tool, argument))
+        self.errors.missingArgumentInArgumentOrder(tool, argument)
 
     # Loop over all of the arguments in the argument order and check that no arguments are invalid or repeated.
     observedArguments = []
@@ -309,7 +329,7 @@ class toolConfiguration:
     except:
 
       # If the tool is not available.TODO
-      self.errors.invalidAttributeInSetToolAttribute(attribute)
+      self.errors.invalidAttributeInSetAttribute(attribute, False)
       self.errors.terminate()
 
     # Set the attribute.

@@ -77,15 +77,16 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
-  ##########################################
-  # Errors with a tool configuration file. #
-  ##########################################
+  #######################################################################
+  # Errors with configuration files (common to both tool ane pipeline). #
+  #######################################################################
 
   # A general entry in the configuration file is invalid.
-  def invalidGeneralAttributeInToolConfigurationFile(self, tool, attribute, allowedAttributes):
-    self.text.append('Invalid attribute in tool configuration file: ' + attribute)
-    text = 'The configuration file for tool \'' + tool + '\' contains the general attribute \'' + attribute + '\'. This is an unrecognised ' + \
-    'attribute which is not permitted. The general attributess allowed in a tool configuration file are:'
+  def invalidGeneralAttributeInConfigurationFile(self, name, attribute, allowedAttributes, isPipeline):
+    runType = 'pipeline' if isPipeline else 'tool'
+    self.text.append('Invalid attribute in ' + runType + ' configuration file: ' + attribute)
+    text = 'The configuration file for ' + runType + '\'' + name + '\' contains the general attribute \'' + attribute + '\'. This is an ' + \
+    'unrecognised attribute which is not permitted. The general attributess allowed in a ' + runType + ' configuration file are:'
     self.text.append(text)
     self.text.append('\t')
 
@@ -103,10 +104,12 @@ class configurationClassErrors:
     self.terminate()
 
   # A general entry in the configuration file is missing.
-  def missingGeneralAttributeInToolConfigurationFile(self, tool, attribute, allowedAttributes):
-    self.text.append('Missing attribute in tool configuration file: ' + attribute)
-    text = 'The configuration file for tool \'' + tool + '\' is missing the general attribute \'' + attribute + '\'. The following general ' + \
-    'attributes are required in a tool configuration file:'
+  def missingGeneralAttributeInConfigurationFile(self, name, attribute, allowedAttributes, isPipeline):
+    runType = 'pipeline' if isPipeline else 'tool'
+
+    self.text.append('Missing attribute in ' + runType + ' configuration file: ' + attribute)
+    text = 'The configuration file for ' + runType + ' \'' + name + '\' is missing the general attribute \'' + attribute + '\'. The following ' + \
+    'general attributes are required in a ' + runType + ' configuration file:'
     self.text.append(text)
     self.text.append('\t')
 
@@ -119,12 +122,16 @@ class configurationClassErrors:
     for attribute in sorted(requiredAttributes): self.text.append(attribute + ':\t' + str(allowedAttributes[attribute][0]))
 
     self.text.append('\t')
-    self.text.append('Please add the missing attribute to the tool configuration file.')
+    self.text.append('Please add the missing attribute to the configuration file.')
     self.writeFormattedText()
     self.terminate()
 
+  ##########################################
+  # Errors with a tool configuration file. #
+  ##########################################
+
   # Attribute has the wrong type.
-  def incorrectTypeInToolConfigurationFile(self, tool, attribute, argument, value, expectedType):
+  def incorrectTypeInToolConfigurationFile(self, name, attribute, argument, value, expectedType, isPipeline):
 
     # Find the given type.
     isType    = self.findType(type(value))
@@ -204,7 +211,7 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
-  # A tool argument is repeated although the supplied IDs are different.
+  # A tool argument is repeated.
   def repeatedToolArgumentInToolConfigurationFile(self, tool, argument, isLongForm):
     self.text.append('Repeated argument in tool configuration file.')
     text = 'long' if isLongForm else 'short'
@@ -217,7 +224,7 @@ class configurationClassErrors:
   # An argument is missing from the argument order.
   def missingArgumentInArgumentOrder(self, tool, argument):
     self.text.append('Missing argument in argument order: ' + argument)
-    self.text.append('The argument order list in the tool configuration file must contain all of the argument IDs available to the tool. ' + \
+    self.text.append('The argument order list in the tool configuration file must contain all of the arguments available to the tool. ' + \
     'The argument \'' + argument + '\' for tool \'' + tool + '\' is not present in the argument order. Please ensure ' + \
     'that the argument order contains all of the arguments for the tool.')
     self.writeFormattedText()
@@ -305,6 +312,28 @@ class configurationClassErrors:
     self.text.append('Unknown argument: ' + argument)
     text = 'The argument \'' + argument + '\' was included on the command line, but is not a valid argument for the current tool (' + \
     tool + ').'
+    self.text.append(text)
+    self.writeFormattedText()
+    self.terminate()
+
+  ##############################################
+  # Errors with a pipeline configuration file. #
+  ##############################################
+
+  # Attribute has the wrong type.
+  def incorrectTypeInPipelineConfigurationFile(self, pipeline, attribute, value, expectedType):
+
+    # Find the given type.
+    isType    = self.findType(type(value))
+    needsType = self.findType(expectedType)
+    if isType == None: isType = 'Unknown'
+    if needsType == None: needsType = 'Unknown'
+    self.text.append('Invalid attribute value in pipeline configuration file.')
+    text = 'The attribute \'' + str(attribute) + '\' in the configuration file for pipeline \'' + str(pipeline) + '\' '
+    if isType == 'list' or isType == 'dictionary':  text += 'is given a value '
+    else: text += 'is given the value \'' + str(value) + '\'. This value is '
+    text += 'of an incorrect type (' + isType + '); the expected type is \'' + needsType + '\'. Please correct ' + \
+    'this value in the configuration file.'
     self.text.append(text)
     self.writeFormattedText()
     self.terminate()
@@ -487,9 +516,9 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
-  #################################################
-  # Errors associated with setting tool attributes.
-  #################################################
+  ############################################
+  # Errors associated with setting attributes.
+  ############################################
 
   # If the tool attributes for an invalid tool are set.
   def invalidToolInSetToolAttribute(self, tool):
@@ -502,12 +531,11 @@ class configurationClassErrors:
     self.terminate()
 
   # If the tool attributes for an tool include an invalid attribute.
-  def invalidAttributeInSetToolAttribute(self, attribute):
-    text = 'Attempt to set an invalid attribute for tool.'
-    self.text.append(text)
-    text = 'A call was made to a function (setToolAttribute) to set tool attributes.  The attribute \'' + attribute + '\' does not exist, so ' + \
-    'this attribute cannot be set.'
-    self.text.append(text)
+  def invalidAttributeInSetAttribute(self, attribute, isPipeline):
+    runType = 'pipeline' if isPipeline else 'tool'
+    self.text.append('Attempt to set an invalid attribute for ' + runType + '.')
+    self.text.append('A call was made to a function (setAttribute) to set ' + runType + ' attributes.  The attribute \'' + attribute + \
+    '\' does not exist, so this attribute cannot be set.')
     self.writeFormattedText()
     self.terminate()
 

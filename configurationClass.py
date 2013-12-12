@@ -190,7 +190,7 @@ class configurationMethods:
         if mergeNodeID.startswith('CREATE_NODE') and mergeNodeID not in createdNodes:
           tempNodeID = 'OPTION_' + str(self.nodeMethods.optionNodeID)
           self.nodeMethods.optionNodeID += 1
-          tool       = self.pipeline.tasks[task]
+          tool       = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
           attributes = self.nodeMethods.buildNodeFromToolConfiguration(self.tools, tool, argument)
           graph.add_node(tempNodeID, attributes = attributes)
 
@@ -212,7 +212,7 @@ class configurationMethods:
   def createEdgesForMergedNodes(self, graph, edgesToCreate):
     for mergeNodeID in edgesToCreate:
       for nodeID, task, argument in edgesToCreate[mergeNodeID]:
-        tool = self.pipeline.tasks[task]
+        tool = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
 
         # Add an edge from the merged node to this task.
         attributes = self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, mergeNodeID, task, argument)
@@ -232,16 +232,16 @@ class configurationMethods:
 
         # Only look at options nodes that contain information about files.
         if self.nodeMethods.getGraphNodeAttribute(graph, mergeNodeID, 'isFile'):
-          tool                      = self.pipeline.tasks[task]
+          tool                      = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
           mergedNodeisFilenameStub  = self.nodeMethods.getGraphNodeAttribute(graph, mergeNodeID, 'isFilenameStub')
-          removedNodeisFilenameStub = self.tools.getArgumentData(tool, argument, 'is filename stub')
+          removedNodeisFilenameStub = self.tools.getArgumentAttribute(tool, argument, 'isFilenameStub')
           if removedNodeisFilenameStub == None: removedNodeisFilenameStub = False
 
           # Find the short and long form of the argument.
           longFormArgument     = self.tools.getLongFormArgument(tool, argument)
-          shortFormArgument    = self.tools.getArgumentData(tool, longFormArgument, 'short form argument')
-          isInput              = self.tools.getArgumentData(tool, longFormArgument, 'input')
-          isOutput             = self.tools.getArgumentData(tool, longFormArgument, 'output')
+          shortFormArgument    = self.tools.getArgumentAttribute(tool, longFormArgument, 'short form argument')
+          isInput              = self.tools.getArgumentAttribute(tool, longFormArgument, 'input')
+          isOutput             = self.tools.getArgumentAttribute(tool, longFormArgument, 'output')
 
           # If the argument is not for a filename stub, then there is a single output file.
           # Generate the edges from the replacement file value to this task.
@@ -276,6 +276,7 @@ class configurationMethods:
   # with the case where the node being kept is a filename stub and the node being removed is not.
   def createFilenameStubEdgesM(self, graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument):
     foundMatch = False
+    tool       = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
 
     # The node being kept is a filename stub, so has multiple file nodes associated with it. First
     # loop over these file nodes.
@@ -288,7 +289,7 @@ class configurationMethods:
         foundMatch = True
 
         # Create the edge from the file node to the task.
-        isInput = self.tools.getArgumentData(self.pipeline.tasks[task], longFormArgument, 'input')
+        isInput = self.tools.getArgumentAttribute(tool, longFormArgument, 'input')
         if isInput: self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, fileNodeID, task, longFormArgument)
         else: self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, task, fileNodeID, longFormArgument)
 
@@ -429,7 +430,7 @@ class configurationMethods:
           # Get one of the tasks associated with this ID. This can be used to determine the node to attach
           # the values to.
           task     = self.pipeline.nodeTaskInformation[ID][0][0]
-          tool     = self.pipeline.tasks[task]
+          tool     = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
           argument = self.pipeline.nodeTaskInformation[ID][0][1]
   
           # If gkno is being run in tool mode, the nodeIDs structure does not exist. Check to see if the
