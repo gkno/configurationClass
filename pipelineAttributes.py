@@ -339,6 +339,13 @@ class pipelineConfiguration:
       # value 'A' and so the file node for this file can be identified.
       if self.nodeAttributes[nodeID].extension: self.linkedExtension[nodeID] = self.nodeAttributes[nodeID].extension
 
+  # Set the workflow and the taskAttributes for a tool.
+  def definePipelineAttributesForTool(self, name):
+    attributes                = taskAttributes()
+    attributes.tool           = name
+    self.taskAttributes[name] = attributes
+    self.workflow.append(name)
+
   # Set a value in the toolAttributes.
   def setAttribute(self, attributes, attribute, value):
     try: test = getattr(attributes, attribute)
