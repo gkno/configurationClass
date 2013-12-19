@@ -19,8 +19,29 @@ import sys
 class taskNodeAttributes:
   def __init__(self):
 
+    # Describe the delimiter to use when writing out the command line. Typically, this is
+    # just a space, but in some case can be something else (e.g. FILE=<FILE>).
+    self.delimiter = ' '
+
+    # Provide a description of the task node.
+    self.description = None
+
+    # Define the executabe for the task.
+    self.executable = None
+
+    # If the task is hidden in help messsages, store the information.
+    self.isHidden = False
+
+    # If the executable has a precommand (e.g. java -jar), or a modifier (e.g. bamtools sort),
+    # store the values.
+    self.modifier   = None
+    self.precommand = None
+
     # Specify that this node is a task node.
     self.nodeType = 'task'
+
+    # Store the path of the executable file.
+    self.path = None
 
     # Define the name of the tool that this task uses.
     self.tool = None
@@ -30,7 +51,7 @@ class taskNodeAttributes:
     self.numberOfDataSets = 0
 
     # Record if this task outputs to a stream.
-    self.outputToStream = False
+    self.outputStream = False
 
 # Define a class for holding attributes for options nodes.  These are nodes that
 # hold option data, but are not files.
@@ -158,20 +179,20 @@ class nodeClass:
     if self.getGraphNodeAttribute(graph, nodeID, 'isFilenameStub'):
       fileID = 1
       for extension in self.getGraphNodeAttribute(graph, nodeID, 'filenameExtensions'):
-        attributes                     = fileNodeAttributes()
-        attributes.description         = self.getGraphNodeAttribute(graph, nodeID, 'description')
-        attributes.allowMultipleValues = self.getGraphNodeAttribute(graph, nodeID, 'allowMultipleValues')
-        fileNodeID                     = nodeID + '_FILE_' + str(fileID)
+        attributes = fileNodeAttributes()
+        self.setNodeAttribute(attributes, 'description', self.getGraphNodeAttribute(graph, nodeID, 'description'))
+        self.setNodeAttribute(attributes, 'allowMultipleValues', self.getGraphNodeAttribute(graph, nodeID, 'allowMultipleValues'))
+        fileNodeID = nodeID + '_FILE_' + str(fileID)
         fileID += 1
-        attributes.allowedExtensions = str(extension)
+        self.setNodeAttribute(attributes, 'allowedExtensions', [str(extension)])
         graph.add_node(fileNodeID, attributes = attributes)
         fileNodeIDs.append(fileNodeID)
     else:
       fileNodeID = nodeID + '_FILE'
-      attributes                     = fileNodeAttributes()
-      attributes.description         = self.getGraphNodeAttribute(graph, nodeID, 'description')
-      attributes.allowMultipleValues = self.getGraphNodeAttribute(graph, nodeID, 'allowMultipleValues')
-      attributes.allowedExtensions   = self.getGraphNodeAttribute(graph, nodeID, 'allowedExtensions')
+      attributes = fileNodeAttributes()
+      self.setNodeAttribute(attributes, 'description', self.getGraphNodeAttribute(graph, nodeID, 'description'))
+      self.setNodeAttribute(attributes, 'allowMultipleValues', self.getGraphNodeAttribute(graph, nodeID, 'allowMultipleValues'))
+      self.setNodeAttribute(attributes, 'allowedExtensions', self.getGraphNodeAttribute(graph, nodeID, 'allowedExtensions'))
       graph.add_node(fileNodeID, attributes = attributes)
       fileNodeIDs.append(fileNodeID)
 
@@ -185,18 +206,19 @@ class nodeClass:
       self.setGraphNodeAttribute(graph, nodeID, 'associatedFileNodes', fileNodeID)
 
   # Build a task node.
-  def buildTaskNode(self, graph, tools, task, tool):
-    attributes             = taskNodeAttributes()
-    attributes.tool        = tool
+  def buildTaskNode(self, graph, tools, pipeline, task, tool):
+    attributes = taskNodeAttributes()
 
     # Copy the information about the tool to the task node.
-    attributes.delimiter   = tools.getGeneralAttribute(tool, 'delimiter')
-    attributes.description = tools.getGeneralAttribute(tool, 'description')
-    attributes.executable  = tools.getGeneralAttribute(tool, 'executable')
-    attributes.isHidden    = tools.getGeneralAttribute(tool, 'isHidden')
-    attributes.modifier    = tools.getGeneralAttribute(tool, 'modifier')
-    attributes.path        = tools.getGeneralAttribute(tool, 'path')
-    attributes.precommand  = tools.getGeneralAttribute(tool, 'precommand')
+    self.setNodeAttribute(attributes, 'tool', tool)
+    self.setNodeAttribute(attributes, 'delimiter', tools.getGeneralAttribute(tool, 'delimiter'))
+    self.setNodeAttribute(attributes, 'description', tools.getGeneralAttribute(tool, 'description'))
+    self.setNodeAttribute(attributes, 'executable', tools.getGeneralAttribute(tool, 'executable'))
+    self.setNodeAttribute(attributes, 'isHidden', tools.getGeneralAttribute(tool, 'isHidden'))
+    self.setNodeAttribute(attributes, 'modifier', tools.getGeneralAttribute(tool, 'modifier'))
+    self.setNodeAttribute(attributes, 'path', tools.getGeneralAttribute(tool, 'path'))
+    self.setNodeAttribute(attributes, 'precommand', tools.getGeneralAttribute(tool, 'precommand'))
+    self.setNodeAttribute(attributes, 'outputStream', pipeline.getTaskAttribute(task, 'outputStream'))
     graph.add_node(task, attributes = attributes)
 
   # Build all of the predecessor nodes for the task and attach them to the task node.
@@ -204,7 +226,7 @@ class nodeClass:
     tool = self.getGraphNodeAttribute(graph, task, 'tool')
     for argument in tools.getArguments(tool):
       attributes = self.buildNodeFromToolConfiguration(tools, tool, argument)
-      isRequired = self.getNodeAttribute(attributes, 'isRequired')
+      isRequired = tools.getArgumentAttribute(tool, argument, 'isRequired')
       if isRequired: self.buildOptionNode(graph, tools, task, tool, argument, attributes)
 
   # Check each option node and determine if a value is required.  This can be determined in one of two 
@@ -221,7 +243,7 @@ class nodeClass:
         for edge in graph.edges(nodeID): 
           task           = edge[1] 
           associatedTool = self.getGraphNodeAttribute(graph, task, 'tool') 
-          toolArgument   = self.edgeMethods.getEdgeAttribute(graph, nodeID, task, 'argument') 
+          toolArgument   = self.edgeMethods.getEdgeAttribute(graph, nodeID, task, 'longFormArgument') 
           isRequired     = self.getGraphNodeAttribute(graph, nodeID, 'isRequired') 
           if isRequired: self.setGraphNodeAttribute(graph, nodeID, 'isRequired', True) 
           break
@@ -229,26 +251,25 @@ class nodeClass:
   # Check if a node exists based on a task and an argument.
   def doesNodeExist(self, graph, task, argument):
     exists = False
-    for sourceNode, targetNode in graph.in_edges(task):
-      edgeArgument = self.edgeMethods.getEdgeAttribute(graph, sourceNode, targetNode, 'argument')
-      nodeType     = self.getGraphNodeAttribute(graph, sourceNode, 'nodeType')
+    for sourceNodeID, targetNodeID in graph.in_edges(task):
+      edgeArgument = self.edgeMethods.getEdgeAttribute(graph, sourceNodeID, targetNodeID, 'longFormArgument')
+      nodeType     = self.getGraphNodeAttribute(graph, sourceNodeID, 'nodeType')
       if nodeType == 'option' and edgeArgument == argument:
         exists = True
-        return sourceNode
+        return sourceNodeID
 
     return None
 
-  # Determine which nodes each pipeline argument points to.
-  def getPipelineArgumentNodes(self, graph, pipeline, tools):
-    for argument in pipeline.argumentData:
-      nodeID           = pipeline.argumentData[argument].nodeID
-      task             = pipeline.nodeTaskInformation[nodeID][0][0]
-      taskArgument     = pipeline.nodeTaskInformation[nodeID][0][1]
-      tool             = pipeline.tasks[task]
-      foundArgument    = False
-      predecessorNodes = self.getPredecessorOptionNodes(graph, task)
-      for predecessorNodeID in predecessorNodes:
-        testArgument = self.edgeMethods.getEdgeAttribute(graph, predecessorNodeID, task, 'argument')
+  # Determine which graph node each pipeline argument points to.
+  def getPipelineArgumentNodes(self, graph, config):
+    for argument in config.pipeline.pipelineArguments:
+      configNodeID   = config.pipeline.pipelineArguments[argument].configNodeID
+      task           = config.pipeline.commonNodes[configNodeID][0][0]
+      taskArgument   = config.pipeline.commonNodes[configNodeID][0][1]
+      tool           = config.pipeline.taskAttributes[task].tool
+      foundArgument  = False
+      for predecessorNodeID in self.getPredecessorOptionNodes(graph, task):
+        testArgument = self.edgeMethods.getEdgeAttribute(graph, predecessorNodeID, task, 'longFormArgument')
         if taskArgument == testArgument:
           foundArgument = True
           break
@@ -256,27 +277,27 @@ class nodeClass:
       # If the node to which this argument points has not been defined, no edge linking the node
       # to the task will be found.  Thus, the node and edge need to be created.
       if not foundArgument:
-        attributes        = self.buildNodeFromToolConfiguration(tools, tool, taskArgument)
-        predecessorNodeID = self.buildOptionNode(graph, tools, task, tool, taskArgument, attributes)
+        attributes        = self.buildNodeFromToolConfiguration(config.tools, tool, taskArgument)
+        predecessorNodeID = self.buildOptionNode(graph, config.tools, task, tool, taskArgument, attributes)
 
       # Set the nodeID to a graph nodeID.
-      pipeline.argumentData[argument].nodeID = predecessorNodeID
+      config.pipeline.pipelineArguments[argument].nodeID = predecessorNodeID
 
   # Get an attribute from the nodes data structure.  Check to ensure that the requested attribute is
   # available for the type of node.  If not, terminate with an error.
-  def getGraphNodeAttribute(self, graph, node, attribute):
-    try: value = getattr(graph.node[node]['attributes'], attribute)
+  def getGraphNodeAttribute(self, graph, nodeID, attribute):
+    try: value = getattr(graph.node[nodeID]['attributes'], attribute)
 
     # If there is an error, determine if the node exists in the graph.  If the node exists, the problem
     # lies with the attribute.  Determine if the attribute belongs to any of the node data structures,
     # then terminate.
     except:
-      if node not in graph.nodes():
-        self.errors.missingNodeInAttributeRequest(node)
+      if nodeID not in graph.nodes():
+        self.errors.missingNodeInAttributeRequest(nodeID)
 
       # If no attributes have been attached to the node.
-      elif 'attributes' not in graph.node[node]:
-        self.errors.noAttributesInAttributeRequest(node)
+      elif 'attributes' not in graph.node[nodeID]:
+        self.errors.noAttributesInAttributeRequest(nodeID)
 
       # If the attribute is not associated with the node.
       else:
@@ -286,10 +307,10 @@ class nodeClass:
         if hasattr(taskNodeAttributes(), attribute): inTaskNode      = True
         if hasattr(fileNodeAttributes(), attribute): inFileNode      = True
         if hasattr(optionNodeAttributes(), attribute): inOptionsNode = True
-        if graph.node[node]['attributes'].nodeType == 'task': nodeType = 'task node'
-        if graph.node[node]['attributes'].nodeType == 'file': nodeType = 'file node'
-        if graph.node[node]['attributes'].nodeType == 'option': nodeType = 'options node'
-        self.errors.attributeNotAssociatedWithNode(node, attribute, nodeType, inTaskNode, inFileNode, inOptionsNode)
+        if graph.node[nodeID]['attributes'].nodeType == 'task': nodeType = 'task node'
+        if graph.node[nodeID]['attributes'].nodeType == 'file': nodeType = 'file node'
+        if graph.node[nodeID]['attributes'].nodeType == 'option': nodeType = 'options node'
+        self.errors.attributeNotAssociatedWithNode(nodeID, attribute, nodeType, inTaskNode, inFileNode, inOptionsNode)
 
     return value
 
@@ -330,32 +351,6 @@ class nodeClass:
       setattr(graph.node[nodeID]['attributes'], attribute, valueList)
     else:
       setattr(graph.node[nodeID]['attributes'], attribute, value)
-
-  #TODO IS THIS USED?
-  # Get an attribute from the nodes data structure.  Check to ensure that the requested attribute is
-  # available for the type of node.  If not, terminate with an error.  This method is for a node not
-  # contained in the graph.
-  def getNodeAttribute(self, nodeAttributes, attribute):
-    try: value = getattr(nodeAttributes, attribute)
-
-    # If there is an error, determine if the node exists in the graph.  If the node exists, the problem
-    # lies with the attribute.  Determine if the attribute belongs to any of the node data structures,
-    # then terminate.
-    except:
-
-      # If the attribute is not associated with the node.
-      inTaskNode    = False
-      inFileNode    = False
-      inOptionsNode = False
-      if hasattr(taskNodeAttributes(), attribute): inTaskNode      = True
-      if hasattr(fileNodeAttributes(), attribute): inFileNode      = True
-      if hasattr(optionNodeAttributes(), attribute): inOptionsNode = True
-      if nodeAttributes.nodeType == 'task': nodeType = 'task node'
-      if nodeAttributes.nodeType == 'file': nodeType = 'file node'
-      if nodeAttributes.nodeType == 'option': nodeType = 'options node'
-      self.errors.attributeNotAssociatedWithNodeNoGraph(attribute, nodeType, inTaskNode, inFileNode, inOptionsNode)
-
-    return value
 
   #TODO IS THIS USED?
   # Set an attribute from the nodes data structure.  In this method, the node is not a part of the graph and
@@ -462,7 +457,7 @@ class nodeClass:
     nodeIDs          = []
     predecessorEdges = graph.in_edges(task)
     for predecessorEdge in predecessorEdges:
-      value = self.edgeMethods.getEdgeAttribute(graph, predecessorEdge[0], predecessorEdge[1], 'argument')
+      value = self.edgeMethods.getEdgeAttribute(graph, predecessorEdge[0], predecessorEdge[1], 'longFormArgument')
       if value == argument:
 
         # Only return a value if this is an option node.
@@ -635,12 +630,12 @@ class nodeClass:
     # Set all of the predecessor edges.
     predecessorNodeIDs = graph.predecessors(originalNodeID)
     for nodeID in predecessorNodeIDs:
-      self.edgeMethods.addEdge(graph, self, tools, nodeID, newNodeID, self.edgeMethods.getEdgeAttribute(graph, nodeID, originalNodeID, 'argument'))
+      self.edgeMethods.addEdge(graph, self, tools, nodeID, newNodeID, self.edgeMethods.getEdgeAttribute(graph, nodeID, originalNodeID, 'longFormArgument'))
 
     # Set all of the successor edges.
     successorNodeIDs = graph.successors(originalNodeID)
     for nodeID in successorNodeIDs:
-      self.edgeMethods.addEdge(graph, self, tools, newNodeID, nodeID, self.edgeMethods.getEdgeAttribute(graph, originalNodeID, nodeID, 'argument'))
+      self.edgeMethods.addEdge(graph, self, tools, newNodeID, nodeID, self.edgeMethods.getEdgeAttribute(graph, originalNodeID, nodeID, 'longFormArgument'))
 
     # Remove the original node.
     graph.remove_node(originalNodeID)

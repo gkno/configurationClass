@@ -50,13 +50,9 @@ class argumentAttributes:
 
 class toolConfiguration:
   def __init__(self):
+
+    # Define the attributes for a tool.
     self.attributes           = {}
-    self.availableTools       = {}
-    self.configurationData    = {}
-    self.errors               = configurationClassErrors()
-    self.filename             = None
-    self.jsonError            = None
-    self.setRequiredArguments = False
 
     # Define a structure to hold all the information about a tools arguments.
     self.argumentAttributes = {}
@@ -64,6 +60,13 @@ class toolConfiguration:
     # Define dictionaries to store the long and short form arguments.
     self.longFormArguments  = {}
     self.shortFormArguments = {}
+
+    # Define the errors class for handling errors.
+    self.errors               = configurationClassErrors()
+
+    self.availableTools       = {}
+    self.configurationData    = {}
+    self.filename             = None
 
   # Process the tool data.
   def processConfigurationData(self, tool, data):
@@ -135,7 +138,7 @@ class toolConfiguration:
       # convert to a string first.
       value = str(data[attribute]) if isinstance(data[attribute], unicode) else data[attribute]
       if allowedAttributes[attribute][0] != type(value):
-        self.errors.incorrectTypeInToolConfigurationFile(tool, attribute, None, value, allowedAttributes[attribute][0])
+        self.errors.incorrectTypeInToolConfigurationFile(tool, attribute, None, value, allowedAttributes[attribute][0], False)
 
       # At this point, the attribute in the configuration file is allowed and of valid type. Check that 
       # the value itself is valid (if necessary) and store the value.

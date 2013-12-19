@@ -86,7 +86,7 @@ class configurationClassErrors:
     runType = 'pipeline' if isPipeline else 'tool'
     self.text.append('Invalid attribute in ' + runType + ' configuration file: ' + attribute)
     text = 'The configuration file for ' + runType + '\'' + name + '\' contains the general attribute \'' + attribute + '\'. This is an ' + \
-    'unrecognised attribute which is not permitted. The general attributess allowed in a ' + runType + ' configuration file are:'
+    'unrecognised attribute which is not permitted. The general attributes allowed in a ' + runType + ' configuration file are:'
     self.text.append(text)
     self.text.append('\t')
 
@@ -139,7 +139,7 @@ class configurationClassErrors:
     if isType == None: isType = 'Unknown'
     if needsType == None: needsType = 'Unknown'
     self.text.append('Invalid attribute value in tool configuration file.')
-    text = 'The attribute \'' + str(attribute) + '\' in the configuration file for tool \'' + str(tool) + '\''
+    text = 'The attribute \'' + str(attribute) + '\' in the configuration file for \'' + str(name) + '\''
     text += ', argument \'' + argument + '\' ' if argument else ' '
     if isType == 'list' or isType == 'dictionary':  text += 'is given a value '
     else: text += 'is given the value \'' + str(value) + '\'. This value is '
@@ -334,6 +334,101 @@ class configurationClassErrors:
     else: text += 'is given the value \'' + str(value) + '\'. This value is '
     text += 'of an incorrect type (' + isType + '); the expected type is \'' + needsType + '\'. Please correct ' + \
     'this value in the configuration file.'
+    self.text.append(text)
+    self.writeFormattedText()
+    self.terminate()
+
+  # A task in the tasks section is not accompanied by a dictionary.
+  def taskIsNotDictionary(self, pipeline, task):
+    self.text.append('Task not supplied with dictionary in \'tasks\' section of pipeline configuration file.')
+    self.text.append('The pipeline configuration file contains a section \'tasks\' which assigns certain parameters to each task in the ' + \
+    'pipeline. Each listed task must be accompanied by a dictionary with key, value pairs describing these parameters. The configuration ' + \
+    'file for pipeline \'' + pipeline + '\' contains the task \'' + task + '\' which is not accompanied by a dictionary. Please check and ' + \
+    'correct the configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # A pipeline attribute is missing.
+  def missingAttributeInPipelineConfigurationFile(self, pipeline, attribute, allowedAttributes, section, ID):
+    self.text.append('Missing attribute in ' + section + ' section of configuration file: ' + pipeline)
+    text = 'The pipeline configuration file for \'' + pipeline + '\' is missing the \'' + section + '\' attribute \'' + attribute + '\''
+    if ID: text += ' from node ID \'' + ID + '\'. '
+    else: text += '. '
+    text += 'The following attributes are required in the \'' + section + '\' section of the pipeline configuration file:'
+    self.text.append(text)
+    self.text.append('\t')
+
+    # Create a sorted list of the required attributes.
+    requiredAttributes = []
+    for attribute in allowedAttributes:
+       if allowedAttributes[attribute][1]: requiredAttributes.append(attribute)
+
+    # Add the attributes to the text to be written along with the expected type.
+    for attribute in sorted(requiredAttributes): self.text.append(attribute + ':\t' + str(allowedAttributes[attribute][0]))
+
+    self.text.append('\t')
+    self.text.append('Please add the missing attribute to the configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # If the tool supplied for a task is invalid.
+  def invalidToolInPipelineConfigurationFile(self, pipeline, task, tool):
+    self.text.append('Invalid tool defined for task: ' + task)
+    self.text.append('In the \'tasks\' section of the configuration file for pipeline \'' + pipeline + '\', the task \'' + task + \
+    '\' is defined as using the tool \'' + tool + '\'. This tool does not have a defined configuration file of its own and so cannot ' + \
+    'be used. Please check the configuration file and supply a valid tool.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # If the pipeline node does not have the 'ID' attributes.
+  def noIDInPipelineNode(self, pipeline):
+    self.text.append('No ID for a pipeline node.')
+    self.text.append('Each node in the \'nodes\' section of the pipeline configuration file contains information about pipeline ' + \
+    'arguments, which tasks connect to the same nodes etc. Each of these nodes must contain the \'ID\' attribute, so that the node can ' + \
+    'be identified. A node in the configuration file for \'' + pipeline + '\' does not have this attribute. Please check the configuration ' + \
+    'file and ensure that each node has a unique \'ID\' attribute.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # If the attribute is not recognised.
+  def invalidAttributeInNodes(self, pipeline, ID, attribute, allowedAttributes):
+    self.text.append('Invalid attribute in nodes section of the configuration file for pipeline: ' + pipeline)
+    text = 'The \'nodes\' section of the configuration file for pipeline \'' + pipeline + '\' contains the node identified with the ID \'' + \
+    ID + '\'. This node contains the attribute \'' + attribute + '\'. This is an unrecognised attribute which is not permitted. The ' + \
+    'attributes allowed in the nodes section of the pipeline configuration file are:'
+    self.text.append(text)
+    self.text.append('\t')
+
+    # Create a sorted list of the allowed attributes.
+    allowed = []
+    for attribute in allowedAttributes: allowed.append(attribute)
+
+    # Add the attributes to the text to be written along with the expected type.
+    for attribute in sorted(allowed):
+      self.text.append(attribute + ':\t' + str(allowedAttributes[attribute][0]) + ', required = ' + str(allowedAttributes[attribute][1]))
+
+    self.text.append('\t')
+    self.text.append('Please remove or correct the invalid attribute in the configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # A node in the nodes section is not a dictionary.
+  def nodeIsNotADictionary(self, pipeline):
+    self.text.append('Node in \'nodes\' section of the pipeline configuration file is not a dictionary.')
+    self.text.append('The pipeline configuration file contains a section \'nodes\' which defines a node associated with, for example, ' + \
+    'pipeline arguments, or describes which arguments of different tasks point to the same files. The configuration file for pipeline \'' + 
+    pipeline + '\' contains a node which is not a dictionary. Please check and correct the configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # A task in a pipeline node definition is invalid.
+  def invalidTaskInNode(self, pipeline, nodeID, task, isGreedy):
+    self.text.append('Invalid task in pipeline configuration file node: ' + nodeID)
+    text = 'The \'nodes\' section of the pipeline configuration file for pipeline \'' + pipeline + '\' contains a node in the \'nodes\' ' + \
+    'section with the ID \'' + nodeID + '\'. The contained \''
+    if isGreedy: text += 'greedy '
+    text += 'tasks\' section contains the task \'' + task + '\' which is not a task available in the pipeline. Please check the configuration ' + \
+    'file and ensure that all tasks are valid.'
     self.text.append(text)
     self.writeFormattedText()
     self.terminate()
@@ -573,6 +668,14 @@ class configurationClassErrors:
     self.text.append('Unknown pipeline argument: ' + argument)
     text = 'The argument \'' + argument + '\' was included on the command line, but is not a valid argument for this pipeline.'
     self.text.append(text)
+    self.writeFormattedText()
+    self.terminate()
+
+  def unsetFile(self, pipelineLongFormArgument, pipelineShortFormArgument, description):
+    self.text.append('The required command line argument ' + pipelineLongFormArgument + ' (' + pipelineShortFormArgument + ') is missing.')
+    self.text.append('This argument is described as the following: ' + description)
+    self.text.append('\t')
+    self.text.append('Check the usage information for all required arguments.')
     self.writeFormattedText()
     self.terminate()
 
