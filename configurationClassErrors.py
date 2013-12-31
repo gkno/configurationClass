@@ -433,6 +433,150 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
+  ###########################################################
+  # Errors associated with instances in configuration file. #
+  ###########################################################
+
+  # Requested instance does not exist.
+  def missingInstance(self, name, instanceName, isPipeline, availableInstances):
+    runType = 'pipeline' if isPipeline else 'tool'
+    self.text.append('Requested instance for ' + runType + ' \'' + name + '\' does not exist: ' + instanceName)
+    self.text.append('The instance \'' + instanceName + '\' was requested, but no instance with this name is available in the ' + runType + \
+    ' configuration file or the external instances configuration file for the ' + runType + '. The instances available for this ' + runType + \
+    ' are:')
+    self.text.append('\t')
+    for instance in availableInstances: self.text.append(instance)
+    self.writeFormattedText()
+    self.terminate()
+
+  # Instance has no ID.
+  def noIDForInstance(self, runName, isPipeline):
+    runType = 'pipeline' if isPipeline else 'tool'
+    self.text.append('Instance has no ID')
+    self.text.append('The instances section of the configuration file for ' + runType + ' configuration file \'' + runName + '\' contains ' + \
+    'an instance with no ID. All instances must have a unique identifier. Please check the configuration file and ensure that all instances ' + \
+    'are correctly formed with a valid ID.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # Missing attribute.
+  def missingAttributeInInstance(self, runName, attribute, allowedAttributes, instanceID, isPipeline):
+    runType = 'pipeline' if isPipeline else 'tool'
+    self.text.append('Missing attribute in instances section of ' + runType + ' configuration file: ' + runName)
+    self.text.append('The ' + runType + ' configuration file for \'' + runName + '\' is missing the instances attribute \'' + attribute + \
+    '\' from instance \'' + instanceID + '\'. The following attributes are required in the instances section of the pipeline configuration file:')
+    self.text.append('\t')
+
+    # Create a sorted list of the required attributes.
+    requiredAttributes = []
+    for attribute in allowedAttributes:
+       if allowedAttributes[attribute][1]: requiredAttributes.append(attribute)
+
+    # Add the attributes to the text to be written along with the expected type.
+    for attribute in sorted(requiredAttributes): self.text.append(attribute + ':\t' + str(allowedAttributes[attribute][0]))
+
+    self.text.append('\t')
+    self.text.append('Please add the missing attribute to the configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # Invalid attribute in instance.
+  def invalidAttributeInInstance(self, pipeline, instance, attribute, allowedAttributes):
+    self.text.append('Invalid attribute in the instances section of the configuration file for pipeline: ' + pipeline)
+    text = 'The \'instances\' section contains information for the instance \'' + instance + '\' in the configuration file for pipeline \'' + \
+    pipeline + '\'. This instance contains the attribute \'' + attribute + '\'. This is an unrecognised attribute which is not permitted. The ' + \
+    'attributes allowed in the instances section of the pipeline configuration file are:'
+    self.text.append(text)
+    self.text.append('\t')
+
+    # Create a sorted list of the allowed attributes.
+    allowed = []
+    for attribute in allowedAttributes: allowed.append(attribute)
+
+    # Add the attributes to the text to be written along with the expected type.
+    for attribute in sorted(allowed):
+      self.text.append(attribute + ':\t' + str(allowedAttributes[attribute][0]) + ', required = ' + str(allowedAttributes[attribute][1]))
+
+    self.text.append('\t')
+    self.text.append('Please remove or correct the invalid attribute in the configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # Invalid attribute in instance node.
+  def invalidAttributeInInstanceNode(self, runName, instance, attribute, allowedAttributes, isPipeline):
+    runType = 'pipeline' if isPipeline else 'tool'
+    self.text.append('Invalid attribute in a node in the instances section of the configuration file for ' + runType + ': ' + runName)
+    self.text.append('The \'instances\' section in the ' + runType + ' configuration file \'' + runName + '\' contains information for ' + \
+    'the instance \'' + instance + '\'. This instance contains the attribute \'' + attribute + '\' in one of the instance nodes. This is an ' + \
+    'unrecognised attribute which is not permitted. The attributes allowed for each node in the instances section of the ' + runType + \
+    ' configuration file are:')
+    self.text.append('\t')
+
+    # Create a sorted list of the allowed attributes.
+    allowed = []
+    for attribute in allowedAttributes: allowed.append(attribute)
+
+    # Add the attributes to the text to be written along with the expected type.
+    for attribute in sorted(allowed):
+      self.text.append(attribute + ':\t' + str(allowedAttributes[attribute][0]) + ', required = ' + str(allowedAttributes[attribute][1]))
+
+    self.text.append('\t')
+    self.text.append('Please remove or correct the invalid attribute in the configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # Missing attribute in a node.
+  def missingAttributeInPipelineInstanceNode(self, runName, instance, attribute, allowedAttributes, isPipeline):
+    runType = 'pipeline' if isPipeline else 'tool'
+    self.text.append('Missing attribute in instances section of ' + runType + ' configuration file: ' + runName)
+    self.text.append('The ' + runType + ' configuration file for \'' + runName + '\' contains a section \'instances\' for defining preset ' + \
+    'values for the ' + runType + '. One of the nodes in the instance \'' + instance + '\' is missing the attribute \'' + attribute + '\'. ' + \
+    'The following attributes are required for each node in the \'instances\' section of the ' + runType + ' configuration file:')
+    self.text.append('\t')
+
+    # Create a sorted list of the required attributes.
+    requiredAttributes = []
+    for attribute in allowedAttributes:
+       if allowedAttributes[attribute][1]: requiredAttributes.append(attribute)
+
+    # Add the attributes to the text to be written along with the expected type.
+    for attribute in sorted(requiredAttributes): self.text.append(attribute + ':\t' + str(allowedAttributes[attribute][0]))
+
+    self.text.append('\t')
+    self.text.append('Please add the missing attribute to the configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # Duplicated instance.
+  def duplicateInstance(self, runName, instanceID, isPipeline):
+    runType = 'pipeline' if isPipeline else 'tool'
+    self.text.append('Duplicated instance information for ' + runType + ': ' + runName)
+    self.text.append('Each instance appearing in the instances section of the configuration file must be unique. This includes any ' + \
+    'instances included in the external instance file \'' + runName + '_instances\'. The instance \'' + instanceID + '\' appears multiple ' + \
+    'times for this ' + runType + '. Please ensure that all instance names are unique.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # Duplicate attribute in instance nodes.
+  def duplicateNodeInInstance(self, runName, instanceID, attributeType, attribute, isPipeline):
+    runType = 'pipeline' if isPipeline else 'tool'
+    self.text.append('Duplicated instance attribute for ' + runType + ': ' + runName)
+    self.text.append('Each instance contains a set of nodes defining the values to be given to certain arguments. Within any one instance, ' + \
+    'each ID and argument must be unique. The ' + attributeType + ' \'' + attribute + '\' appears multiple times in the ' + runType + \
+    ' instance \'' + instanceID + '\'. Please ensure that each node for each instance in the configuration file contains a unique ID and ' + \
+    'argument.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # Invalid argument in instance.
+  def invalidArgumentInToolInstance(self, runName, instanceName, argumentID, argument):
+    self.text.append('Invalid argument in instance: ' + instanceName)
+    self.text.append('The configuration file contains the instance \'' + instanceName + '\', which  contains information for the argument \'' + \
+    argument + '\' (ID: \'' + argumentID + '\'). This argument is not a valid argument for the tool. Please ensure that all arguments defined in ' + \
+    'the instances section are valid for the tool.')
+    self.writeFormattedText()
+    self.terminate()
+
   #######################################
   # Errors associated with node values. #
   #######################################

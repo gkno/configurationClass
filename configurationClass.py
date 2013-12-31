@@ -13,6 +13,9 @@ from edgeAttributes import *
 import fileOperations
 from fileOperations import *
 
+import instances
+from instances import *
+
 import nodeAttributes
 from nodeAttributes import *
 
@@ -31,14 +34,30 @@ import sys
 
 class configurationMethods:
   def __init__(self):
-    self.edgeMethods    = edgeClass()
-    self.errors         = configurationClassErrors()
-    self.nodeIDs        = {}
-    self.nodeMethods    = nodeClass()
+
+    # Define methods for handling nodes and edges.
+    self.edgeMethods = edgeClass()
+    self.nodeMethods = nodeClass()
+
+    # Define a class for handling instances.
+    self.instances = instanceConfiguration()
+
+    # Define the errors class.
+    self.errors = configurationClassErrors()
+
+    # Define operations for operating on files.
     self.fileOperations = fileOperations()
-    self.pipeline       = pipelineConfiguration()
-    self.drawing        = drawGraph()
-    self.tools          = toolConfiguration()
+
+    # Define a class for handling pipelines.
+    self.pipeline = pipelineConfiguration()
+
+    # Define a class for handling tools.
+    self.tools = toolConfiguration()
+
+    # Define methods for plotting the pipeline graph.
+    self.drawing = drawGraph()
+
+    self.nodeIDs = {}
 
   # Build a graph for an individual task.  The pipeline is built by merging nodes between
   # different tasks.  This step is performed later.
@@ -370,32 +389,6 @@ class configurationMethods:
 
     return workflow
 
-  # Get the instance information or fail if the instance does not exist.
-  def getInstanceData(self, path, name, instanceName, instances, availableInstances):
-
-    # If the instance is available in the pipeline configuration file, return the data.
-    if instanceName in instances: return instances[instanceName]
-
-    # If the instance is not in the pipeline configuration file, check the associated instance file
-    # it exists.
-    instanceFilename = name + '_instances.json'
-    if instanceFilename in availableInstances.keys():
-      filePath     = path + instanceFilename
-      data         = self.fileOperations.readConfigurationFile(filePath)
-      instanceData = data['instances']
-
-      if instanceName in instanceData: return instanceData[instanceName]
-      else:
-        #TODO ERROR
-        print('instance does not exist.')
-        self.errors.terminate()
-
-    # If the associated instance file does not exist, fail.
-    else:
-      # TODO ERROR
-      print('instance does not exist.')
-      self.errors.terminate()
-
   # Attach the instance arguments to the relevant nodes.
   def attachPipelineInstanceArgumentsToNodes(self, graph, data):
     if 'nodes' in data:
@@ -430,36 +423,45 @@ class configurationMethods:
         self.nodeMethods.addValuesToGraphNode(graph, nodeID, node['values'], write = 'replace')
 
   # Attach the instance arguments to the relevant nodes.
-  def attachToolInstanceArgumentsToNodes(self, graph, data, tool):
-    if 'nodes' in data:
-      for node in data['nodes']:
+  def attachToolInstanceArgumentsToNodes(self, graph, tool, instance):
+    for node in self.instances.instanceAttributes[tool][instance].nodes:
+      nodeIDToSet = None
 
-        # The ID of the instance data must exist in the 'nodes' section of the pipeline configuration
-        # file and be associated with a pipeline argument. If not, a new node can be created for the
-        # value.
-        ID       = node['ID']
-        argument = node['argument']
+      # Check all of the nodes set for this tool, determine the associated arguments and find the node ID
+      # of the node for the argument set in the instance.
+      for nodeID in self.nodeMethods.getPredecessorOptionNodes(graph, tool):
+        argument = self.edgeMethods.getEdgeAttribute(graph, nodeID, tool, 'longFormArgument')
+        if argument == node.argument: nodeIDToSet = nodeID
 
-        try: nodeID = self.nodeMethods.getNodeForTaskArgument(graph, tool, argument)[0]
-        except:
+      # If the node doesn't exist, check that the argument requested in the instance is valid for this tool.
+      if not nodeIDToSet:
+        if node.argument not in self.tools.longFormArguments[tool] and node.argument not in self.tools.shortFormArguments[tool]:
+          self.errors.invalidArgumentInToolInstance(tool, instance, node.ID, node.argument)
 
-          # If there is no node associated with this argument, create the node.
-          attributes = self.nodeMethods.buildNodeFromToolConfiguration(self.tools, tool, argument)
-          nodeID = 'OPTION_' + str(self.nodeMethods.optionNodeID)
-          self.nodeMethods.optionNodeID += 1
-          graph.add_node(nodeID, attributes = attributes)
-          self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, nodeID, tool, argument)
+        # Get the long form of the argument to be set.
+        longFormArgument  = self.tools.getLongFormArgument(tool, node.argument)
 
-          # If the option node corresponds to a file, build a file node.
-          if self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'isFile'):
-            shortForm = self.edgeMethods.getEdgeAttribute(graph, nodeID, tool, 'shortFormArgument')
-            if self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'isInput'):
-              self.nodeMethods.buildTaskFileNodes(graph, self.tools, nodeID, tool, argument, shortForm, 'input')
-            else:
-              self.nodeMethods.buildTaskFileNodes(graph, self.tools, nodeID, tool, argument, shortForm, 'input')
+        # Define the node attributes using information from the tool configuration file.
+        attributes = self.nodeMethods.buildNodeFromToolConfiguration(self.tools, tool, longFormArgument)
 
-        # Add the values to the node.
-        self.nodeMethods.addValuesToGraphNode(graph, nodeID, node['values'], write = 'replace')
+        # Create a new node for the argument.
+        nodeIDToSet = 'OPTION_' + str(self.nodeMethods.optionNodeID)
+        self.nodeMethods.optionNodeID += 1
+        graph.add_node(nodeIDToSet, attributes = attributes)
+
+        # Add an edge from the new node to the tool node.
+        self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, nodeIDToSet, tool, longFormArgument)
+
+        # If the option node corresponds to a file, build a file node.
+        if self.nodeMethods.getGraphNodeAttribute(graph, nodeIDToSet, 'isFile'):
+          shortFormArgument = self.edgeMethods.getEdgeAttribute(graph, nodeIDToSet, tool, 'shortFormArgument')
+          if self.nodeMethods.getGraphNodeAttribute(graph, nodeIDToSet, 'isInput'):
+            self.nodeMethods.buildTaskFileNodes(graph, self.tools, nodeIDToSet, tool, longFormArgument, shortFormArgument, 'input')
+          else:
+            self.nodeMethods.buildTaskFileNodes(graph, self.tools, nodeIDToSet, tool, longFormArgument, shortFormArgument, 'input')
+
+      # Add the values to the node.
+      self.nodeMethods.addValuesToGraphNode(graph, nodeIDToSet, node.values, write = 'replace')
 
   # Check that all required files and values have been set. All files and parameters that are listed as
   # required by the infividual tools should already have been checked, but if the pipeline has some

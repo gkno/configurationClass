@@ -53,6 +53,21 @@ class argumentAttributes:
     self.configNodeID      = None
     self.shortFormArgument = None
 
+# Define an instance to hold instance attributes.
+class instanceAttributes:
+  def __init__(self):
+    self.description = None
+
+    # Define a dictionary to hold the information about the nodes (e.g. the argument and values).
+    self.nodes = {}
+
+  # Define a class to hold the instance node information.
+  class instanceNodeAttributes:
+    def __init__(self):
+      self.argument = None
+      self.ID       = None
+      self.values   = None
+
 class pipelineConfiguration:
   def __init__(self):
 
@@ -66,7 +81,7 @@ class pipelineConfiguration:
     self.nodeAttributes = {}
 
     # Define the errors class for handling errors.
-    self.errors              = configurationClassErrors()
+    self.errors = configurationClassErrors()
 
     # Define a structure to store pipeline argument information.
     self.pipelineArguments = {}
@@ -77,6 +92,9 @@ class pipelineConfiguration:
     # greedy tasks in their own data structure,
     self.commonNodes = {}
     self.greedyTasks = {}
+
+    # Define a structure to hold instance information.
+    self.instanceAttributes = {}
 
     # Define the pipeline workflow.
     self.workflow = []
@@ -127,8 +145,6 @@ class pipelineConfiguration:
     # a filename stub and consequently, multiple files can be produced.
     self.getExtension()
 
-    return data['instances']
-
   def checkGeneralAttributes(self, pipeline, data):
 
     # Set the general tool attributes.
@@ -137,7 +153,7 @@ class pipelineConfiguration:
     # Define the allowed general attributes.
     allowedAttributes                = {}
     allowedAttributes['description'] = (str, True, True, 'description')
-    allowedAttributes['instances']   = (dict, True, False, None)
+    allowedAttributes['instances']   = (list, True, False, None)
     allowedAttributes['nodes']       = (list, True, False, None)
     allowedAttributes['tasks']       = (dict, True, False, None)
 
@@ -338,6 +354,75 @@ class pipelineConfiguration:
       # filename stub and not which of the outputs in particular. The extension field would have the
       # value 'A' and so the file node for this file can be identified.
       if self.nodeAttributes[nodeID].extension: self.linkedExtension[nodeID] = self.nodeAttributes[nodeID].extension
+
+  # Check the instance data.
+  def checkInstances(self, pipeline, instances):
+
+    # Define the allowed attributes.
+    allowedAttributes                = {}
+    allowedAttributes['description'] = (str, True, True, 'description')
+    allowedAttributes['nodes']       = (dict, True, False, None)
+
+    # Define allowed node attributes.
+    allowedNodeAttributes = {}
+    allowedNodeAttributes['argument'] = (str, True, True, 'argument')
+    allowedNodeAttributes['ID']       = (str, True, True, 'ID')
+    allowedNodeAttributes['values']   = (list, True, True, 'values')
+
+    # Loop over all available instances.
+    for instance in instances:
+
+      # Define the attributes object.
+      attributes = instanceAttributes()
+
+      # Keep track of the observed required values.
+      observedAttributes = {}
+
+      for attribute in instances[instance]:
+        if attribute not in allowedAttributes: self.errors.invalidAttributeInInstance(pipeline, instance, attribute, allowedAttributes)
+
+        # Mark the attribute as seen.
+        observedAttributes[attribute] = True
+
+        # Store the given attribtue.
+        if allowedAttributes[attribute][2]: self.setAttribute(attributes, allowedAttributes[attribute][3], instances[instance][attribute])
+
+      # Having parsed all of the general attributes, check that all those that are required
+      # are present.
+      for attribute in allowedAttributes:
+        if allowedAttributes[attribute][1] and attribute not in observedAttributes:
+          self.errors.missingAttributeInPipelineConfigurationFile(pipeline, attribute, allowedAttributes, 'instances', instance)
+
+      # Each instance has a 'nodes' section (and if the validation has reached this point, the
+      # section is present and a dictionary as required). Check the contents of this section.
+      for node in instances[instance]['nodes']:
+
+        # Define the attributes object.
+        nodeAttributes = attributes.instanceNodeAttributes()
+
+        # Keep track of the observed required values.
+        observedAttributes = {}
+
+        for attribute in node:
+          if attribute not in allowedNodeAttributes: self.errors.invalidAttributeInInstanceNode(pipeline, instance, attribute, allowedNodeAttributes)
+
+          # Mark the attribute as seen.
+          observedAttributes[attribute] = True
+
+          # Store the given attribtue.
+          if allowedNodeAttributes[attribute][2]: self.setAttribute(nodeAttributes, allowedNodeAttributes[attribute][3], node[attribute])
+
+        # Having parsed all of the node attributes, check that all those that are required
+        # are present.
+        for attribute in allowedNodeAttributes:
+          if allowedNodeAttributes[attribute][1] and attribute not in observedAttributes:
+            self.errors.missingAttributeInPipelineInstanceNode(pipeline, instance, attribute, allowedNodeAttributes)
+
+        # Store the node data.
+        attributes.nodes[node['ID']] = nodeAttributes
+
+      # Store the instance information.
+      self.instanceAttributes[instance] = attributes
 
   # Set the workflow and the taskAttributes for a tool.
   def definePipelineAttributesForTool(self, name):

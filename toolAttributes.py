@@ -93,11 +93,6 @@ class toolConfiguration:
     # Look to see if the 'argument order' section is present and check its validity.
     self.checkArgumentOrder(tool, self.attributes[tool])
 
-    # Check the instance information.
-    self.checkInstanceInformation(tool, data['instances'])
-
-    return data['instances']
-
   # Check and store the top level tool attibutes.
   def checkGeneralAttributes(self, tool, data):
 
@@ -116,7 +111,7 @@ class toolConfiguration:
     allowedAttributes['help']               = (str, True, False, None)
     allowedAttributes['hide tool']          = (bool, False, True, 'isHidden')
     allowedAttributes['input is stream']    = (bool, False, True, 'inputIsStream')
-    allowedAttributes['instances']          = (dict, True, False, None)
+    allowedAttributes['instances']          = (list, True, False, None)
     allowedAttributes['modifier']           = (str, False, True, 'modifier')
     allowedAttributes['path']               = (str, True, True, 'path')
     allowedAttributes['precommand']         = (str, False, True, 'precommand')
