@@ -49,7 +49,7 @@ class argumentAttributes:
   def __init__(self):
     self.description       = None
     self.isRequired        = False
-    self.nodeID            = None
+    self.ID                = None
     self.configNodeID      = None
     self.shortFormArgument = None
 
@@ -61,12 +61,13 @@ class instanceAttributes:
     # Define a dictionary to hold the information about the nodes (e.g. the argument and values).
     self.nodes = {}
 
+  #TODO REMOVE?
   # Define a class to hold the instance node information.
-  class instanceNodeAttributes:
-    def __init__(self):
-      self.argument = None
-      self.ID       = None
-      self.values   = None
+  #class instanceNodeAttributes:
+  #  def __init__(self):
+  #    self.argument = None
+  #    self.ID       = None
+  #    self.values   = None
 
 class pipelineConfiguration:
   def __init__(self):
@@ -355,6 +356,7 @@ class pipelineConfiguration:
       # value 'A' and so the file node for this file can be identified.
       if self.nodeAttributes[nodeID].extension: self.linkedExtension[nodeID] = self.nodeAttributes[nodeID].extension
 
+  #TODO IS THIS NEEDED?
   # Check the instance data.
   def checkInstances(self, pipeline, instances):
 
@@ -474,7 +476,7 @@ class pipelineConfiguration:
 
   # Check if an argument is a pipeline argument.  If so, return the nodeID.
   def isArgumentAPipelineArgument(self, argument):
-    try: nodeID = self.pipelineArguments[argument].nodeID
+    try: nodeID = self.pipelineArguments[argument].ID
     except: return None
 
     return nodeID

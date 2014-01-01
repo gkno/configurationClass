@@ -136,7 +136,7 @@ class configurationMethods:
       # intermediate files.)
       keepFiles = self.pipeline.nodeAttributes[configNodeID].keepFiles
 
-      # If there is only a single node listed, there is no need to proceed, since no merhing needs to
+      # If there is only a single node listed, there is no need to proceed, since no merging needs to
       # take place. 
       optionsToMerge = self.pipeline.commonNodes[configNodeID]
       if len(optionsToMerge) != 1:
@@ -163,9 +163,9 @@ class configurationMethods:
         # If none of the nodes exist, a node needs to be created.  For now, store the edges that
         # need to be created
         if nodeID == None:
-          tempNodeID                = 'CREATE_NODE_' + str(missingNodeID)
-          edgesToCreate[tempNodeID] = []
-          self.nodeIDs[configNodeID]    = tempNodeID
+          tempNodeID                 = 'CREATE_NODE_' + str(missingNodeID)
+          edgesToCreate[tempNodeID]  = []
+          self.nodeIDs[configNodeID] = tempNodeID
           missingNodeID += 1
           for task, argument in absentNodeValues: edgesToCreate[tempNodeID].append((None, task, argument))
 
@@ -390,37 +390,32 @@ class configurationMethods:
     return workflow
 
   # Attach the instance arguments to the relevant nodes.
-  def attachPipelineInstanceArgumentsToNodes(self, graph, data):
-    if 'nodes' in data:
-      for node in data['nodes']:
+  def attachPipelineInstanceArgumentsToNodes(self, graph, pipelineName, instanceName):
+    for node in self.instances.instanceAttributes[pipelineName][instanceName].nodes:
 
-        # The ID of the instance data must exist in the 'nodes' section of the pipeline configuration
-        # file and be associated with a pipeline argument. If not, a new node can be created for the
-        # value.
-        ID = node['ID']
+      # Get the long form of the argument.
+      longFormArgument = self.pipeline.getLongFormArgument(graph, node.argument)
+      configNodeID     = self.pipeline.pipelineArguments[longFormArgument].configNodeID
 
-        # Get the ID of the node in the graph that this argument points to.  Since nodes were merged in
-        # the generation of the pipeline graph, the dictionary config.nodeIDs retains information about
-        # which node this value refers to.
-        try: nodeID = self.nodeIDs[ID]
+      # Check all of the available pipeline arguments and find the node ID of the node which
+      # this instance node is trying to set.
+      try: nodeIDToSet = self.nodeIDs[configNodeID]
+
+      # If the configuration node ID is not present in the nodeIDs data structure, it may be
+      # because no graph nodes were merged (the nodeIDs data structure is built up when merging
+      # graph nodes). In this case, take one of the task/argument pairs associated with this
+      # configuration file node and determine the graph node to which this points.
+      except:
+        task, argument = self.pipeline.commonNodes[configNodeID][0]
+        try: nodeIDToSet = self.nodeMethods.getNodeForTaskArgument(graph, task, argument)[0]
         except:
+          #TODO ERROR
+          print('WOOPS - configurationData.attachPipelineInstanceArgumentsToNodes')
+          self.errors.terminate()
 
-          # Get one of the tasks associated with this ID. This can be used to determine the node to attach
-          # the values to.
-          task, argument = self.pipeline.commonNodes[ID][0]
-          tool           = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
-  
-          # If gkno is being run in tool mode, the nodeIDs structure does not exist. Check to see if the
-          # instance data for this ID includes the field 'argument'.
-          try: nodeID = self.nodeMethods.getNodeForTaskArgument(graph, task, argument)[0]
-          except:
-            #TODO ERROR
-            print('WOOPS - configurationData.attachPipelineInstanceArgumentsToNodes')
-            self.errors.terminate()
-
-        # All of the values extracted from the instance json file are unicode.  Convert them to strings.
-        for counter, value in enumerate(node['values']): node['values'][counter] = str(value)
-        self.nodeMethods.addValuesToGraphNode(graph, nodeID, node['values'], write = 'replace')
+      # All of the values extracted from the instance json file are unicode.  Convert them to strings.
+      for counter, value in enumerate(node.values): node.values[counter] = str(value)
+      self.nodeMethods.addValuesToGraphNode(graph, nodeIDToSet, node.values, write = 'replace')
 
   # Attach the instance arguments to the relevant nodes.
   def attachToolInstanceArgumentsToNodes(self, graph, tool, instance):

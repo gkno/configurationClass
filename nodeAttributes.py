@@ -281,7 +281,7 @@ class nodeClass:
         predecessorNodeID = self.buildOptionNode(graph, config.tools, task, tool, taskArgument, attributes)
 
       # Set the nodeID to a graph nodeID.
-      config.pipeline.pipelineArguments[argument].nodeID = predecessorNodeID
+      config.pipeline.pipelineArguments[argument].ID = predecessorNodeID
 
   # Get an attribute from the nodes data structure.  Check to ensure that the requested attribute is
   # available for the type of node.  If not, terminate with an error.
