@@ -78,7 +78,7 @@ class configurationClassErrors:
     self.terminate()
 
   #######################################################################
-  # Errors with configuration files (common to both tool ane pipeline). #
+  # Errors with configuration files (common to both tool and pipeline). #
   #######################################################################
 
   # A general entry in the configuration file is invalid.
@@ -430,6 +430,24 @@ class configurationClassErrors:
     text += 'tasks\' section contains the task \'' + task + '\' which is not a task available in the pipeline. Please check the configuration ' + \
     'file and ensure that all tasks are valid.'
     self.text.append(text)
+    self.writeFormattedText()
+    self.terminate()
+
+  # A pipeline node links a filename stub argument with a non-filename stub argument and the extension
+  # to use is not specified.
+  def missingExtensionForNonStub(self, nodeID, stubArguments, nonStubArguments):
+    self.text.append('Missing extension in pipeline configuration file node: ' + nodeID)
+    self.text.append('The node \'' + nodeID + '\' in the pipeline configuration file links arguments from different tasks in the pipeline. ' + \
+    'There is at least one filename stub argument and one non filename stub argument linked together in this node. The filename stub argument ' + \
+    'is associated with multiple files, each with a different extension, so in order to link this to another argument, the required extension ' + \
+    'must be specified in this node to ensure that the correct files are passed through the pipeline workflow. The task/arguments associated ' + \
+    'with a filename stub are:')
+    self.text.append('\t')
+    for task, argument in stubArguments: self.text.append('Task: \'' + task + '\', argument: \'' + argument + '\'')
+    self.text.append('\t')
+    self.text.append('The task/arguments associated with single files (not filename stubs) are:')
+    self.text.append('\t')
+    for task, argument in nonStubArguments: self.text.append('Task: ' + task + ', argument: ' + argument)
     self.writeFormattedText()
     self.terminate()
 

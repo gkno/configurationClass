@@ -358,73 +358,73 @@ class pipelineConfiguration:
 
   #TODO IS THIS NEEDED?
   # Check the instance data.
-  def checkInstances(self, pipeline, instances):
-
-    # Define the allowed attributes.
-    allowedAttributes                = {}
-    allowedAttributes['description'] = (str, True, True, 'description')
-    allowedAttributes['nodes']       = (dict, True, False, None)
-
-    # Define allowed node attributes.
-    allowedNodeAttributes = {}
-    allowedNodeAttributes['argument'] = (str, True, True, 'argument')
-    allowedNodeAttributes['ID']       = (str, True, True, 'ID')
-    allowedNodeAttributes['values']   = (list, True, True, 'values')
-
-    # Loop over all available instances.
-    for instance in instances:
-
-      # Define the attributes object.
-      attributes = instanceAttributes()
-
-      # Keep track of the observed required values.
-      observedAttributes = {}
-
-      for attribute in instances[instance]:
-        if attribute not in allowedAttributes: self.errors.invalidAttributeInInstance(pipeline, instance, attribute, allowedAttributes)
-
-        # Mark the attribute as seen.
-        observedAttributes[attribute] = True
-
-        # Store the given attribtue.
-        if allowedAttributes[attribute][2]: self.setAttribute(attributes, allowedAttributes[attribute][3], instances[instance][attribute])
-
-      # Having parsed all of the general attributes, check that all those that are required
-      # are present.
-      for attribute in allowedAttributes:
-        if allowedAttributes[attribute][1] and attribute not in observedAttributes:
-          self.errors.missingAttributeInPipelineConfigurationFile(pipeline, attribute, allowedAttributes, 'instances', instance)
-
-      # Each instance has a 'nodes' section (and if the validation has reached this point, the
-      # section is present and a dictionary as required). Check the contents of this section.
-      for node in instances[instance]['nodes']:
-
-        # Define the attributes object.
-        nodeAttributes = attributes.instanceNodeAttributes()
-
-        # Keep track of the observed required values.
-        observedAttributes = {}
-
-        for attribute in node:
-          if attribute not in allowedNodeAttributes: self.errors.invalidAttributeInInstanceNode(pipeline, instance, attribute, allowedNodeAttributes)
-
-          # Mark the attribute as seen.
-          observedAttributes[attribute] = True
-
-          # Store the given attribtue.
-          if allowedNodeAttributes[attribute][2]: self.setAttribute(nodeAttributes, allowedNodeAttributes[attribute][3], node[attribute])
-
-        # Having parsed all of the node attributes, check that all those that are required
-        # are present.
-        for attribute in allowedNodeAttributes:
-          if allowedNodeAttributes[attribute][1] and attribute not in observedAttributes:
-            self.errors.missingAttributeInPipelineInstanceNode(pipeline, instance, attribute, allowedNodeAttributes)
-
-        # Store the node data.
-        attributes.nodes[node['ID']] = nodeAttributes
-
-      # Store the instance information.
-      self.instanceAttributes[instance] = attributes
+#  def checkInstances(self, pipeline, instances):
+#
+#    # Define the allowed attributes.
+#    allowedAttributes                = {}
+#    allowedAttributes['description'] = (str, True, True, 'description')
+#    allowedAttributes['nodes']       = (dict, True, False, None)
+#
+#    # Define allowed node attributes.
+#    allowedNodeAttributes = {}
+#    allowedNodeAttributes['argument'] = (str, True, True, 'argument')
+#    allowedNodeAttributes['ID']       = (str, True, True, 'ID')
+#    allowedNodeAttributes['values']   = (list, True, True, 'values')
+#
+#    # Loop over all available instances.
+#    for instance in instances:
+#
+#      # Define the attributes object.
+#      attributes = instanceAttributes()
+#
+#      # Keep track of the observed required values.
+#      observedAttributes = {}
+#
+#      for attribute in instances[instance]:
+#        if attribute not in allowedAttributes: self.errors.invalidAttributeInInstance(pipeline, instance, attribute, allowedAttributes)
+#
+#        # Mark the attribute as seen.
+#        observedAttributes[attribute] = True
+#
+#        # Store the given attribtue.
+#        if allowedAttributes[attribute][2]: self.setAttribute(attributes, allowedAttributes[attribute][3], instances[instance][attribute])
+#
+#      # Having parsed all of the general attributes, check that all those that are required
+#      # are present.
+#      for attribute in allowedAttributes:
+#        if allowedAttributes[attribute][1] and attribute not in observedAttributes:
+#          self.errors.missingAttributeInPipelineConfigurationFile(pipeline, attribute, allowedAttributes, 'instances', instance)
+#
+#      # Each instance has a 'nodes' section (and if the validation has reached this point, the
+#      # section is present and a dictionary as required). Check the contents of this section.
+#      for node in instances[instance]['nodes']:
+#
+#        # Define the attributes object.
+#        nodeAttributes = attributes.instanceNodeAttributes()
+#
+#        # Keep track of the observed required values.
+#        observedAttributes = {}
+#
+#        for attribute in node:
+#          if attribute not in allowedNodeAttributes: self.errors.invalidAttributeInInstanceNode(pipeline, instance, attribute, allowedNodeAttributes)
+#
+#          # Mark the attribute as seen.
+#          observedAttributes[attribute] = True
+#
+#          # Store the given attribtue.
+#          if allowedNodeAttributes[attribute][2]: self.setAttribute(nodeAttributes, allowedNodeAttributes[attribute][3], node[attribute])
+#
+#        # Having parsed all of the node attributes, check that all those that are required
+#        # are present.
+#        for attribute in allowedNodeAttributes:
+#          if allowedNodeAttributes[attribute][1] and attribute not in observedAttributes:
+#            self.errors.missingAttributeInPipelineInstanceNode(pipeline, instance, attribute, allowedNodeAttributes)
+#
+#        # Store the node data.
+#        attributes.nodes[node['ID']] = nodeAttributes
+#
+#      # Store the instance information.
+#      self.instanceAttributes[instance] = attributes
 
   # Set the workflow and the taskAttributes for a tool.
   def definePipelineAttributesForTool(self, name):

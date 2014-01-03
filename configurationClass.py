@@ -83,6 +83,30 @@ class configurationMethods:
         nodeID = self.nodeMethods.getNodeForTaskArgument(graph, task, argument)[0]
         self.nodeMethods.setGraphNodeAttribute(graph, nodeID, 'linkedExtension', self.pipeline.linkedExtension[nodeName])
 
+  # If the pipeline configuration file links a filename stub argument from one task to a non-filename
+  # stub argument in another, the explicit extension must be included in the configuration file. Check
+  # that this is the case.
+  def checkStubConnections(self, graph):
+
+    # Loop over all of the nodes in the commonNodes structure. This includes all of the nodes defined
+    # in the pipeline configuration file.
+    for nodeID in self.pipeline.commonNodes:
+      nonStubArguments = []
+      stubArguments    = []
+
+      # Get the task/argument pairs associated with the node.
+      for task, argument in self.pipeline.commonNodes[nodeID]:
+        tool = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
+
+        # Determine if this task argument is a filename stub.
+        if self.tools.getArgumentAttribute(tool, argument, 'isFilenameStub'): stubArguments.append((task, argument))
+        else: nonStubArguments.append((task, argument))
+
+      # If the node has both a stub and non-stub argument associated with it, ensure that the pipeline
+      # configuration file for this node contains the extension attribute.
+      if nonStubArguments and stubArguments and not self.pipeline.nodeAttributes[nodeID].extension:
+        self.errors.missingExtensionForNonStub(nodeID, stubArguments, nonStubArguments)
+
   # Merge shared nodes between tasks using information from the pipeline configuration file.  For
   # example, task A outputs a file fileA and taskB uses this as input.  Having built an individual
   # graph for each task, there exists an output file node for taskA and an input file node for
@@ -329,18 +353,21 @@ class configurationMethods:
       print('UNEXPECTED NUMBER OF FILENODE IDs - createFilenameStubEdgesR')
       self.errors.terminate()
 
-    # Rename the existing file node.
+    # Get the extensions for the output files.
+    outputExtensions = self.tools.getArgumentAttribute(tool, longFormArgument, 'filenameExtensions')
+
+    # Rename the existing file node and reset the extension.
     self.nodeMethods.renameNode(graph, self.tools, mergeFileNodeIDs[0], mergeFileNodeIDs[0] + '_1')
     fileNodeIDs.append(mergeFileNodeIDs[0] + '_1')
 
     # Create the additional file nodes.
-    outputs = self.tools.getArgumentAttribute(tool, longFormArgument, 'filenameExtensions')
-    for count in range(2, len(outputs) + 1):
+    for count in range(2, len(outputExtensions) + 1):
+      extension                      = outputExtensions[count - 1]
       fileNodeID                     = mergeNodeID + '_FILE_' + str(count)
       attributes                     = fileNodeAttributes()
       attributes.description         = self.nodeMethods.getGraphNodeAttribute(graph, mergeNodeID, 'description')
       attributes.allowMultipleValues = self.nodeMethods.getGraphNodeAttribute(graph, mergeNodeID, 'allowMultipleValues')
-      attributes.allowedExtensions   = self.nodeMethods.getGraphNodeAttribute(graph, mergeNodeID, 'allowedExtensions')
+      attributes.allowedExtensions   = [extension]
       fileNodeIDs.append(fileNodeID)
       graph.add_node(fileNodeID, attributes = attributes)
 
