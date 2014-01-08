@@ -135,8 +135,11 @@ class instanceConfiguration:
   # Check for instances in external instances file.
   def checkExternalInstances(self, fileOperations, filename, runName, tools, isPipeline):
     filename          = filename.replace('.json', '_instances.json')
-    configurationData = fileOperations.readConfigurationFile(filename)
-    self.checkInstances(runName, configurationData['instances'], isPipeline)
+
+    # Check if the file exists (it's existence is not necessary).
+    if os.path.exists(filename):
+      configurationData = fileOperations.readConfigurationFile(filename)
+      self.checkInstances(runName, configurationData['instances'], isPipeline)
 
   # Set a value in the toolAttributes.
   def setAttribute(self, attributes, attribute, value):

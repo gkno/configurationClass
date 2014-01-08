@@ -407,6 +407,30 @@ class configurationMethods:
       for sourceNodeID in self.nodeMethods.getNodeForTaskArgument(graph, task, argument):
         self.edgeMethods.setEdgeAttribute(graph, sourceNodeID, task, 'isGreedy', True)
 
+  # Check to see if there are any isolated nodes in the pipeline.
+  def checkForIsolatedNodes(self, graph):
+    isolatedNodes = []
+    isIsolated    = False
+
+    for task in self.pipeline.workflow:
+      isTaskIsolated = True
+
+      # Check if any of the files being used as input are used by any other tasks in the pipeline.
+      for fileNodeID in self.nodeMethods.getPredecessorFileNodes(graph, task):
+
+        # Check if the file is used by any other tasks,
+        if graph.predecessors(fileNodeID) or len(graph.successors(fileNodeID)) > 1: isTaskIsolated = False
+
+      # Now check if any files output by the task are used by other tasks.
+      for fileNodeID in self.nodeMethods.getSuccessorFileNodes(graph, task):
+        if graph.successors(fileNodeID): isTaskIsolated = False
+
+      if isTaskIsolated:
+        isolatedNodes.append(task)
+        isIsolated = True
+
+    return isIsolated, isolatedNodes
+
   # Generate the task workflow from the topologically sorted pipeline graph.
   def generateWorkflow(self, graph):
     workflow  = []
