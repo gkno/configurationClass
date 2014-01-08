@@ -23,7 +23,7 @@ import sys
 # Define a class to store general pipeline attributes,
 class pipelineAttributes:
   def __init__(self):
-    self.description    = None
+    self.description = None
 
 # Define a class to store task attribtues.
 class taskAttributes:
@@ -73,7 +73,7 @@ class pipelineConfiguration:
   def __init__(self):
 
     # Define the attributes for a pipeline.
-    self.attributes          = {}
+    self.attributes = {}
 
     # Define the task attributes.
     self.taskAttributes = {}
@@ -94,6 +94,7 @@ class pipelineConfiguration:
     self.commonNodes = {}
     self.greedyTasks = {}
 
+    #TODO REMOVE
     # Define a structure to hold instance information.
     self.instanceAttributes = {}
 
@@ -111,8 +112,8 @@ class pipelineConfiguration:
     self.tasksOutputtingToStream = {}
 
     # Define the methods to operate on the graph nodes and edges,
-    self.edgeMethods         = edgeClass()
-    self.nodeMethods         = nodeClass()
+    self.edgeMethods = edgeClass()
+    self.nodeMethods = nodeClass()
 
     #TODO REQUIRED?
     self.filename            = ''

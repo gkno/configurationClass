@@ -19,7 +19,7 @@ class toolAttributes:
     self.description   = None
     self.executable    = None
     self.inputIsStream = False
-    self.isHidden      = None
+    self.isHidden      = False
     self.modifier      = None
     self.path          = None
     self.precommand    = None

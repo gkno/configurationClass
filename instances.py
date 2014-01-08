@@ -132,6 +132,12 @@ class instanceConfiguration:
       if instanceID in self.instanceAttributes[runName]: self.errors.duplicateInstance(runName, instanceID, isPipeline)
       self.instanceAttributes[runName][instanceID] = attributes
 
+  # Check for instances in external instances file.
+  def checkExternalInstances(self, fileOperations, filename, runName, tools, isPipeline):
+    filename          = filename.replace('.json', '_instances.json')
+    configurationData = fileOperations.readConfigurationFile(filename)
+    self.checkInstances(runName, configurationData['instances'], isPipeline)
+
   # Set a value in the toolAttributes.
   def setAttribute(self, attributes, attribute, value):
     try: test = getattr(attributes, attribute)
