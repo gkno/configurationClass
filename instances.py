@@ -47,6 +47,7 @@ class instanceConfiguration:
   # Check the instance data.
   def checkInstances(self, runName, instances, isPipeline):
 
+    print('CHECK', runName)
     # Define the allowed attributes.
     allowedAttributes                = {}
     allowedAttributes['description'] = (str, True, True, 'description')
@@ -132,6 +133,17 @@ class instanceConfiguration:
       if instanceID in self.instanceAttributes[runName]: self.errors.duplicateInstance(runName, instanceID, isPipeline)
       self.instanceAttributes[runName][instanceID] = attributes
 
+    # Convert any unicode values to strings.
+    self.convertUnicode()
+
+  # Convert any unicode values to strings.
+  def convertUnicode(self):
+    for runName in self.instanceAttributes:
+      for instance in self.instanceAttributes[runName]:
+        for nodeCount, node in enumerate(self.instanceAttributes[runName][instance].nodes):
+          for counter, value in enumerate(node.values):
+            if isinstance(value, unicode): self.instanceAttributes[runName][instance].nodes[nodeCount].values[counter] = str(value)
+
   # Check for instances in external instances file.
   def checkExternalInstances(self, fileOperations, filename, runName, tools, isPipeline):
     filename          = filename.replace('.json', '_instances.json')
@@ -157,6 +169,14 @@ class instanceConfiguration:
     setattr(attributes, attribute, value)
 
     return attributes
+
+  # Get an instance node attribute.
+  def getArguments(self, runName, instanceName):
+    arguments = []
+    for node in self.instanceAttributes[runName][instanceName].nodes:
+      arguments.append((node.argument, node.values))
+
+    return arguments
 
   # Get the instance information or fail if the instance does not exist.
   def checkRequestedInstance(self, path, name, instanceName, instanceFiles, isPipeline):
