@@ -35,7 +35,7 @@ class taskAttributes:
 class pipelineNodeAttributes:
   def __init__(self):
     self.description       = None
-    self.extension         = None
+    self.extensions        = None
     self.keepFiles         = False
     self.ID                = None
     self.greedyTasks       = None
@@ -52,22 +52,6 @@ class argumentAttributes:
     self.ID                = None
     self.configNodeID      = None
     self.shortFormArgument = None
-
-# Define an instance to hold instance attributes.
-class instanceAttributes:
-  def __init__(self):
-    self.description = None
-
-    # Define a dictionary to hold the information about the nodes (e.g. the argument and values).
-    self.nodes = {}
-
-  #TODO REMOVE?
-  # Define a class to hold the instance node information.
-  #class instanceNodeAttributes:
-  #  def __init__(self):
-  #    self.argument = None
-  #    self.ID       = None
-  #    self.values   = None
 
 class pipelineConfiguration:
   def __init__(self):
@@ -93,10 +77,6 @@ class pipelineConfiguration:
     # greedy tasks in their own data structure,
     self.commonNodes = {}
     self.greedyTasks = {}
-
-    #TODO REMOVE
-    # Define a structure to hold instance information.
-    self.instanceAttributes = {}
 
     # Define the pipeline workflow.
     self.workflow = []
@@ -141,11 +121,6 @@ class pipelineConfiguration:
 
     # From the node data, define which arguments are greedy.
     self.getNodeTasks(pipeline)
-
-    # Check if there are extensions listed with the node. These can be included to identify
-    # the extension of the target file when the output of the task producing the files is
-    # a filename stub and consequently, multiple files can be produced.
-    self.getExtension()
 
   def checkGeneralAttributes(self, pipeline, data):
 
@@ -239,7 +214,7 @@ class pipelineConfiguration:
     allowedAttributes                        = {}
     allowedAttributes['ID']                  = (str, True, True, 'ID')
     allowedAttributes['description']         = (str, True, True, 'description')
-    allowedAttributes['extension']           = (str, False, True, 'extension')
+    allowedAttributes['extensions']          = (dict, False, True, 'extensions')
     allowedAttributes['greedy tasks']        = (dict, False, True, 'greedyTasks')
     allowedAttributes['keep files']          = (bool, False, True, 'keepFiles')
     allowedAttributes['long form argument']  = (str, False, True, 'longFormArgument')
@@ -309,123 +284,100 @@ class pipelineConfiguration:
   # tasks in the pipeline. Arguments associated with the tasks are checked after the tool
   # configuration files have been processed.
   def getNodeTasks(self, pipeline):
+    observedArguments = {}
 
     # Loop over all of the nodes.
-    for nodeID in self.nodeAttributes:
-      self.commonNodes[nodeID] = []
+    for configNodeID in self.nodeAttributes:
+      self.commonNodes[configNodeID] = []
 
       # Parse the tasks.
-      if self.nodeAttributes[nodeID].tasks:
-        for task in self.nodeAttributes[nodeID].tasks:
+      if self.nodeAttributes[configNodeID].tasks:
+        for task in self.nodeAttributes[configNodeID].tasks:
 
           # Check that the task is valid.
-          if task not in self.taskAttributes.keys(): self.errors.invalidTaskInNode(pipeline, nodeID, task, False)
+          if task not in self.taskAttributes.keys(): self.errors.invalidTaskInNode(pipeline, configNodeID, task, False)
 
           # Link the pipeline argument to the task/arguments listed with the node.
+          taskArgument = self.nodeAttributes[configNodeID].tasks[task]
           if task not in self.taskArgument: self.taskArgument[task] = {}
-          self.taskArgument[task][self.nodeAttributes[nodeID].tasks[task]] = self.nodeAttributes[nodeID].longFormArgument
+          self.taskArgument[task][taskArgument] = self.nodeAttributes[configNodeID].longFormArgument
 
           # Store the task and argument.
-          self.commonNodes[nodeID].append((str(task), str(self.nodeAttributes[nodeID].tasks[task])))
+          self.commonNodes[configNodeID].append((str(task), str(taskArgument)))
+
+          # Store the task/argument pair in the observedOptions dictionary. If this task/argument pair has already been seen
+          if str(task) not in observedArguments: observedArguments[str(task)] = {}
+          if str(taskArgument) not in observedArguments[str(task)]: observedArguments[str(task)][str(taskArgument)] = []
+          observedArguments[str(task)][str(taskArgument)].append(str(configNodeID))
 
       # Then parse the greedy tasks.
-      if self.nodeAttributes[nodeID].greedyTasks:
-        for task in self.nodeAttributes[nodeID].greedyTasks:
+      if self.nodeAttributes[configNodeID].greedyTasks:
+        for task in self.nodeAttributes[configNodeID].greedyTasks:
 
           # Check that the task is valid.
-          if task not in self.taskAttributes.keys(): self.errors.invalidTaskInNode(pipeline, nodeID, task, True)
+          if task not in self.taskAttributes.keys(): self.errors.invalidTaskInNode(pipeline, configNodeID, task, True)
 
           # Link the pipeline argument to the task/arguments listed with the node.
           if task not in self.taskArgument: self.taskArgument[task] = {}
-          self.taskArgument[task][self.nodeAttributes[nodeID].greedyTasks[task]] = self.nodeAttributes[nodeID].longFormArgument
+          taskArgument = self.nodeAttributes[configNodeID].greedyTasks[task]
+          self.taskArgument[task][taskArgument] = self.nodeAttributes[configNodeID].longFormArgument
 
           # Store the task and argument.
-          self.commonNodes[nodeID].append((str(task), str(self.nodeAttributes[nodeID].greedyTasks[task])))
-          self.greedyTasks[task] = str(self.nodeAttributes[nodeID].greedyTasks)
+          self.commonNodes[configNodeID].append((str(task), str(taskArgument)))
+          self.greedyTasks[task] = str(self.nodeAttributes[configNodeID].greedyTasks)
 
-  # Get information about any extensions associated.
-  def getExtension(self):
+          # Store the task/argument pair in the observedOptions dictionary. If this task/argument pair has already been seen
+          if str(task) not in observedArguments: observedArguments[str(task)] = {}
+          if str(taskArgument) not in observedArguments[str(task)]: observedArguments[str(task)][str(taskArgument)] = []
+          observedArguments[str(task)][str(taskArgument)].append(str(configNodeID))
+
+    # Each node in the pipeline configuration file contains a list of task/argument pairs that take the
+    # same value and can thus be merged into a single node in the pipeline graph. If a task/argument pair
+    # appears in multiple nodes, the results can be unexpected, so this isn't permitted.
+    for task in observedArguments:
+      for argument in observedArguments[task]:
+        if len(observedArguments[task][argument]) > 1: self.errors.repeatedArgumentInNode(task, argument, observedArguments[task][argument])
+
+  # Get information about any associated extensions. Check that this only occurs for nodes with an
+  # filename stub and that all linked arguments that are not stubs themselves are given an extension.
+  def checkCommonNodes(self, tools):
 
     # Loop over all of the nodes.
-    for nodeID in self.nodeAttributes:
+    for configNodeID in self.commonNodes:
+      hasFilenameStub = False
+      stubArguments   = []
+      for task, argument in self.commonNodes[configNodeID]:
+        tool = self.taskAttributes[task].tool
 
-      # If 'extension' is in the node, this is used to identify the extension of the file that is
-      # being linked. Consider the following case. A tool has an output filename stub 'test' and the
-      # tool actually produces the files test.A and test.B. In the pipeline, a tool needs to use the
-      # output test.A, but the information in the node only links the input argument with the output
-      # filename stub and not which of the outputs in particular. The extension field would have the
-      # value 'A' and so the file node for this file can be identified.
-      if self.nodeAttributes[nodeID].extension: self.linkedExtension[nodeID] = self.nodeAttributes[nodeID].extension
+        # First check if the argument is valid.
+        if argument not in tools.getArguments(tool): self.errors.invalidToolArgument(configNodeID, task, tool, argument, tools.getArguments(tool))
 
-  #TODO IS THIS NEEDED?
-  # Check the instance data.
-#  def checkInstances(self, pipeline, instances):
-#
-#    # Define the allowed attributes.
-#    allowedAttributes                = {}
-#    allowedAttributes['description'] = (str, True, True, 'description')
-#    allowedAttributes['nodes']       = (dict, True, False, None)
-#
-#    # Define allowed node attributes.
-#    allowedNodeAttributes = {}
-#    allowedNodeAttributes['argument'] = (str, True, True, 'argument')
-#    allowedNodeAttributes['ID']       = (str, True, True, 'ID')
-#    allowedNodeAttributes['values']   = (list, True, True, 'values')
-#
-#    # Loop over all available instances.
-#    for instance in instances:
-#
-#      # Define the attributes object.
-#      attributes = instanceAttributes()
-#
-#      # Keep track of the observed required values.
-#      observedAttributes = {}
-#
-#      for attribute in instances[instance]:
-#        if attribute not in allowedAttributes: self.errors.invalidAttributeInInstance(pipeline, instance, attribute, allowedAttributes)
-#
-#        # Mark the attribute as seen.
-#        observedAttributes[attribute] = True
-#
-#        # Store the given attribtue.
-#        if allowedAttributes[attribute][2]: self.setAttribute(attributes, allowedAttributes[attribute][3], instances[instance][attribute])
-#
-#      # Having parsed all of the general attributes, check that all those that are required
-#      # are present.
-#      for attribute in allowedAttributes:
-#        if allowedAttributes[attribute][1] and attribute not in observedAttributes:
-#          self.errors.missingAttributeInPipelineConfigurationFile(pipeline, attribute, allowedAttributes, 'instances', instance)
-#
-#      # Each instance has a 'nodes' section (and if the validation has reached this point, the
-#      # section is present and a dictionary as required). Check the contents of this section.
-#      for node in instances[instance]['nodes']:
-#
-#        # Define the attributes object.
-#        nodeAttributes = attributes.instanceNodeAttributes()
-#
-#        # Keep track of the observed required values.
-#        observedAttributes = {}
-#
-#        for attribute in node:
-#          if attribute not in allowedNodeAttributes: self.errors.invalidAttributeInInstanceNode(pipeline, instance, attribute, allowedNodeAttributes)
-#
-#          # Mark the attribute as seen.
-#          observedAttributes[attribute] = True
-#
-#          # Store the given attribtue.
-#          if allowedNodeAttributes[attribute][2]: self.setAttribute(nodeAttributes, allowedNodeAttributes[attribute][3], node[attribute])
-#
-#        # Having parsed all of the node attributes, check that all those that are required
-#        # are present.
-#        for attribute in allowedNodeAttributes:
-#          if allowedNodeAttributes[attribute][1] and attribute not in observedAttributes:
-#            self.errors.missingAttributeInPipelineInstanceNode(pipeline, instance, attribute, allowedNodeAttributes)
-#
-#        # Store the node data.
-#        attributes.nodes[node['ID']] = nodeAttributes
-#
-#      # Store the instance information.
-#      self.instanceAttributes[instance] = attributes
+        # Check if any of the arguments are for filename stubs.
+        isFilenameStub = tools.getArgumentAttribute(tool, argument, 'isFilenameStub')
+        if isFilenameStub:
+          hasFilenameStub = True
+          stubArguments.append((task, argument))
+
+      # If the configuration file node contains an argument with a filename stub, loop over the
+      # task/argument pairs again and check that all non-filename stub arguments are provided with
+      # a valid extension.
+      if hasFilenameStub:
+        for task, argument in self.commonNodes[configNodeID]:
+	  tool           = self.taskAttributes[task].tool
+          isFilenameStub = tools.getArgumentAttribute(tool, argument, 'isFilenameStub')
+
+          # If the argument is also for a filename stub, no further action is necessary. If it is not,
+          # then check that the extensions required by the argument is specified. This is necessary
+          # as the argument will point to a single file, and the filename stub points to multiple files,
+          # so the particular file needs to be specified.
+          if not isFilenameStub:
+
+            # If the argument does not have an extension, terminate.
+            try: extension = self.nodeAttributes[configNodeID].extensions[task][argument]
+            except: self.errors.noExtensionInNode(configNodeID, task, argument, stubArguments)
+
+            # Store the extension.
+            self.linkedExtension[configNodeID] = self.nodeAttributes[configNodeID].extensions
 
   # Set the workflow and the taskAttributes for a tool.
   def definePipelineAttributesForTool(self, name):
@@ -489,3 +441,8 @@ class pipelineConfiguration:
     except: return None, None
 
     return longFormArgument, self.pipelineArguments[longFormArgument].shortFormArgument
+
+  # Get the extension associated with a task/argument pair from the nodes section.
+  def getExtension(self, task, argument, extensions):
+    try: return extensions[task][argument]
+    except: self.errors.invalidExtensionRequest(task, argument, extensions)

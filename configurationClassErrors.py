@@ -433,21 +433,41 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
-  # A pipeline node links a filename stub argument with a non-filename stub argument and the extension
-  # to use is not specified.
-  def missingExtensionForNonStub(self, nodeID, stubArguments, nonStubArguments):
-    self.text.append('Missing extension in pipeline configuration file node: ' + nodeID)
-    self.text.append('The node \'' + nodeID + '\' in the pipeline configuration file links arguments from different tasks in the pipeline. ' + \
-    'There is at least one filename stub argument and one non filename stub argument linked together in this node. The filename stub argument ' + \
-    'is associated with multiple files, each with a different extension, so in order to link this to another argument, the required extension ' + \
-    'must be specified in this node to ensure that the correct files are passed through the pipeline workflow. The task/arguments associated ' + \
-    'with a filename stub are:')
+  # If a task argument appears in multiple nodes in the pipeline configuration file.
+  def repeatedArgumentInNode(self, task, argument, nodeIDs):
+    self.text.append('Task argument in multiple configuration file nodes.')
+    self.text.append('To avoid problems with merging pipeline graph nodes, a task argument is only permitted in a single node in the pipeline ' + \
+    'configuration file. The argument \'' + argument + '\' for task \'' + task + '\' appears in the following configuration file nodes:')
     self.text.append('\t')
-    for task, argument in stubArguments: self.text.append('Task: \'' + task + '\', argument: \'' + argument + '\'')
+    for nodeID in nodeIDs: self.text.append(nodeID)
     self.text.append('\t')
-    self.text.append('The task/arguments associated with single files (not filename stubs) are:')
+    self.text.append('These configuration file nodes should be compressed into a single node. If the argument is for an argument stub, ensure ' + \
+    'that the extensions are specified for linked arguments.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # If the argument is not a valid argument for the listed task.
+  def invalidToolArgument(self, configNodeID, task, tool, argument, validArguments):
+    self.text.append('Invalid tool argument in pipeline configuration file.')
+    self.text.append('The argument \'' + argument + '\' appears in the pipeline configuration file \'nodes\' section, in the node with the ' + \
+    'ID \'' + configNodeID + '\', associated with the task \'' + task + '\'. This task uses the tool \'' + tool + '\' and the argument ' + \
+    'is not valid for this tool. Please check the configuration file and amend this invalid argument. The allowed arguments for this tool are:')
     self.text.append('\t')
-    for task, argument in nonStubArguments: self.text.append('Task: ' + task + ', argument: ' + argument)
+    for toolArgument in validArguments: self.text.append(toolArgument)
+    self.writeFormattedText()
+    self.terminate()
+
+  # A non-filename stub argument is associated with a filename stub argument, but the
+  # required extension is not set.
+  def noExtensionInNode(self, configNodeID, task, argument, stubArguments):
+    self.text.append('Missing extension in pipeline configuration file.')
+    self.text.append('The node \'' + configNodeID + '\' in the \'nodes\' section of the pipeline configuration file contains the task/' + \
+    'argument pair \'' + task + ' ' + argument + '\'. Also contained in the node are the task/argument pairs:')
+    self.text.append('\t')
+    for stubTask, stubArgument in stubArguments: self.text.append(stubTask + ' ' + stubArgument)
+    self.text.append('\t')
+    self.text.append('These arguments point to a filename stub. The argument \'' + task + ' ' + argument + '\' is not a filename stub and ' + \
+    'so the extension that it expects needs to be specified in the node. Please see the documentation for details on how this is achieved.')
     self.writeFormattedText()
     self.terminate()
 
@@ -595,10 +615,6 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
-  #######################################
-  # Errors associated with node values. #
-  #######################################
-
   ###################################################
   # Errors associated with getting node attributes. *
   ###################################################
@@ -665,6 +681,14 @@ class configurationClassErrors:
       text = 'The requested attribute is not associated with any of the available node data structures.'
       node + '\'.'
       self.text.append(text)
+    self.writeFormattedText()
+    self.terminate()
+
+  # Information about the extension was requested for a task argument pair that hasn't been specified.
+  def invalidExtensionRequest(self, task, argument, extensions):
+    self.text.append('Invalid extension request.')
+    self.text.append('The required extension for the task/argument \'' + task + ' ' + argument + '\' was requested, but the information ' + \
+    'is not included in the pipeline configuration file. Please check and update the configuration file for this argument.')
     self.writeFormattedText()
     self.terminate()
 

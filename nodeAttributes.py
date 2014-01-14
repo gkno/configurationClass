@@ -453,15 +453,14 @@ class nodeClass:
     return nodeList
 
   # Get the node associated with a tool argument.
-  def getNodeForTaskArgument(self, graph, task, argument):
+  def getNodeForTaskArgument(self, graph, task, argument, nodeType):
     nodeIDs          = []
-    predecessorEdges = graph.in_edges(task)
-    for predecessorEdge in predecessorEdges:
+    for predecessorEdge in graph.in_edges(task):
       value = self.edgeMethods.getEdgeAttribute(graph, predecessorEdge[0], predecessorEdge[1], 'longFormArgument')
       if value == argument:
 
-        # Only return a value if this is an option node.
-        if self.getGraphNodeAttribute(graph, predecessorEdge[0], 'nodeType') == 'option': nodeIDs.append(predecessorEdge[0])
+        # Only return a value if this node is of the requested type.
+        if self.getGraphNodeAttribute(graph, predecessorEdge[0], 'nodeType') == nodeType: nodeIDs.append(predecessorEdge[0])
 
     return nodeIDs
 

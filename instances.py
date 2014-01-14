@@ -47,7 +47,6 @@ class instanceConfiguration:
   # Check the instance data.
   def checkInstances(self, runName, instances, isPipeline):
 
-    print('CHECK', runName)
     # Define the allowed attributes.
     allowedAttributes                = {}
     allowedAttributes['description'] = (str, True, True, 'description')

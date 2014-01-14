@@ -16,7 +16,7 @@ class drawGraph():
 
   # Plot a dot file. Either the option, file or all nodes are plotted (gkno specific
   # nodes are removed).
-  def drawDot(self, graph, nodeMethods, edgeMethods, filename, nodes = 'all'):
+  def drawDot(self, graph, nodeMethods, edgeMethods, tools, filename, nodes = 'all'):
     graphToDraw = graph.copy()
 
     # Define a dictionary for containing mapping information for the nodes.  This will
@@ -29,6 +29,15 @@ class drawGraph():
     gknoNodeIDs   = nodeMethods.getNodes(graphToDraw, 'general')
     if nodes == 'file':
       for nodeID in optionNodeIDs: nodeMethods.setGraphNodeAttribute(graphToDraw, nodeID, 'isMarkedForRemoval', True)
+
+      # Find the first file associated with the file node.
+      for nodeID in fileNodeIDs:
+        try: newNodeID = nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values')[1][0]
+        except: newNodeID = nodeID
+
+        # Rename the node.
+        if nodeID != newNodeID: nodeMethods.renameNode(graphToDraw, tools, nodeID, newNodeID)
+
     elif nodes == 'option':
       for nodeID in fileNodeIDs: nodeMethods.setGraphNodeAttribute(graphToDraw, nodeID, 'isMarkedForRemoval', True)
     elif nodes != 'all':

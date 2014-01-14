@@ -80,7 +80,7 @@ class configurationMethods:
     # For nodes in the pipeline configuration file, find any that have the extension field.
     for nodeName in self.pipeline.linkedExtension:
       for task, argument in self.pipeline.commonNodes[nodeName]:
-        nodeID = self.nodeMethods.getNodeForTaskArgument(graph, task, argument)[0]
+        nodeID = self.nodeMethods.getNodeForTaskArgument(graph, task, argument, 'option')[0]
         self.nodeMethods.setGraphNodeAttribute(graph, nodeID, 'linkedExtension', self.pipeline.linkedExtension[nodeName])
 
   # If the pipeline configuration file links a filename stub argument from one task to a non-filename
@@ -104,8 +104,8 @@ class configurationMethods:
 
       # If the node has both a stub and non-stub argument associated with it, ensure that the pipeline
       # configuration file for this node contains the extension attribute.
-      if nonStubArguments and stubArguments and not self.pipeline.nodeAttributes[nodeID].extension:
-        self.errors.missingExtensionForNonStub(nodeID, stubArguments, nonStubArguments)
+      #if nonStubArguments and stubArguments and not self.pipeline.nodeAttributes[nodeID].extension:
+      #  self.errors.missingExtensionForNonStub(nodeID, stubArguments, nonStubArguments)
 
   # Merge shared nodes between tasks using information from the pipeline configuration file.  For
   # example, task A outputs a file fileA and taskB uses this as input.  Having built an individual
@@ -323,7 +323,7 @@ class configurationMethods:
       
       # Get the extension that the file is expecting. Add a '.' to the front of this extension. The extensions
       # supplied for filename stubs begin with a '.'.
-      extension = '.' + self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'linkedExtension')
+      extension = '.' + self.pipeline.getExtension(task, longFormArgument, self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'linkedExtension'))
       if extension in self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'allowedExtensions'):
         foundMatch = True
 
@@ -404,7 +404,7 @@ class configurationMethods:
     # Loop over all of the tasks.
     for task in self.pipeline.greedyTasks:
       argument     = self.pipeline.greedyTasks[task]
-      for sourceNodeID in self.nodeMethods.getNodeForTaskArgument(graph, task, argument):
+      for sourceNodeID in self.nodeMethods.getNodeForTaskArgument(graph, task, argument, 'option'):
         self.edgeMethods.setEdgeAttribute(graph, sourceNodeID, task, 'isGreedy', True)
 
   # Check to see if there are any isolated nodes in the pipeline.
@@ -458,7 +458,7 @@ class configurationMethods:
       # configuration file node and determine the graph node to which this points.
       except:
         task, argument = self.pipeline.commonNodes[configNodeID][0]
-        try: nodeIDToSet = self.nodeMethods.getNodeForTaskArgument(graph, task, argument)[0]
+        try: nodeIDToSet = self.nodeMethods.getNodeForTaskArgument(graph, task, argument, 'option')[0]
         except:
           #TODO ERROR
           print('WOOPS - configurationData.attachPipelineInstanceArgumentsToNodes')
