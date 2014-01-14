@@ -193,7 +193,7 @@ class instanceConfiguration:
       data     = self.fileOperations.readConfigurationFile(filePath)
       self.checkInstances(name, data['instances'], isPipeline)
 
-      # All instances from the extenal file have now been added to the data structure. If the instance still does
-      # not exist, the the instance isn't defined.
-      if instanceName not in self.instanceAttributes[name]:
-        self.errors.missingInstance(name, instanceName, isPipeline, self.instanceAttributes[name].keys())
+    # All instances from the extenal file have now been added to the data structure. If the instance still does
+    # not exist, the the instance isn't defined.
+    if instanceName not in self.instanceAttributes[name]:
+      self.errors.missingInstance(name, instanceName, isPipeline, self.instanceAttributes[name].keys())
