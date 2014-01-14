@@ -85,7 +85,7 @@ class configurationClassErrors:
   def invalidGeneralAttributeInConfigurationFile(self, name, attribute, allowedAttributes, isPipeline):
     runType = 'pipeline' if isPipeline else 'tool'
     self.text.append('Invalid attribute in ' + runType + ' configuration file: ' + attribute)
-    text = 'The configuration file for ' + runType + '\'' + name + '\' contains the general attribute \'' + attribute + '\'. This is an ' + \
+    text = 'The configuration file for ' + runType + ' \'' + name + '\' contains the general attribute \'' + attribute + '\'. This is an ' + \
     'unrecognised attribute which is not permitted. The general attributes allowed in a ' + runType + ' configuration file are:'
     self.text.append(text)
     self.text.append('\t')
@@ -321,7 +321,7 @@ class configurationClassErrors:
   ##############################################
 
   # Attribute has the wrong type.
-  def incorrectTypeInPipelineConfigurationFile(self, pipeline, attribute, value, expectedType):
+  def incorrectTypeInPipelineConfigurationFile(self, pipeline, attribute, value, expectedType, section):
 
     # Find the given type.
     isType    = self.findType(type(value))
@@ -329,7 +329,8 @@ class configurationClassErrors:
     if isType == None: isType = 'Unknown'
     if needsType == None: needsType = 'Unknown'
     self.text.append('Invalid attribute value in pipeline configuration file.')
-    text = 'The attribute \'' + str(attribute) + '\' in the configuration file for pipeline \'' + str(pipeline) + '\' '
+    text = 'The attribute \'' + str(attribute) + '\' in the \'' + section + '\' section of the configuration file for pipeline \'' + \
+    str(pipeline) + '\' '
     if isType == 'list' or isType == 'dictionary':  text += 'is given a value '
     else: text += 'is given the value \'' + str(value) + '\'. This value is '
     text += 'of an incorrect type (' + isType + '); the expected type is \'' + needsType + '\'. Please correct ' + \

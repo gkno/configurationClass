@@ -151,7 +151,7 @@ class pipelineConfiguration:
       # convert to a string first.
       value = str(data[attribute]) if isinstance(data[attribute], unicode) else data[attribute]
       if allowedAttributes[attribute][0] != type(value):
-        self.errors.incorrectTypeInPipelineConfigurationFile(pipeline, attribute, value, allowedAttributes[attribute][0])
+        self.errors.incorrectTypeInPipelineConfigurationFile(pipeline, attribute, value, allowedAttributes[attribute][0], 'general')
 
       # At this point, the attribute in the configuration file is allowed and of valid type. Check that 
       # the value itself is valid (if necessary) and store the value.
@@ -187,6 +187,12 @@ class pipelineConfiguration:
       # Loop over the included attributes.
       for attribute in tasks[task]:
         if attribute not in allowedAttributes: self.errors.invalidAttributeInTasks(pipeline, task, attribute, allowedAttributes)
+
+        # Check that the value given to the attribute is of the correct type. If the value is unicode,
+        # convert to a string first.
+        value = str(tasks[task][attribute]) if isinstance(tasks[task][attribute], unicode) else tasks[task][attribute]
+        if allowedAttributes[attribute][0] != type(value):
+          self.errors.incorrectTypeInPipelineConfigurationFile(pipeline, attribute, value, allowedAttributes[attribute][0], 'tasks')
 
         # Mark the attribute as seen.
         observedAttributes[attribute] = True
@@ -241,6 +247,12 @@ class pipelineConfiguration:
       # Loop over all attributes in the node.
       for attribute in node:
         if attribute not in allowedAttributes: self.errors.invalidAttributeInNodes(pipeline, ID, attribute, allowedAttributes)
+
+        # Check that the value given to the attribute is of the correct type. If the value is unicode,
+        # convert to a string first.
+        value = str(node[attribute]) if isinstance(node[attribute], unicode) else node[attribute]
+        if allowedAttributes[attribute][0] != type(value):
+          self.errors.incorrectTypeInPipelineConfigurationFile(pipeline, attribute, value, allowedAttributes[attribute][0], 'nodes')
 
         # Mark the attribute as seen.
         observedAttributes[attribute] = True
