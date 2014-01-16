@@ -911,30 +911,14 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
-  # TODO NEEDED?
-  # An unrecognised argument appears in the instance file.
-  def unknownArgumentInInstance(self, newLine, name, argument):
-    if newLine: print(file=sys.stderr)
-    text = 'Unknown command line argument (from instance): ' + argument
-    self.text.append(text)
-    text = "The argument '" + argument + "', present in the instance '" + name + "' is not associated with the tool or any tools in the " + \
-    'pipeline (if a pipeline is being executed).  Please check the instance information in the configuration file and repair.'
-    self.text.append(text)
+  # If no arguments were provided for the instance.
+  def noInformationProvidedForInstance(self, isVerbose):
+    if isVerbose: print(file=sys.stderr)
+    self.text.append('No information provided for instance.')
+    self.text.append('The \'--export-instance (-ei) command line argument was set, indicating that an instance is to be created. No other ' + \
+    'information was provided on the command line, however, so the instance would be empty. Please provide some information for the instance.')
     self.writeFormattedText()
-    self.hasError = True
-
-  # TODO NEEDED?
-  # The instance contains information that is invalid.  Specifically, a supplied command line argument
-  # does not fit with the tool requested.
-  def invalidArgumentInInstance(self, newLine, instance, argument):
-    if newLine: print(file=sys.stderr)
-    text = 'Invalid argument in instance: ' + instance
-    self.text.append(text)
-    text = "The argument '" + argument + "' appears in the list of arguments for instance '" + instance + "' but this is not " + \
-    'a valid argument for this tool/pipeline.  Please check the instance arguments in the configuration file.'
-    self.text.append(text)
-    self.writeFormattedText()
-    self.hasError = True
+    self.terminate()
 
   ##############################
   # Terminate configurationClass

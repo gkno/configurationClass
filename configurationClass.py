@@ -804,7 +804,8 @@ class configurationMethods:
 
     # Get all of the arguments set by the user.
     if isPipeline: arguments = self.getAllPipelineArguments(graph)
-    else: print('GETTING THERE')
+    else: arguments = self.getAllToolArguments(graph, runName)
+    if not arguments: self.errors.noInformationProvidedForInstance(isVerbose)
     self.instances.writeNewConfigurationFile(arguments, path, filename, runName, instanceName)
                                                     
   # Get all of the argument data ready for sending to the instance file.
@@ -816,6 +817,17 @@ class configurationMethods:
       isConstructed = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'isConstructed')
 
       # Only store arguments that were set by the user, not constructed.
+      if not isConstructed and values: arguments.append((str(argument), values))
+
+    return arguments
+
+  # Get all of the argument data for the tool.
+  def getAllToolArguments(self, graph, runName):
+    arguments = []
+    for optionNodeID in self.nodeMethods.getPredecessorOptionNodes(graph, runName):
+      argument      = self.edgeMethods.getEdgeAttribute(graph, optionNodeID, runName, 'longFormArgument')
+      values        = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'values')
+      isConstructed = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'isConstructed')
       if not isConstructed and values: arguments.append((str(argument), values))
 
     return arguments
