@@ -807,9 +807,9 @@ class configurationMethods:
     else: arguments = self.getAllToolArguments(graph, runName)
     if not arguments: self.errors.noInformationProvidedForInstance(isVerbose)
     self.instances.writeNewConfigurationFile(arguments, path, filename, runName, instanceName)
-                                                    
+
   # Get all of the argument data ready for sending to the instance file.
-  def getAllPipelineArguments(self, graph):                 
+  def getAllPipelineArguments(self, graph):
     arguments = []
     for argument in self.pipeline.pipelineArguments:
       nodeID        = self.pipeline.pipelineArguments[argument].ID
@@ -819,7 +819,7 @@ class configurationMethods:
       # Only store arguments that were set by the user, not constructed.
       if not isConstructed and values: arguments.append((str(argument), values))
 
-    return arguments
+    return arguments 
 
   # Get all of the argument data for the tool.
   def getAllToolArguments(self, graph, runName):
