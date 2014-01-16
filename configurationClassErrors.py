@@ -866,6 +866,76 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
+  ######################################
+  # Errors with exporting an instance. #
+  ######################################
+
+  # If the user is attempting to export an instance and they have supplied a file for performing multiple
+  # runs, terminate.
+  def exportInstanceForMultipleRuns(self, isVerbose):
+    if isVerbose: print(file=sys.stderr)
+    self.text.append('Error in attempting to export instance file.')
+    self.text.append('An instance can only be exported if gkno is being run without the \'--multiple-runs (-mr)\' command line argument. If ' + \
+    'multiple runs are required, export the instance without the arguments included in the multiple runs selection, then use the instance in ' + \
+    'conjuction with the \'--multiple-run (-mr)\' argument.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # Multiple instance names were provided.
+  def exportInstanceSetMultipleTimes(self, runName, isVerbose):
+    if isVerbose: print(file=sys.stderr)
+    self.text.append('Error in attempting to export instance file.')
+    self.text.append('The command line argument \'--export-instance (-ei)\' was set multiple times on the command line. When outputting an ' + \
+    'instance, all of the supplied arguments and values are stored in the external instance file \'' + runName + '_instances.json\'. Only ' + \
+    'a single instance can be created at a time, so \'--export-instance (-ei)\' can only appear once on the command line.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # If the --export-instance argument has no value associated with it.
+  def noInstanceNameInExport(self, filename, value, isVerbose):
+    if isVerbose: print(file=sys.stderr)
+    self.text.append('Error in attempting to export instance file.')
+    self.text.append('The --export-instance (-ei) command line argument requires the desired instance name to be provided.  The provided value (' + \
+    value + ') is either not a string or is missing.  When outputting a new instance, the file \'' + filename + '\' will store the instance ' + \
+    'information with the supplied name.  Please check the command line for errors.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # If the --export-instance argument requests an instance name that already exists, terminate.
+  def instanceNameExists(self, instanceName, isVerbose):
+    if isVerbose: print(file=sys.stderr)
+    self.text.append('Requested instance name already exists: ' + instanceName)
+    self.text.append('The command line argument \'--export-instance (-ei)\' sets the name of the instance to be exported.  The requested name \'' + \
+    instanceName + '\' is already defined, either in the configuration file or the instances file.  Please select a different name for the ' + \
+    'instance to be exported.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # TODO NEEDED?
+  # An unrecognised argument appears in the instance file.
+  def unknownArgumentInInstance(self, newLine, name, argument):
+    if newLine: print(file=sys.stderr)
+    text = 'Unknown command line argument (from instance): ' + argument
+    self.text.append(text)
+    text = "The argument '" + argument + "', present in the instance '" + name + "' is not associated with the tool or any tools in the " + \
+    'pipeline (if a pipeline is being executed).  Please check the instance information in the configuration file and repair.'
+    self.text.append(text)
+    self.writeFormattedText()
+    self.hasError = True
+
+  # TODO NEEDED?
+  # The instance contains information that is invalid.  Specifically, a supplied command line argument
+  # does not fit with the tool requested.
+  def invalidArgumentInInstance(self, newLine, instance, argument):
+    if newLine: print(file=sys.stderr)
+    text = 'Invalid argument in instance: ' + instance
+    self.text.append(text)
+    text = "The argument '" + argument + "' appears in the list of arguments for instance '" + instance + "' but this is not " + \
+    'a valid argument for this tool/pipeline.  Please check the instance arguments in the configuration file.'
+    self.text.append(text)
+    self.writeFormattedText()
+    self.hasError = True
+
   ##############################
   # Terminate configurationClass
   ##############################

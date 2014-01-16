@@ -10,8 +10,11 @@ from configurationClassErrors import *
 import fileOperations
 from fileOperations import *
 
+from collections import OrderedDict
+
 import json
 import os
+import shutil
 import sys
 
 # Define an instance to hold instance attributes.
@@ -24,6 +27,9 @@ class instanceAttributes:
 
     # Define a dictionary to hold the information about the nodes (e.g. the argument and values).
     self.nodes = []
+
+    # Record if the instance is held in the external instances file.
+    self.isExternal = False
 
   # Define a class to hold the instance node information.
   class instanceNodeAttributes:
@@ -45,7 +51,7 @@ class instanceConfiguration:
     self.fileOperations = fileOperations()
 
   # Check the instance data.
-  def checkInstances(self, runName, instances, isPipeline):
+  def checkInstances(self, runName, instances, isPipeline, isExternal):
 
     # Define the allowed attributes.
     allowedAttributes                = {}
@@ -127,6 +133,9 @@ class instanceConfiguration:
         # Store the node data using the argument as the key.
         attributes.nodes.append(nodeAttributes)
 
+      # If this instance is in the external instance file, maek it as such.
+      attributes.isExternal = isExternal
+
       # Store the instance information.
       if runName not in self.instanceAttributes: self.instanceAttributes[runName] = {}
       if instanceID in self.instanceAttributes[runName]: self.errors.duplicateInstance(runName, instanceID, isPipeline)
@@ -145,12 +154,12 @@ class instanceConfiguration:
 
   # Check for instances in external instances file.
   def checkExternalInstances(self, fileOperations, filename, runName, tools, isPipeline):
-    filename          = filename.replace('.json', '_instances.json')
+    filename = filename.replace('.json', '_instances.json')
 
     # Check if the file exists (it's existence is not necessary).
     if os.path.exists(filename):
       configurationData = fileOperations.readConfigurationFile(filename)
-      self.checkInstances(runName, configurationData['instances'], isPipeline)
+      self.checkInstances(runName, configurationData['instances'], isPipeline, isExternal = True)
 
   # Set a value in the toolAttributes.
   def setAttribute(self, attributes, attribute, value):
@@ -187,13 +196,72 @@ class instanceConfiguration:
     # If the defined instance is in the configuration file, nothing needs to be done. 
     if instanceName in self.instanceAttributes[name]: return
 
-    # Check the external instance file (if one exists).
-    if name + '_instances.json' in availableInstances.keys():
-      filePath = path + name + '_instances.json'
-      data     = self.fileOperations.readConfigurationFile(filePath)
-      self.checkInstances(name, data['instances'], isPipeline)
-
     # All instances from the extenal file have now been added to the data structure. If the instance still does
     # not exist, the the instance isn't defined.
     if instanceName not in self.instanceAttributes[name]:
       self.errors.missingInstance(name, instanceName, isPipeline, self.instanceAttributes[name].keys())
+
+  # Write out the new configuration file and move to the config_files/pipes directory.
+  def writeNewConfigurationFile(self, arguments, path, filename, runName, instanceName):
+
+    # Open the new file.
+    filehandle = open(filename, 'w')
+
+    # Add the new instance information to the instanceAttributes.
+    attributes             = instanceAttributes()
+    attributes.description = 'User specified instance'
+    attributes.ID          = instanceName
+    attributes.isExternal  = True
+    self.instanceAttributes[runName][instanceName] = attributes
+
+    counter = 1
+    # Add the arguments and values to the nodes.
+    for argument, values in arguments:
+
+      # Put all of the values in a list.
+      nodeAttributes           = attributes.instanceNodeAttributes()
+      nodeAttributes.argument  = str(argument)
+      nodeAttributes.ID        = str('node' + str(counter))
+      nodeAttributes.values    = values[1]
+      attributes.nodes.append(nodeAttributes)
+      counter += 1
+
+    # Put all of the instance information in a dictionary that can be dumped to a json file.
+    jsonInstances              = OrderedDict()
+    jsonInstances['instances'] = []
+    for instance in self.instanceAttributes[runName]:
+
+      # Only include instances that were marked as external.
+      if self.instanceAttributes[runName][instance].isExternal:
+        instanceInformation                = OrderedDict()
+        instanceInformation['ID']          = instance
+        instanceInformation['description'] = self.instanceAttributes[runName][instance].description
+        instanceInformation['nodes']       = []
+
+        # Set the nodes.
+        for node in self.instanceAttributes[runName][instance].nodes:
+          nodeInformation              = OrderedDict()
+          nodeInformation['ID']        = node.ID
+          nodeInformation['argument']  = node.argument
+          nodeInformation['values']    = node.values
+          instanceInformation['nodes'].append(nodeInformation)
+
+        # Store this instances data.
+        jsonInstances['instances'].append(instanceInformation)
+
+    # Dump all the instances to file.
+    json.dump(jsonInstances, filehandle, indent = 2)
+    filehandle.close()
+
+    # Move the configuration file.
+    shutil.copy(filename, path)
+    os.remove(filename)
+
+    print(file = sys.stdout)
+    print('=' * 66, file = sys.stdout)
+    print('Configuration file generation complete.', file = sys.stdout)
+    print('', file = sys.stdout)
+    print('It is recommended that the new configuration is visually inspected', file = sys.stdout)
+    print('and tested to ensure expected behaviour.', file = sys.stdout)
+    print('=' * 66, file = sys.stdout)
+    sys.stdout.flush()

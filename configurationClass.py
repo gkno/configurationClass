@@ -785,3 +785,37 @@ class configurationMethods:
       if self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'dataType') == 'flag':
         if not self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values'):
           self.nodeMethods.addValuesToGraphNode(graph, nodeID, ['unset'], write = 'replace')
+
+  # Export an instance to file.
+  def exportInstance(self, graph, path, runName, isPipeline):
+    isVerbose = self.nodeMethods.getGraphNodeAttribute(graph, 'GKNO-VERBOSE', 'values')[1][0]
+
+    # Check that only a single instance was specified and get the requested instance name.
+    if len(self.nodeMethods.getGraphNodeAttribute(graph, 'GKNO-EXPORT-INSTANCE', 'values')[1]) > 1:
+      self.errors.exportInstanceSetMultipleTimes(runName, isVerbose)
+
+    # Set the filename and the instance name.
+    filename     = runName + '_instances.json'
+    instanceName = self.nodeMethods.getGraphNodeAttribute(graph, 'GKNO-EXPORT-INSTANCE', 'values')[1][0]
+
+    # If no instance name was provided, or the instance already exists, fail.
+    if instanceName == '': self.errors.noInstanceNameInExport(filename, instanceName, isVerbose)
+    if instanceName in self.instances.instanceAttributes[runName]: self.errors.instanceNameExists(instanceName, isVerbose)
+
+    # Get all of the arguments set by the user.
+    if isPipeline: arguments = self.getAllPipelineArguments(graph)
+    else: print('GETTING THERE')
+    self.instances.writeNewConfigurationFile(arguments, path, filename, runName, instanceName)
+                                                    
+  # Get all of the argument data ready for sending to the instance file.
+  def getAllPipelineArguments(self, graph):                 
+    arguments = []
+    for argument in self.pipeline.pipelineArguments:
+      nodeID        = self.pipeline.pipelineArguments[argument].ID
+      values        = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values')
+      isConstructed = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'isConstructed')
+
+      # Only store arguments that were set by the user, not constructed.
+      if not isConstructed and values: arguments.append((str(argument), values))
+
+    return arguments

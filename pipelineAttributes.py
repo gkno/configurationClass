@@ -452,6 +452,7 @@ class pipelineConfiguration:
     try: longFormArgument = self.taskArgument[task][argument]
     except: return None, None
 
+    if longFormArgument == None: return None, None
     return longFormArgument, self.pipelineArguments[longFormArgument].shortFormArgument
 
   # Get the extension associated with a task/argument pair from the nodes section.

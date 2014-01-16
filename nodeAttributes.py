@@ -78,6 +78,9 @@ class optionNodeAttributes:
     self.numberOfDataSets    = 0
     self.values              = {}
 
+    # Mark the node if the values were construced, rather than set by the user.
+    self.isConstructed = False
+
     # Store the extension that an option expects.
     self.linkedExtension = ''
 
