@@ -525,9 +525,10 @@ class configurationMethods:
           taskLongFormArgument                                = self.edgeMethods.getEdgeAttribute(graph, fileNodeID, task, 'longFormArgument')
           taskShortFormArgument                               = self.edgeMethods.getEdgeAttribute(graph, fileNodeID, task, 'shortFormArgument')
           pipelineLongFormArgument, pipelineShortFormArgument = self.pipeline.getPipelineArgument(task, taskLongFormArgument)
-          description                                         = self.pipeline.pipelineArguments[pipelineLongFormArgument].description
           if not pipelineLongFormArgument: print('NOT HANDLED - configurationClass.checkRequiredFiles'); self.errors.terminate()
-          else: self.errors.unsetFile(pipelineLongFormArgument, pipelineShortFormArgument, description)
+          else:
+            description = self.pipeline.pipelineArguments[pipelineLongFormArgument].description
+            self.errors.unsetFile(pipelineLongFormArgument, pipelineShortFormArgument, description)
 
   # Determine all of the graph dependencies.  This is essentially
   def determineGraphDependencies(self, graph, taskList, key):
