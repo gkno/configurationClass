@@ -276,7 +276,7 @@ class pipelineConfiguration:
     for nodeID in self.nodeAttributes:
 
       # The long form argument will be used as the key in this dictionary.
-      longFormArgument = self.nodeAttributes[nodeID].longFormArgument
+      longFormArgument = str(self.nodeAttributes[nodeID].longFormArgument)
 
       # Set the other attributes only if the long form argument is present.
       if longFormArgument:
@@ -286,7 +286,7 @@ class pipelineConfiguration:
 
         self.setAttribute(attributes, 'description', self.nodeAttributes[nodeID].description)
         self.setAttribute(attributes, 'configNodeID', nodeID)
-        self.setAttribute(attributes, 'shortFormArgument', self.nodeAttributes[nodeID].shortFormArgument)
+        self.setAttribute(attributes, 'shortFormArgument', str(self.nodeAttributes[nodeID].shortFormArgument))
         self.setAttribute(attributes, 'isRequired', self.nodeAttributes[nodeID].isRequired)
   
         # Store the information.
@@ -332,11 +332,12 @@ class pipelineConfiguration:
           # Link the pipeline argument to the task/arguments listed with the node.
           if task not in self.taskArgument: self.taskArgument[task] = {}
           taskArgument = self.nodeAttributes[configNodeID].greedyTasks[task]
-          self.taskArgument[task][taskArgument] = self.nodeAttributes[configNodeID].longFormArgument
+          self.taskArgument[task][str(taskArgument)] = self.nodeAttributes[configNodeID].longFormArgument
 
           # Store the task and argument.
           self.commonNodes[configNodeID].append((str(task), str(taskArgument)))
-          self.greedyTasks[task] = str(self.nodeAttributes[configNodeID].greedyTasks)
+          if task not in self.greedyTasks: self.greedyTasks[task] = []
+          self.greedyTasks[task].append(str(taskArgument))
 
           # Store the task/argument pair in the observedOptions dictionary. If this task/argument pair has already been seen
           if str(task) not in observedArguments: observedArguments[str(task)] = {}
@@ -459,3 +460,7 @@ class pipelineConfiguration:
   def getExtension(self, task, argument, extensions):
     try: return extensions[task][argument]
     except: self.errors.invalidExtensionRequest(task, argument, extensions)
+
+  # Clear a pipeline from storage.
+  def clearPipeline(self):
+    self.__init__()

@@ -403,9 +403,9 @@ class configurationMethods:
 
     # Loop over all of the tasks.
     for task in self.pipeline.greedyTasks:
-      argument     = self.pipeline.greedyTasks[task]
-      for sourceNodeID in self.nodeMethods.getNodeForTaskArgument(graph, task, argument, 'option'):
-        self.edgeMethods.setEdgeAttribute(graph, sourceNodeID, task, 'isGreedy', True)
+      for argument in self.pipeline.greedyTasks[task]:
+        for sourceNodeID in self.nodeMethods.getNodeForTaskArgument(graph, task, argument, 'option'):
+          self.edgeMethods.setEdgeAttribute(graph, sourceNodeID, task, 'isGreedy', True)
 
   # Check to see if there are any isolated nodes in the pipeline.
   def checkForIsolatedNodes(self, graph):
@@ -434,8 +434,7 @@ class configurationMethods:
   # Generate the task workflow from the topologically sorted pipeline graph.
   def generateWorkflow(self, graph):
     workflow  = []
-    topolSort = nx.topological_sort(graph)
-    for nodeID in topolSort:
+    for nodeID in nx.topological_sort(graph):
       if self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'nodeType') == 'task': workflow.append(nodeID)
 
     return workflow
