@@ -728,11 +728,17 @@ class configurationMethods:
   def getNumberOfDataSets(self, graph):
     for task in self.pipeline.workflow:
       totalNumber = 0
+      isGreedy    = False
       for nodeID in self.nodeMethods.getPredecessorOptionNodes(graph, task):
         numberOfDataSets = len(self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values'))
         if numberOfDataSets > totalNumber: totalNumber = numberOfDataSets
 
-      self.nodeMethods.setGraphNodeAttribute(graph, task, 'numberOfDataSets', totalNumber)
+        # Check if this option is greedy. If the task has a greedy argument, then the number
+        # of data sets is one.
+        if self.edgeMethods.getEdgeAttribute(graph, nodeID, task, 'isGreedy'): isGreedy = True
+
+      if isGreedy: self.nodeMethods.setGraphNodeAttribute(graph, task, 'numberOfDataSets', 1)
+      else: self.nodeMethods.setGraphNodeAttribute(graph, task, 'numberOfDataSets', totalNumber)
 
   # Identify streaming file nodes.
   def identifyStreamingNodes(self, graph):
