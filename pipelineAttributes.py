@@ -186,6 +186,7 @@ class pipelineConfiguration:
 
       # Loop over the included attributes.
       for attribute in tasks[task]:
+        #if attribute not in allowedAttributes: self.errors.invalidAttributeInTasks(pipeline, task, attribute, allowedAttributes)
         if attribute not in allowedAttributes: self.errors.invalidAttributeInTasks(pipeline, task, attribute, allowedAttributes)
 
         # Check that the value given to the attribute is of the correct type. If the value is unicode,

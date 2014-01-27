@@ -349,6 +349,27 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
+  # An general entry in the configuration file is invalid.
+  def invalidAttributeInTasks(self, pipeline, task, attribute, allowedAttributes):
+    self.text.append('Invalid attribute in tasks section of a pipeline configuration file: ' + attribute)
+    self.text.append('In the tasks section of the configuration file for pipeline \'' + pipeline + '\', there is a problem with the contained ' + \
+    'information for task \'' + task + '\'. The configuration file contains the attribute \'' + attribute + '\', which is an unrecognised ' + \
+    'attribute which is not permitted. The attributes allowed for each task in the tasks section of the pipeline configuration file are:')
+    self.text.append('\t')
+
+    # Create a sorted list of the allowed attributes.
+    allowed = []
+    for attribute in allowedAttributes: allowed.append(attribute)
+
+    # Add the attributes to the text to be written along with the expected type.
+    for attribute in sorted(allowed):
+      self.text.append(attribute + ':\t' + str(allowedAttributes[attribute][0]) + ', required = ' + str(allowedAttributes[attribute][1]))
+
+    self.text.append('\t')
+    self.text.append('Please remove or correct the invalid attribute in the configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
   # A pipeline attribute is missing.
   def missingAttributeInPipelineConfigurationFile(self, pipeline, attribute, allowedAttributes, section, ID):
     self.text.append('Missing attribute in ' + section + ' section of configuration file: ' + pipeline)
@@ -872,8 +893,8 @@ class configurationClassErrors:
 
   # If the user is attempting to export an instance and they have supplied a file for performing multiple
   # runs, terminate.
-  def exportInstanceForMultipleRuns(self, isVerbose):
-    if isVerbose: print(file=sys.stderr)
+  def exportInstanceForMultipleRuns(self):
+    print(file=sys.stderr)
     self.text.append('Error in attempting to export instance file.')
     self.text.append('An instance can only be exported if gkno is being run without the \'--multiple-runs (-mr)\' command line argument. If ' + \
     'multiple runs are required, export the instance without the arguments included in the multiple runs selection, then use the instance in ' + \
