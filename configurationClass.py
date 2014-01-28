@@ -201,7 +201,6 @@ class configurationMethods:
           if nodeID not in edgesToCreate: edgesToCreate[nodeID] = []
 
           # Initialise the entry for this nodeID and add any edges that are stored in the absentNodeValues list.
-          #edgesToCreate[nodeID] = []
           for task, argument in absentNodeValues: edgesToCreate[nodeID].append((None, task, argument))
 
           # Now parse through the nodes remaining in the optionsToMerge structure and mark nodes and store edge
@@ -262,7 +261,7 @@ class configurationMethods:
     for mergeNodeID in edgesToCreate:
       for nodeID, task, argument in edgesToCreate[mergeNodeID]:
 
-        # If the nodeID exists, then option node for this task already exists in the graph and
+        # If the nodeID exists, then an option node for this task already exists in the graph and
         # has been marked for removal.  The associated file nodes will therefore, also exist and
         # so these should also be marked for removal.
         if nodeID:
@@ -278,7 +277,7 @@ class configurationMethods:
 
           # Find the short and long form of the argument.
           longFormArgument     = self.tools.getLongFormArgument(tool, argument)
-          shortFormArgument    = self.tools.getArgumentAttribute(tool, longFormArgument, 'short form argument')
+          shortFormArgument    = self.tools.getArgumentAttribute(tool, longFormArgument, 'shortFormArgument')
           isInput              = self.tools.getArgumentAttribute(tool, longFormArgument, 'isInput')
           isOutput             = self.tools.getArgumentAttribute(tool, longFormArgument, 'isOutput')
 
@@ -300,17 +299,21 @@ class configurationMethods:
 
     # Find the file nodes associated with the option node.
     mergeFileNodeIDs = self.nodeMethods.getAssociatedFileNodeIDs(graph, mergeNodeID)
-    fileNodeIDs       = self.nodeMethods.getAssociatedFileNodeIDs(graph, nodeID)
-    if len(mergeFileNodeIDs) != 1 or len(fileNodeIDs) != 1:
-      #TODO SORT ERROR.
-      print('UNEXPECTED NUMBER OF FILENODE IDs - createEdgesForMergedFileNodes')
-      self.errors.terminate()
+
+    # If the node has been created, find the associated file node IDs. If the node has not yet been 
+    # created in the graph, this is unnecessary.
+    if nodeID != None:
+      fileNodeIDs      = self.nodeMethods.getAssociatedFileNodeIDs(graph, nodeID)
+
+      if len(mergeFileNodeIDs) != 1 or len(fileNodeIDs) != 1:
+        #TODO SORT ERROR.
+        print('UNEXPECTED NUMBER OF FILENODE IDs - createEdgesForMergedFileNodes')
+        self.errors.terminate()
 
     tool = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
     if isInput: self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, mergeFileNodeIDs[0], task, longFormArgument)
     else: self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, task, mergeFileNodeIDs[0], longFormArgument)
 
-  # TODO WRITE THIS ROUTINE.
   # Create the edges for file nodes that are generated from filename stubs.  Specifically, deal
   # with the case where the node being kept is a filename stub and the node being removed is not.
   def createFilenameStubEdgesM(self, graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument):

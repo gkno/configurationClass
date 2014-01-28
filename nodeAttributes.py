@@ -10,6 +10,7 @@ from configurationClassErrors import *
 import edgeAttributes
 from edgeAttributes import *
 
+import inspect
 import json
 import operator
 import os

@@ -267,6 +267,94 @@ class configurationClassErrors:
     elif providedType == list: return 'list'
     else: return None
 
+  ###################################################
+  # Errors with filename construction instructions. #
+  ###################################################
+
+  # If no construction method is supplied.
+  def noConstructionMethod(self, tool, argument, allowedMethods):
+    self.text.append('Error with filename construction instructions.')
+    self.text.append('Argument \'' + argument + '\' associated with tool \'' + tool + '\' has instructions on how the filename should be ' + \
+    'constructed, however, the construction method is not defined. The field \'method\' must be present with one of the following values:')
+    self.text.append('\t')
+    for method in allowedMethods: self.text.append(method)
+    self.text.append('\t')
+    self.text.append('Please amend the \'' + tool + '\' configuration file to be consistent with this requirement.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # If the construction method is unknown.
+  def unknownConstructionMethod(self, tool, argument, method, allowedMethods):
+    self.text.append('Error with filename construction instructions.')
+    self.text.append('Argument \'' + argument + '\' associated with tool \'' + tool + '\' has instructions on how the filename should be ' + \
+    'constructed, however, the provided construction method \'' + method + '\' is not recognised. The field \'method\' must be present with ' + \
+    'one of the following values:')
+    self.text.append('\t')
+    for method in allowedMethods: self.text.append(method)
+    self.text.append('\t')
+    self.text.append('Please amend the \'' + tool + '\' configuration file to be consistent with this requirement.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # If an unknown attribute appears in the construction instructions.
+  def invalidAttributeInConstruction(self, tool, argument, attribute, method, allowedAttributes):
+    self.text.append('Error with filename construction instructions.')
+    self.text.append('Argument \'' + argument + '\' associated with tool \'' + tool + '\' uses the method \'' + method + '\' to generate the ' + \
+    'filename. The attribute \'' + attribute + '\' is included in the instructions, but this is not a valid attribute for this method of ' + \
+    'filename construction. The allowed attributes for this method are:')
+    self.text.append('\t')
+    for allowedAttribute in allowedAttributes:
+      dataType   = allowedAttributes[allowedAttribute][0]
+      isRequired = allowedAttributes[allowedAttribute][1]
+      if isRequired: self.text.append(allowedAttribute + ' (' + str(dataType) + '): required.')
+      else: self.text.append(allowedAttribute + ' (' + str(dataType) + '): optional.')
+    self.text.append('\t')
+    self.text.append('Please amend the \'' + tool + '\' configuration file to be consistent with the requirements.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # The type is incorrect.
+  def incorrectTypeInConstruction(self, tool, argument, attribute, method, value, expectedType):
+
+    # Find the given type.
+    isType    = self.findType(type(value))
+    needsType = self.findType(expectedType)
+    if isType == None: isType = 'Unknown'
+    if needsType == None: needsType = 'Unknown'
+
+    self.text.append('Invalid attribute value in filename construction instructions.')
+    text = 'Argument \'' + argument + '\' associated with tool \'' + tool + '\' uses the method \'' + method + '\' to generate the ' + \
+    'filename. The attribute \'' + attribute + '\' '
+    if isType == 'list' or isType == 'dictionary':  text += 'is given a value '
+    else: text += 'is given the value \'' + str(value) + '\'. This value is '
+    text += 'of an incorrect type (' + isType + '); the expected type is \'' + needsType + '\'. Please correct ' + \
+    'this value in the configuration file.'
+    self.text.append(text)
+    self.writeFormattedText()
+    self.terminate()
+
+  # A required values is missing.
+  def missingAttributeInConstruction(self, tool, argument, attribute, method, allowedAttributes):
+    self.text.append('Missing attribute in construction instructions.')
+    self.text.append('Argument \'' + argument + '\' associated with tool \'' + tool + '\' uses the method \'' + method + '\' to generate the ' + \
+    'filename. The attribute \'' + attribute + '\' is required in the \'construct filename\' section of the configuration file for this ' + \
+    'argument, but it is missing. The following attributes are required in the \'construct filename\' section, if the \'' + method + \
+    '\' method is being used:')
+    self.text.append('\t')
+
+    # Create a sorted list of the required attributes.
+    requiredAttributes = []
+    for attribute in allowedAttributes:
+       if allowedAttributes[attribute][1]: requiredAttributes.append(attribute)
+
+    # Add the attributes to the text to be written along with the expected type.
+    for attribute in sorted(requiredAttributes): self.text.append(attribute + ':\t' + str(allowedAttributes[attribute][0]))
+
+    self.text.append('\t')
+    self.text.append('Please add the missing attribute to the configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
   ##########################################################
   # Errors associated with trying to get tool information. #
   ##########################################################
@@ -644,7 +732,7 @@ class configurationClassErrors:
   # If a a node attribute was requested, but the node does not exist in the graph, terminate.
   def missingNodeInAttributeRequest(self, node):
     self.text.append('Unknown pipeline graph node attribute requested.')
-    text = 'A pipeline node attribute was requested (using function getGraphNodeAttribute), however, the requested node \'' + node + \
+    text = 'A pipeline node attribute was requested (using function getGraphNodeAttribute), however, the requested node \'' + str(node) + \
     '\' does not exist in the pipeline graph.'
     self.text.append(text)
     self.writeFormattedText()
