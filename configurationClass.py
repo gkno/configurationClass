@@ -72,8 +72,6 @@ class configurationMethods:
       # to the task node.
       self.nodeMethods.buildRequiredPredecessorNodes(graph, self.tools, task)
 
-      # TODO ENSURE THAT ADDITIONAL FILES, E.G. STUBS AND INDEXES ARE INCLUDED.
-
   # Assign values from the nodes section of the pipeline configuration file to the nodes.
   def assignPipelineAttributes(self, graph, tasks):
 
@@ -82,30 +80,6 @@ class configurationMethods:
       for task, argument in self.pipeline.commonNodes[nodeName]:
         nodeID = self.nodeMethods.getNodeForTaskArgument(graph, task, argument, 'option')[0]
         self.nodeMethods.setGraphNodeAttribute(graph, nodeID, 'linkedExtension', self.pipeline.linkedExtension[nodeName])
-
-  # If the pipeline configuration file links a filename stub argument from one task to a non-filename
-  # stub argument in another, the explicit extension must be included in the configuration file. Check
-  # that this is the case.
-  def checkStubConnections(self, graph):
-
-    # Loop over all of the nodes in the commonNodes structure. This includes all of the nodes defined
-    # in the pipeline configuration file.
-    for nodeID in self.pipeline.commonNodes:
-      nonStubArguments = []
-      stubArguments    = []
-
-      # Get the task/argument pairs associated with the node.
-      for task, argument in self.pipeline.commonNodes[nodeID]:
-        tool = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
-
-        # Determine if this task argument is a filename stub.
-        if self.tools.getArgumentAttribute(tool, argument, 'isFilenameStub'): stubArguments.append((task, argument))
-        else: nonStubArguments.append((task, argument))
-
-      # If the node has both a stub and non-stub argument associated with it, ensure that the pipeline
-      # configuration file for this node contains the extension attribute.
-      #if nonStubArguments and stubArguments and not self.pipeline.nodeAttributes[nodeID].extension:
-      #  self.errors.missingExtensionForNonStub(nodeID, stubArguments, nonStubArguments)
 
   # Merge shared nodes between tasks using information from the pipeline configuration file.  For
   # example, task A outputs a file fileA and taskB uses this as input.  Having built an individual

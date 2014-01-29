@@ -355,6 +355,7 @@ class pipelineConfiguration:
   # Get information about any associated extensions. Check that this only occurs for nodes with an
   # filename stub and that all linked arguments that are not stubs themselves are given an extension.
   def checkCommonNodes(self, tools):
+    isFilenameStub = False
 
     # Loop over all of the nodes.
     for configNodeID in self.commonNodes:
@@ -363,11 +364,29 @@ class pipelineConfiguration:
       for task, argument in self.commonNodes[configNodeID]:
         tool = self.taskAttributes[task].tool
 
+        # Check if the argument is 'read json file'. If the argument has this value set, then it
+        # isn't referring to a specific argument, but means that the output of one tool in the node
+        # is a json file, and the current tool will use the json file to set parameters.
+        if argument == 'read json file':
+
+          # Check that one of the arguments in the node outputs a json file.
+          hasJsonOutput = False
+          for checkTask, checkArgument in self.commonNodes[configNodeID]:
+            if checkTask != task and checkArgument != argument:
+              checkTool = self.taskAttributes[checkTask].tool
+              isOutput  = tools.getArgumentAttribute(checkTool, checkArgument, 'isOutput')
+              extension = tools.getArgumentAttribute(checkTool, checkArgument, 'extension')
+              if isOutput and extension.endswith('json'): hasJsonOutput = True
+
+          # If no json files are output as part of this node, the task reading in the json will not get
+          # the required information, so fail.
+          if not hasJsonOutput: self.errors.noJsonOutput(configNodeID, task)
+
         # First check if the argument is valid.
-        if argument not in tools.getArguments(tool): self.errors.invalidToolArgument(configNodeID, task, tool, argument, tools.getArguments(tool))
+        elif argument not in tools.getArguments(tool): self.errors.invalidToolArgument(configNodeID, task, tool, argument, tools.getArguments(tool))
+        else: isFilenameStub = tools.getArgumentAttribute(tool, argument, 'isFilenameStub')
 
         # Check if any of the arguments are for filename stubs.
-        isFilenameStub = tools.getArgumentAttribute(tool, argument, 'isFilenameStub')
         if isFilenameStub:
           hasFilenameStub = True
           stubArguments.append((task, argument))

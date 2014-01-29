@@ -355,6 +355,20 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
+  # An argument used in the 'add additional values' section is invalid.
+  def invalidArgumentInConstruction(self, tool, argument, addArgument, allowedArguments):
+    self.text.append('Invalid argument in construction instructions.')
+    self.text.append('Argument \'' + argument + '\' associated with tool \'' + tool + '\' has instructions on how to construct the filename in ' + \
+    'the absence of a defined value. As part of this construction, the value from another tool argument (' + addArgument + ') is used as ' + \
+    'instructed in the \'add argument values\' section. This argument is not a valid argument for this tool. Arguments appearing in this list ' + \
+    'must be one of the following:')
+    self.text.append('\t')
+    for allowedArgument in allowedArguments: self.text.append(allowedArgument)
+    self.text.append('\t')
+    self.text.append('Please correct the configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
   ##########################################################
   # Errors associated with trying to get tool information. #
   ##########################################################
@@ -553,6 +567,18 @@ class configurationClassErrors:
     self.text.append('\t')
     self.text.append('These configuration file nodes should be compressed into a single node. If the argument is for an argument stub, ensure ' + \
     'that the extensions are specified for linked arguments.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # If a node is shared by multiple arguments, one of which is set as 'read json file', but
+  # none of the arguments for that node output a json file.
+  def noJsonOutput(self, nodeID, task):
+    self.text.append('Error with pipeline configuration file node.')
+    self.text.append('The pipeline configuration node \'' + nodeID + '\' in the \'nodes\' section defines a number of task arguments that ' + \
+    'share a node in the pipeline graph. One of these tasks (' + task + ') is set to \'read json file\'. This is ' + \
+    'used to indicate that this task will use a json file to set parameters for the tool. For this to be valid, the configuration file node ' + \
+    'must also contain a task argument that outputs a json file, but none of the other task arguments in this node do. Please check and repair ' + \
+    'the configuration file.')
     self.writeFormattedText()
     self.terminate()
 

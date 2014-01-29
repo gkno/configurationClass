@@ -301,9 +301,10 @@ class toolConfiguration:
 
   # Check constructions instructions for the 'define name' method.
   def checkDefineName(self, tool, argument):
-    allowedAttributes             = {}
-    allowedAttributes['filename'] = (str, True)
-    allowedAttributes['method']   = (str, True)
+    allowedAttributes                  = {}
+    allowedAttributes['filename']      = (str, True)
+    allowedAttributes['method']        = (str, True)
+    allowedAttributes['add extension'] = (bool, True)
 
     # Keep track of the observed required values.
     observedAttributes = {}
@@ -338,6 +339,7 @@ class toolConfiguration:
     allowedAttributes['modify extension']    = (str, True)
     allowedAttributes['use argument']        = (str, True)
     allowedAttributes['add additional text'] = (str, False)
+    allowedAttributes['add argument values'] = (list, False)
 
     # Keep track of the observed required values.
     observedAttributes = {}
@@ -364,6 +366,12 @@ class toolConfiguration:
     for attribute in allowedAttributes:
       if allowedAttributes[attribute][1] and attribute not in observedAttributes: 
         self.errors.missingAttributeInConstruction(tool, argument, attribute, 'from tool argument', allowedAttributes)
+
+    # If the 'add argument values' was present, check that this list contains valid arguments for this tool.
+    if 'add argument values' in self.argumentAttributes[tool][argument].constructionInstructions:
+      for addArgument in self.argumentAttributes[tool][argument].constructionInstructions['add argument values']:
+        if addArgument not in self.argumentAttributes[tool]:
+          self.errors.invalidArgumentInConstruction(tool, argument, addArgument, self.argumentAttributes[tool].keys())
 
   # Get a tool argument attribute.
   def getGeneralAttribute(self, tool, attribute):
@@ -433,3 +441,18 @@ class toolConfiguration:
     # If this argument is in neither of the previous dictionaries, the argument is not valid for this tool.
     # were the supplied argument, the argument is not valid for this tool.
     self.errors.unknownToolArgument(tool, argument)
+
+  # Get the method of filename construction.
+  def getConstructionMethod(self, tool, argument):
+    if self.argumentAttributes[tool][argument].constructionInstructions:
+      return self.argumentAttributes[tool][argument].constructionInstructions['method']
+
+    else: None
+
+  # Get the defined filename from the construction instructions.
+  def getFilenameFromConstruction(self, tool, argument):
+    return self.argumentAttributes[tool][argument].constructionInstructions['filename']
+
+  # Determine whether to add an extension when constructing the filename.
+  def addExtensionFromConstruction(self, tool, argument):
+    return self.argumentAttributes[tool][argument].constructionInstructions['add extension']
