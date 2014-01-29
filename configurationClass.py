@@ -226,8 +226,10 @@ class configurationMethods:
       for nodeID, task, argument in edgesToCreate[mergeNodeID]:
         tool = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
 
+        if argument == 'read json file': self.edgeMethods.addJsonEdge(graph, mergeNodeID, task)
+
         # Add an edge from the merged node to this task.
-        attributes = self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, mergeNodeID, task, argument)
+        else: self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, mergeNodeID, task, argument)
 
   # Create edges from the merged file nodes to the tasks whose own file nodes were marked
   # for removal in the merging process.  Filename stubs have to be handled here.
@@ -246,27 +248,35 @@ class configurationMethods:
         if self.nodeMethods.getGraphNodeAttribute(graph, mergeNodeID, 'isFile'):
           tool                      = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
           mergedNodeisFilenameStub  = self.nodeMethods.getGraphNodeAttribute(graph, mergeNodeID, 'isFilenameStub')
-          removedNodeisFilenameStub = self.tools.getArgumentAttribute(tool, argument, 'isFilenameStub')
-          if removedNodeisFilenameStub == None: removedNodeisFilenameStub = False
 
-          # Find the short and long form of the argument.
-          longFormArgument     = self.tools.getLongFormArgument(tool, argument)
-          shortFormArgument    = self.tools.getArgumentAttribute(tool, longFormArgument, 'shortFormArgument')
-          isInput              = self.tools.getArgumentAttribute(tool, longFormArgument, 'isInput')
-          isOutput             = self.tools.getArgumentAttribute(tool, longFormArgument, 'isOutput')
+          # If the argument is 'read json file', create the edge.
+          if argument == 'read json file':
+            sourceNodeID = self.nodeMethods.getAssociatedFileNodeIDs(graph, mergeNodeID)[0]
+            self.edgeMethods.addJsonEdge(graph, sourceNodeID, task)
 
-          # If the argument is not for a filename stub, then there is a single output file.
-          # Generate the edges from the replacement file value to this task.
-          if not mergedNodeisFilenameStub and not removedNodeisFilenameStub:
-            self.linkNonFilenameStubNodes(graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument, isInput)
-
-          # If either of the nodes are filename stubs, deal with them.
-          elif mergedNodeisFilenameStub and not removedNodeisFilenameStub:
-            self.createFilenameStubEdgesM(graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument)
-          elif not mergedNodeisFilenameStub and removedNodeisFilenameStub:
-            self.createFilenameStubEdgesR(graph, mergeNodeID, nodeID, task, tool, shortFormArgument, longFormArgument)
-          elif mergedNodeisFilenameStub and removedNodeisFilenameStub:
-            self.createFilenameStubEdgesMR(graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument, isInput)
+          # Deal with actual tool arguments.
+          else:
+            removedNodeisFilenameStub = self.tools.getArgumentAttribute(tool, argument, 'isFilenameStub')
+            if removedNodeisFilenameStub == None: removedNodeisFilenameStub = False
+  
+            # Find the short and long form of the argument.
+            longFormArgument     = self.tools.getLongFormArgument(tool, argument)
+            shortFormArgument    = self.tools.getArgumentAttribute(tool, longFormArgument, 'shortFormArgument')
+            isInput              = self.tools.getArgumentAttribute(tool, longFormArgument, 'isInput')
+            isOutput             = self.tools.getArgumentAttribute(tool, longFormArgument, 'isOutput')
+  
+            # If the argument is not for a filename stub, then there is a single output file.
+            # Generate the edges from the replacement file value to this task.
+            if not mergedNodeisFilenameStub and not removedNodeisFilenameStub:
+              self.linkNonFilenameStubNodes(graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument, isInput)
+  
+            # If either of the nodes are filename stubs, deal with them.
+            elif mergedNodeisFilenameStub and not removedNodeisFilenameStub:
+              self.createFilenameStubEdgesM(graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument)
+            elif not mergedNodeisFilenameStub and removedNodeisFilenameStub:
+              self.createFilenameStubEdgesR(graph, mergeNodeID, nodeID, task, tool, shortFormArgument, longFormArgument)
+            elif mergedNodeisFilenameStub and removedNodeisFilenameStub:
+              self.createFilenameStubEdgesMR(graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument, isInput)
 
   # Create the edges for file nodes that are not generated from filename stubs.
   def linkNonFilenameStubNodes(self, graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument, isInput):

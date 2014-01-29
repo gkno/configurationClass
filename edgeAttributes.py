@@ -33,6 +33,11 @@ class edgeAttributes:
     self.includeOnCommandLine = True
     self.commandLineArgument  = None
 
+    # It is permissible in some cases to link the output of a tool producing a json file
+    # to another task which will read the json at execution time. In this case, there is
+    # no argument to set, but the following flag will be set.
+    self.readJson = False
+
 class edgeClass:
   def __init__(self):
     self.errors      = configurationClassErrors()
@@ -86,6 +91,19 @@ class edgeClass:
     attributes.ifInputIsStream  = tools.getArgumentAttribute(tool, attributes.longFormArgument, 'inputStream')
 
     # Add the edge to the graph.
+    graph.add_edge(sourceNodeID, targetNodeID, attributes = attributes)
+
+  # If the argument is 'read json file', then this does not refer to an actual tool argument.
+  # Instead, the output file associated with this node is in json format and will be read at
+  # execution time by this tool to set arguments. If this is the case, just record on this
+  # edge the fact that this is a json file.
+  def addJsonEdge(self, graph, sourceNodeID, targetNodeID):
+    attributes = edgeAttributes()
+
+    # Since this edge does not represent an actual argument, leave the arguments as None. Set the readJson
+    # flag to true. Also set the isInput flag as this node must be reading in a json file.
+    attributes.readJson = True
+    attributes.isInput  = True
     graph.add_edge(sourceNodeID, targetNodeID, attributes = attributes)
 
   # Get an attribute from a graph edge.  Fail with sensible message if the edge or attribute does not exist.
