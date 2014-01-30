@@ -74,7 +74,7 @@ class optionNodeAttributes:
     self.isPipelineArgument  = False
     self.isRequired          = False
     self.isStream            = False
-    self.keepFiles           = False
+    self.deleteFiles         = False
     self.nodeType            = 'option'
     self.numberOfDataSets    = 0
     self.values              = {}

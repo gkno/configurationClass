@@ -36,7 +36,7 @@ class pipelineNodeAttributes:
   def __init__(self):
     self.description       = None
     self.extensions        = None
-    self.keepFiles         = False
+    self.deleteFiles       = False
     self.ID                = None
     self.greedyTasks       = None
     self.isRequired        = False
@@ -223,7 +223,7 @@ class pipelineConfiguration:
     allowedAttributes['description']         = (str, True, True, 'description')
     allowedAttributes['extensions']          = (dict, False, True, 'extensions')
     allowedAttributes['greedy tasks']        = (dict, False, True, 'greedyTasks')
-    allowedAttributes['keep files']          = (bool, False, True, 'keepFiles')
+    allowedAttributes['delete files']          = (bool, False, True, 'deleteFiles')
     allowedAttributes['long form argument']  = (str, False, True, 'longFormArgument')
     allowedAttributes['required']            = (bool, False, True, 'isRequired')
     allowedAttributes['short form argument'] = (str, False, True, 'shortFormArgument')
@@ -447,6 +447,17 @@ class pipelineConfiguration:
 
       # If the attribute is not available.
       if attribute not in self.taskAttributes[task]: print('config.pipeline.getTaskAttribute error attribute', task, attribute); self.errors.terminate()
+
+    return value
+
+  # Get a node attribute.
+  def getNodeAttribute(self, nodeID, attribute):
+    try: value = getattr(self.nodeAttributes[nodeID], attribute)
+    except:
+      # TODO ERRORS
+      if nodeID not in self.nodeAttributes: print('config.pipeline.getNodeAttribute error', nodeID, attribute); self.errors.terminate()
+      if attribute not in self.nodeAttributes[nodeID]:
+        print('config.pipeline.getNodeAttribute error attribute', nodeID, attribute); self.errors.terminate()
 
     return value
 

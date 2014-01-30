@@ -130,9 +130,8 @@ class configurationMethods:
     edgesToCreate = {}
     for configNodeID in self.pipeline.commonNodes:
 
-      # Check if there are files associated with this node that should be kept (i.e. not marked as
-      # intermediate files.)
-      keepFiles = self.pipeline.nodeAttributes[configNodeID].keepFiles
+      # Check if there are files associated with this node that should be deleted.
+      deleteFiles = self.pipeline.nodeAttributes[configNodeID].deleteFiles
 
       # If there is only a single node listed, there is no need to proceed, since no merging needs to
       # take place. 
@@ -378,12 +377,12 @@ class configurationMethods:
       else: self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, task, mergeFileNodeID, longFormArgument)
 
   # Parse through all of the nodes that have been merged and check if they have files that
-  # were marked in the pipeline configuration file as files that should be kept. If such
+  # were marked in the pipeline configuration file as files that should be deleted. If such
   # nodes exist, mark them.
   def markNodesWithFilesToBeKept(self, graph):
     for configNodeID in self.nodeIDs:
       nodeID = self.nodeIDs[configNodeID]
-      if self.pipeline.nodeAttributes[configNodeID].keepFiles: self.nodeMethods.setGraphNodeAttribute(graph, nodeID, 'keepFiles', True)
+      if self.pipeline.getNodeAttribute(configNodeID, 'deleteFiles'): self.nodeMethods.setGraphNodeAttribute(graph, nodeID, 'deleteFiles', True)
 
   # Mark all greedy edges in the graph.
   def markGreedyEdges(self, graph):
@@ -558,18 +557,15 @@ class configurationMethods:
     for task in taskList:
       for fileNodeID in self.nodeMethods.getSuccessorFileNodes(graph, task):
         optionNodeID = self.nodeMethods.getOptionNodeIDFromFileNodeID(fileNodeID)
-        keepFiles    = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'keepFiles')
-
-        # Determine if the node has any successors.
-        hasSuccessor = self.nodeMethods.hasSuccessor(graph, fileNodeID)
+        deleteFiles  = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'deleteFiles')
 
         # Get the tasks associated with this option node.
         tasks = graph.successors(optionNodeID)
 
-        # If there are no successors, find the name of the file and add to the list of outputs.
-        # Since the values associated with a node is a dictionary of lists, if 'key' is set to 'all',
-        # get all of the values, otherwise, just get those with the specified key.
-        if not hasSuccessor or keepFiles:
+        # By default, all files produced by the pipeline are kept and so should be listed as
+        # outputs. However, some files are listed as to be deleted, so do not include these as
+        # outputs.
+        if not deleteFiles:
           values = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values')
           if key == 'all':
             for iteration in values.keys():
@@ -599,7 +595,7 @@ class configurationMethods:
     for task in taskList:
       for fileNodeID in self.nodeMethods.getPredecessorFileNodes(graph, task):
         optionNodeID = self.nodeMethods.getOptionNodeIDFromFileNodeID(fileNodeID)
-        keepFiles    = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'keepFiles')
+        deleteFiles  = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'deleteFiles')
 
         # Determine if the node has any predecessors or successors.
         hasPredecessor = self.nodeMethods.hasPredecessor(graph, fileNodeID)
@@ -611,7 +607,7 @@ class configurationMethods:
         # that use the file, but it should only be listed as an intermediate file once.
         if fileNodeID not in seenNodes:
           seenNodes[fileNodeID] = True
-          if hasPredecessor and hasSuccessor and not keepFiles:
+          if hasPredecessor and hasSuccessor and deleteFiles:
             values = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values')
 
             # Do not include streaming nodes.
