@@ -93,6 +93,9 @@ class toolConfiguration:
     # Look to see if the 'argument order' section is present and check its validity.
     self.checkArgumentOrder(tool, self.attributes[tool])
 
+    # If filename constuction instructions are provided, check that all is provided.
+    self.checkConstructionInstructions(tool)
+
   # Check and store the top level tool attibutes.
   def checkGeneralAttributes(self, tool, data):
 
@@ -277,10 +280,98 @@ class toolConfiguration:
       if argument in observedArguments: self.errors.repeatedArgumentInArgumentOrder(tool, argument)
       observedArguments.append(argument)
 
-  # TODO
-  # Check all of the instance information.
-  def checkInstanceInformation(self, tool, instances):
-    pass
+  # Check that filename constructions are valid and complete.
+  def checkConstructionInstructions(self, tool):
+    allowedMethods = []
+    allowedMethods.append('define name')
+    allowedMethods.append('from tool argument')
+
+    for argument in self.argumentAttributes[tool]:
+      if self.argumentAttributes[tool][argument].constructionInstructions:
+
+        # For each allowed method, check that everything required is present. First get the method.
+        instructions = self.argumentAttributes[tool][argument].constructionInstructions
+        if 'method' not in instructions: self.errors.noConstructionMethod(tool, argument, allowedMethods)
+
+        # Now check the specifics of each method.
+        method = self.argumentAttributes[tool][argument].constructionInstructions['method']
+        if method == 'define name': self.checkDefineName(tool, argument)
+        elif method == 'from tool argument': self.checkFromToolArgument(tool, argument)
+        else: self.errors.unknownConstructionMethod(tool, argument, method, allowedMethods)
+
+  # Check constructions instructions for the 'define name' method.
+  def checkDefineName(self, tool, argument):
+    allowedAttributes                  = {}
+    allowedAttributes['filename']      = (str, True)
+    allowedAttributes['method']        = (str, True)
+    allowedAttributes['add extension'] = (bool, True)
+
+    # Keep track of the observed required values.
+    observedAttributes = {}
+
+    # Loop over all of the attributes in the configuration file.
+    for attribute in self.argumentAttributes[tool][argument].constructionInstructions:
+
+      # If the value is not in the allowedAttributes, it is not an allowed value and execution
+      # should be terminate with an error.
+      if attribute not in allowedAttributes: self.errors.invalidAttributeInConstruction(tool, argument, attribute, 'define name', allowedAttributes)
+
+      # Mark this values as having been observed,
+      observedAttributes[attribute] = True
+
+      # Check that the value given to the attribute is of the correct type. If the value is unicode,
+      # convert to a string first.
+      value = self.argumentAttributes[tool][argument].constructionInstructions[attribute]
+      value = str(value) if isinstance(value, unicode) else value
+      if allowedAttributes[attribute][0] != type(value):
+        self.errors.incorrectTypeInConstruction(tool, argument, attribute, 'define name', value, allowedAttributes[attribute][0])
+
+    # Having parsed all of the general attributes attributes, check that all those that are required
+    # are present.
+    for attribute in allowedAttributes:
+      if allowedAttributes[attribute][1] and attribute not in observedAttributes: 
+        self.errors.missingAttributeInConstruction(tool, argument, attribute, 'define name', allowedAttributes)
+
+  # Check constructions instructions for the 'from tool argument' method.
+  def checkFromToolArgument(self, tool, argument):
+    allowedAttributes                        = {}
+    allowedAttributes['method']              = (str, True)
+    allowedAttributes['modify extension']    = (str, True)
+    allowedAttributes['use argument']        = (str, True)
+    allowedAttributes['add additional text'] = (str, False)
+    allowedAttributes['add argument values'] = (list, False)
+
+    # Keep track of the observed required values.
+    observedAttributes = {}
+
+    # Loop over all of the attributes in the configuration file.
+    for attribute in self.argumentAttributes[tool][argument].constructionInstructions:
+
+      # If the value is not in the allowedAttributes, it is not an allowed value and execution
+      # should be terminate with an error.
+      if attribute not in allowedAttributes: self.errors.invalidAttributeInConstruction(tool, argument, attribute, 'from tool argument', allowedAttributes)
+
+      # Mark this values as having been observed,
+      observedAttributes[attribute] = True
+
+      # Check that the value given to the attribute is of the correct type. If the value is unicode,
+      # convert to a string first.
+      value = self.argumentAttributes[tool][argument].constructionInstructions[attribute]
+      value = str(value) if isinstance(value, unicode) else value
+      if allowedAttributes[attribute][0] != type(value):
+        self.errors.incorrectTypeInConstruction(tool, argument, attribute, 'from tool argument', value, allowedAttributes[attribute][0])
+
+    # Having parsed all of the general attributes attributes, check that all those that are required
+    # are present.
+    for attribute in allowedAttributes:
+      if allowedAttributes[attribute][1] and attribute not in observedAttributes: 
+        self.errors.missingAttributeInConstruction(tool, argument, attribute, 'from tool argument', allowedAttributes)
+
+    # If the 'add argument values' was present, check that this list contains valid arguments for this tool.
+    if 'add argument values' in self.argumentAttributes[tool][argument].constructionInstructions:
+      for addArgument in self.argumentAttributes[tool][argument].constructionInstructions['add argument values']:
+        if addArgument not in self.argumentAttributes[tool]:
+          self.errors.invalidArgumentInConstruction(tool, argument, addArgument, self.argumentAttributes[tool].keys())
 
   # Get a tool argument attribute.
   def getGeneralAttribute(self, tool, attribute):
@@ -350,3 +441,18 @@ class toolConfiguration:
     # If this argument is in neither of the previous dictionaries, the argument is not valid for this tool.
     # were the supplied argument, the argument is not valid for this tool.
     self.errors.unknownToolArgument(tool, argument)
+
+  # Get the method of filename construction.
+  def getConstructionMethod(self, tool, argument):
+    if self.argumentAttributes[tool][argument].constructionInstructions:
+      return self.argumentAttributes[tool][argument].constructionInstructions['method']
+
+    else: None
+
+  # Get the defined filename from the construction instructions.
+  def getFilenameFromConstruction(self, tool, argument):
+    return self.argumentAttributes[tool][argument].constructionInstructions['filename']
+
+  # Determine whether to add an extension when constructing the filename.
+  def addExtensionFromConstruction(self, tool, argument):
+    return self.argumentAttributes[tool][argument].constructionInstructions['add extension']

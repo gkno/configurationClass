@@ -72,8 +72,6 @@ class configurationMethods:
       # to the task node.
       self.nodeMethods.buildRequiredPredecessorNodes(graph, self.tools, task)
 
-      # TODO ENSURE THAT ADDITIONAL FILES, E.G. STUBS AND INDEXES ARE INCLUDED.
-
   # Assign values from the nodes section of the pipeline configuration file to the nodes.
   def assignPipelineAttributes(self, graph, tasks):
 
@@ -82,30 +80,6 @@ class configurationMethods:
       for task, argument in self.pipeline.commonNodes[nodeName]:
         nodeID = self.nodeMethods.getNodeForTaskArgument(graph, task, argument, 'option')[0]
         self.nodeMethods.setGraphNodeAttribute(graph, nodeID, 'linkedExtension', self.pipeline.linkedExtension[nodeName])
-
-  # If the pipeline configuration file links a filename stub argument from one task to a non-filename
-  # stub argument in another, the explicit extension must be included in the configuration file. Check
-  # that this is the case.
-  def checkStubConnections(self, graph):
-
-    # Loop over all of the nodes in the commonNodes structure. This includes all of the nodes defined
-    # in the pipeline configuration file.
-    for nodeID in self.pipeline.commonNodes:
-      nonStubArguments = []
-      stubArguments    = []
-
-      # Get the task/argument pairs associated with the node.
-      for task, argument in self.pipeline.commonNodes[nodeID]:
-        tool = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
-
-        # Determine if this task argument is a filename stub.
-        if self.tools.getArgumentAttribute(tool, argument, 'isFilenameStub'): stubArguments.append((task, argument))
-        else: nonStubArguments.append((task, argument))
-
-      # If the node has both a stub and non-stub argument associated with it, ensure that the pipeline
-      # configuration file for this node contains the extension attribute.
-      #if nonStubArguments and stubArguments and not self.pipeline.nodeAttributes[nodeID].extension:
-      #  self.errors.missingExtensionForNonStub(nodeID, stubArguments, nonStubArguments)
 
   # Merge shared nodes between tasks using information from the pipeline configuration file.  For
   # example, task A outputs a file fileA and taskB uses this as input.  Having built an individual
@@ -156,9 +130,8 @@ class configurationMethods:
     edgesToCreate = {}
     for configNodeID in self.pipeline.commonNodes:
 
-      # Check if there are files associated with this node that should be kept (i.e. not marked as
-      # intermediate files.)
-      keepFiles = self.pipeline.nodeAttributes[configNodeID].keepFiles
+      # Check if there are files associated with this node that should be deleted.
+      deleteFiles = self.pipeline.nodeAttributes[configNodeID].deleteFiles
 
       # If there is only a single node listed, there is no need to proceed, since no merging needs to
       # take place. 
@@ -201,7 +174,6 @@ class configurationMethods:
           if nodeID not in edgesToCreate: edgesToCreate[nodeID] = []
 
           # Initialise the entry for this nodeID and add any edges that are stored in the absentNodeValues list.
-          #edgesToCreate[nodeID] = []
           for task, argument in absentNodeValues: edgesToCreate[nodeID].append((None, task, argument))
 
           # Now parse through the nodes remaining in the optionsToMerge structure and mark nodes and store edge
@@ -253,8 +225,10 @@ class configurationMethods:
       for nodeID, task, argument in edgesToCreate[mergeNodeID]:
         tool = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
 
+        if argument == 'read json file': self.edgeMethods.addJsonEdge(graph, mergeNodeID, task)
+
         # Add an edge from the merged node to this task.
-        attributes = self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, mergeNodeID, task, argument)
+        else: self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, mergeNodeID, task, argument)
 
   # Create edges from the merged file nodes to the tasks whose own file nodes were marked
   # for removal in the merging process.  Filename stubs have to be handled here.
@@ -262,7 +236,7 @@ class configurationMethods:
     for mergeNodeID in edgesToCreate:
       for nodeID, task, argument in edgesToCreate[mergeNodeID]:
 
-        # If the nodeID exists, then option node for this task already exists in the graph and
+        # If the nodeID exists, then an option node for this task already exists in the graph and
         # has been marked for removal.  The associated file nodes will therefore, also exist and
         # so these should also be marked for removal.
         if nodeID:
@@ -273,44 +247,56 @@ class configurationMethods:
         if self.nodeMethods.getGraphNodeAttribute(graph, mergeNodeID, 'isFile'):
           tool                      = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
           mergedNodeisFilenameStub  = self.nodeMethods.getGraphNodeAttribute(graph, mergeNodeID, 'isFilenameStub')
-          removedNodeisFilenameStub = self.tools.getArgumentAttribute(tool, argument, 'isFilenameStub')
-          if removedNodeisFilenameStub == None: removedNodeisFilenameStub = False
 
-          # Find the short and long form of the argument.
-          longFormArgument     = self.tools.getLongFormArgument(tool, argument)
-          shortFormArgument    = self.tools.getArgumentAttribute(tool, longFormArgument, 'short form argument')
-          isInput              = self.tools.getArgumentAttribute(tool, longFormArgument, 'isInput')
-          isOutput             = self.tools.getArgumentAttribute(tool, longFormArgument, 'isOutput')
+          # If the argument is 'read json file', create the edge.
+          if argument == 'read json file':
+            sourceNodeID = self.nodeMethods.getAssociatedFileNodeIDs(graph, mergeNodeID)[0]
+            self.edgeMethods.addJsonEdge(graph, sourceNodeID, task)
 
-          # If the argument is not for a filename stub, then there is a single output file.
-          # Generate the edges from the replacement file value to this task.
-          if not mergedNodeisFilenameStub and not removedNodeisFilenameStub:
-            self.linkNonFilenameStubNodes(graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument, isInput)
-
-          # If either of the nodes are filename stubs, deal with them.
-          elif mergedNodeisFilenameStub and not removedNodeisFilenameStub:
-            self.createFilenameStubEdgesM(graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument)
-          elif not mergedNodeisFilenameStub and removedNodeisFilenameStub:
-            self.createFilenameStubEdgesR(graph, mergeNodeID, nodeID, task, tool, shortFormArgument, longFormArgument)
-          elif mergedNodeisFilenameStub and removedNodeisFilenameStub:
-            self.createFilenameStubEdgesMR(graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument, isInput)
+          # Deal with actual tool arguments.
+          else:
+            removedNodeisFilenameStub = self.tools.getArgumentAttribute(tool, argument, 'isFilenameStub')
+            if removedNodeisFilenameStub == None: removedNodeisFilenameStub = False
+  
+            # Find the short and long form of the argument.
+            longFormArgument     = self.tools.getLongFormArgument(tool, argument)
+            shortFormArgument    = self.tools.getArgumentAttribute(tool, longFormArgument, 'shortFormArgument')
+            isInput              = self.tools.getArgumentAttribute(tool, longFormArgument, 'isInput')
+            isOutput             = self.tools.getArgumentAttribute(tool, longFormArgument, 'isOutput')
+  
+            # If the argument is not for a filename stub, then there is a single output file.
+            # Generate the edges from the replacement file value to this task.
+            if not mergedNodeisFilenameStub and not removedNodeisFilenameStub:
+              self.linkNonFilenameStubNodes(graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument, isInput)
+  
+            # If either of the nodes are filename stubs, deal with them.
+            elif mergedNodeisFilenameStub and not removedNodeisFilenameStub:
+              self.createFilenameStubEdgesM(graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument)
+            elif not mergedNodeisFilenameStub and removedNodeisFilenameStub:
+              self.createFilenameStubEdgesR(graph, mergeNodeID, nodeID, task, tool, shortFormArgument, longFormArgument)
+            elif mergedNodeisFilenameStub and removedNodeisFilenameStub:
+              self.createFilenameStubEdgesMR(graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument, isInput)
 
   # Create the edges for file nodes that are not generated from filename stubs.
   def linkNonFilenameStubNodes(self, graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument, isInput):
 
     # Find the file nodes associated with the option node.
     mergeFileNodeIDs = self.nodeMethods.getAssociatedFileNodeIDs(graph, mergeNodeID)
-    fileNodeIDs       = self.nodeMethods.getAssociatedFileNodeIDs(graph, nodeID)
-    if len(mergeFileNodeIDs) != 1 or len(fileNodeIDs) != 1:
-      #TODO SORT ERROR.
-      print('UNEXPECTED NUMBER OF FILENODE IDs - createEdgesForMergedFileNodes')
-      self.errors.terminate()
+
+    # If the node has been created, find the associated file node IDs. If the node has not yet been 
+    # created in the graph, this is unnecessary.
+    if nodeID != None:
+      fileNodeIDs      = self.nodeMethods.getAssociatedFileNodeIDs(graph, nodeID)
+
+      if len(mergeFileNodeIDs) != 1 or len(fileNodeIDs) != 1:
+        #TODO SORT ERROR.
+        print('UNEXPECTED NUMBER OF FILENODE IDs - createEdgesForMergedFileNodes')
+        self.errors.terminate()
 
     tool = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
     if isInput: self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, mergeFileNodeIDs[0], task, longFormArgument)
     else: self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, task, mergeFileNodeIDs[0], longFormArgument)
 
-  # TODO WRITE THIS ROUTINE.
   # Create the edges for file nodes that are generated from filename stubs.  Specifically, deal
   # with the case where the node being kept is a filename stub and the node being removed is not.
   def createFilenameStubEdgesM(self, graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument):
@@ -391,12 +377,12 @@ class configurationMethods:
       else: self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, task, mergeFileNodeID, longFormArgument)
 
   # Parse through all of the nodes that have been merged and check if they have files that
-  # were marked in the pipeline configuration file as files that should be kept. If such
+  # were marked in the pipeline configuration file as files that should be deleted. If such
   # nodes exist, mark them.
   def markNodesWithFilesToBeKept(self, graph):
     for configNodeID in self.nodeIDs:
       nodeID = self.nodeIDs[configNodeID]
-      if self.pipeline.nodeAttributes[configNodeID].keepFiles: self.nodeMethods.setGraphNodeAttribute(graph, nodeID, 'keepFiles', True)
+      if self.pipeline.getNodeAttribute(configNodeID, 'deleteFiles'): self.nodeMethods.setGraphNodeAttribute(graph, nodeID, 'deleteFiles', True)
 
   # Mark all greedy edges in the graph.
   def markGreedyEdges(self, graph):
@@ -571,18 +557,15 @@ class configurationMethods:
     for task in taskList:
       for fileNodeID in self.nodeMethods.getSuccessorFileNodes(graph, task):
         optionNodeID = self.nodeMethods.getOptionNodeIDFromFileNodeID(fileNodeID)
-        keepFiles    = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'keepFiles')
-
-        # Determine if the node has any successors.
-        hasSuccessor = self.nodeMethods.hasSuccessor(graph, fileNodeID)
+        deleteFiles  = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'deleteFiles')
 
         # Get the tasks associated with this option node.
         tasks = graph.successors(optionNodeID)
 
-        # If there are no successors, find the name of the file and add to the list of outputs.
-        # Since the values associated with a node is a dictionary of lists, if 'key' is set to 'all',
-        # get all of the values, otherwise, just get those with the specified key.
-        if not hasSuccessor or keepFiles:
+        # By default, all files produced by the pipeline are kept and so should be listed as
+        # outputs. However, some files are listed as to be deleted, so do not include these as
+        # outputs.
+        if not deleteFiles:
           values = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values')
           if key == 'all':
             for iteration in values.keys():
@@ -612,7 +595,7 @@ class configurationMethods:
     for task in taskList:
       for fileNodeID in self.nodeMethods.getPredecessorFileNodes(graph, task):
         optionNodeID = self.nodeMethods.getOptionNodeIDFromFileNodeID(fileNodeID)
-        keepFiles    = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'keepFiles')
+        deleteFiles  = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'deleteFiles')
 
         # Determine if the node has any predecessors or successors.
         hasPredecessor = self.nodeMethods.hasPredecessor(graph, fileNodeID)
@@ -624,7 +607,7 @@ class configurationMethods:
         # that use the file, but it should only be listed as an intermediate file once.
         if fileNodeID not in seenNodes:
           seenNodes[fileNodeID] = True
-          if hasPredecessor and hasSuccessor and not keepFiles:
+          if hasPredecessor and hasSuccessor and deleteFiles:
             values = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values')
 
             # Do not include streaming nodes.
