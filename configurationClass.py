@@ -558,6 +558,7 @@ class configurationMethods:
       for fileNodeID in self.nodeMethods.getSuccessorFileNodes(graph, task):
         optionNodeID = self.nodeMethods.getOptionNodeIDFromFileNodeID(fileNodeID)
         deleteFiles  = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'deleteFiles')
+        isStreaming  = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'isStreaming')
 
         # Get the tasks associated with this option node.
         tasks = graph.successors(optionNodeID)
@@ -565,7 +566,7 @@ class configurationMethods:
         # By default, all files produced by the pipeline are kept and so should be listed as
         # outputs. However, some files are listed as to be deleted, so do not include these as
         # outputs.
-        if not deleteFiles:
+        if not deleteFiles and not isStreaming:
           values = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values')
           if key == 'all':
             for iteration in values.keys():
