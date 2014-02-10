@@ -356,11 +356,11 @@ class configurationClassErrors:
     self.terminate()
 
   # An argument used in the 'add additional values' section is invalid.
-  def invalidArgumentInConstruction(self, tool, argument, addArgument, allowedArguments):
+  def invalidArgumentInConstruction(self, tool, argument, addArgument, allowedArguments, section):
     self.text.append('Invalid argument in construction instructions.')
     self.text.append('Argument \'' + argument + '\' associated with tool \'' + tool + '\' has instructions on how to construct the filename in ' + \
     'the absence of a defined value. As part of this construction, the value from another tool argument (' + addArgument + ') is used as ' + \
-    'instructed in the \'add argument values\' section. This argument is not a valid argument for this tool. Arguments appearing in this list ' + \
+    'instructed in the \'' + section + '\' section. This argument is not a valid argument for this tool. Arguments appearing in this section ' + \
     'must be one of the following:')
     self.text.append('\t')
     for allowedArgument in allowedArguments: self.text.append(allowedArgument)
