@@ -36,6 +36,7 @@ class argumentAttributes:
     self.hideInHelp               = False
     self.includeOnCommandLine     = True
     self.inputStream              = False
+    self.isDirectory              = False
     self.isFilenameStub           = False
     self.isInput                  = False
     self.isInputList              = False
@@ -169,6 +170,7 @@ class toolConfiguration:
     allowedAttributes['construct filename']                   = (dict, False, 'constructionInstructions')
     allowedAttributes['data type']                            = (str, True, 'dataType')
     allowedAttributes['description']                          = (str, True, 'description')
+    allowedAttributes['directory']                            = (bool, False, 'isDirectory')
     allowedAttributes['extension']                            = (str, True, 'extension')
     allowedAttributes['filename extensions']                  = (list, False, 'filenameExtensions')
     allowedAttributes['hide in help']                         = (bool, False, 'hideInHelp')
@@ -301,10 +303,11 @@ class toolConfiguration:
 
   # Check constructions instructions for the 'define name' method.
   def checkDefineName(self, tool, argument):
-    allowedAttributes                  = {}
-    allowedAttributes['filename']      = (str, True)
-    allowedAttributes['method']        = (str, True)
-    allowedAttributes['add extension'] = (bool, True)
+    allowedAttributes                       = {}
+    allowedAttributes['filename']           = (str, True)
+    allowedAttributes['method']             = (str, True)
+    allowedAttributes['add extension']      = (bool, True)
+    allowedAttributes['directory argument'] = (str, False)
 
     # Keep track of the observed required values.
     observedAttributes = {}
@@ -331,6 +334,20 @@ class toolConfiguration:
     for attribute in allowedAttributes:
       if allowedAttributes[attribute][1] and attribute not in observedAttributes: 
         self.errors.missingAttributeInConstruction(tool, argument, attribute, 'define name', allowedAttributes)
+
+    # If the 'directory argument' was present, check that this is a valid  argument for this tool. Being
+    # valid means that the argument exists and is a directory argument.
+    if 'directory argument' in self.argumentAttributes[tool][argument].constructionInstructions:
+
+      # Get all directory arguments for this tool.
+      directoryArguments = []
+      for addArgument in self.argumentAttributes[tool].keys():
+        if self.argumentAttributes[tool][addArgument].isDirectory: directoryArguments.append(addArgument)
+
+      # Check the validity of the entry in the configuration file.
+      addArgument = self.argumentAttributes[tool][argument].constructionInstructions['directory argument']
+      if addArgument not in directoryArguments:
+        self.errors.invalidArgumentInConstruction(tool, argument, addArgument, directoryArguments, 'directory argument')
 
   # Check constructions instructions for the 'from tool argument' method.
   def checkFromToolArgument(self, tool, argument):
@@ -371,7 +388,7 @@ class toolConfiguration:
     if 'add argument values' in self.argumentAttributes[tool][argument].constructionInstructions:
       for addArgument in self.argumentAttributes[tool][argument].constructionInstructions['add argument values']:
         if addArgument not in self.argumentAttributes[tool]:
-          self.errors.invalidArgumentInConstruction(tool, argument, addArgument, self.argumentAttributes[tool].keys())
+          self.errors.invalidArgumentInConstruction(tool, argument, addArgument, self.argumentAttributes[tool].keys(), 'add argument values')
 
   # Get a tool argument attribute.
   def getGeneralAttribute(self, tool, attribute):
