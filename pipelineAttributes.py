@@ -91,6 +91,10 @@ class pipelineConfiguration:
     # Keep track of tasks that output to the stream
     self.tasksOutputtingToStream = {}
 
+    # Define a variable to determine whether termination should result if an error in a
+    # configuration file is found.
+    self.allowTermination = True
+
     # Define the methods to operate on the graph nodes and edges,
     self.edgeMethods = edgeClass()
     self.nodeMethods = nodeClass()
@@ -101,26 +105,34 @@ class pipelineConfiguration:
 
   #TODO
   # Validate the contents of the tool configuration file.
-  def processConfigurationData(self, data, pipeline, toolFiles):
+  def processConfigurationData(self, data, pipeline, toolFiles, allowTermination):
+
+    # Set the allowTermination variable. Each of the following subroutines check different
+    # aspects of the configuration file. If problems are found, termination will result with
+    # an error message unless allowTermination is set to False.
+    self.allowTermination = allowTermination
+    success               = True
 
     # Parse the pipeline configuration file and check that all fields are valid. Ensure that there are
     # no errors, omissions or inconsistencies. Store the information in the relevant data structures
     # as the checks are performed.
     #
     # Check the general tool information.
-    self.attributes = self.checkGeneralAttributes(pipeline, data)
+    success, self.attributes = self.checkGeneralAttributes(pipeline, data)
 
     # Check the 'tasks' section of the configuration file.
-    self.checkTasks(pipeline, data['tasks'], toolFiles)
+    if success: success = self.checkTasks(pipeline, data['tasks'], toolFiles)
 
     # Check the contents of the nodes section.
-    self.checkNodes(pipeline, data['nodes'])
+    if success: success = self.checkNodes(pipeline, data['nodes'])
 
     # Check and store the pipeline arguments.
-    self.setPipelineArguments()
+    if success: self.setPipelineArguments()
 
     # From the node data, define which arguments are greedy.
-    self.getNodeTasks(pipeline)
+    if success: success = self.getNodeTasks(pipeline)
+
+    return success
 
   def checkGeneralAttributes(self, pipeline, data):
 
@@ -142,7 +154,9 @@ class pipelineConfiguration:
 
       # If the value is not in the allowedAttributes, it is not an allowed value and execution
       # should be terminate with an error.
-      if attribute not in allowedAttributes: self.errors.invalidGeneralAttributeInConfigurationFile(pipeline, attribute, allowedAttributes, True)
+      if attribute not in allowedAttributes:
+        if self.allowTermination: self.errors.invalidGeneralAttributeInConfigurationFile(pipeline, attribute, allowedAttributes, True)
+        else: return False, attributes
 
       # Mark this values as having been observed,
       observedAttributes[attribute] = True
@@ -151,7 +165,9 @@ class pipelineConfiguration:
       # convert to a string first.
       value = str(data[attribute]) if isinstance(data[attribute], unicode) else data[attribute]
       if allowedAttributes[attribute][0] != type(value):
-        self.errors.incorrectTypeInPipelineConfigurationFile(pipeline, attribute, value, allowedAttributes[attribute][0], 'general')
+        if self.allowTermination:
+          self.errors.incorrectTypeInPipelineConfigurationFile(pipeline, attribute, value, allowedAttributes[attribute][0], 'general')
+        else: return False, attributes
 
       # At this point, the attribute in the configuration file is allowed and of valid type. Check that 
       # the value itself is valid (if necessary) and store the value.
@@ -161,9 +177,10 @@ class pipelineConfiguration:
     # are present.
     for attribute in allowedAttributes:
       if allowedAttributes[attribute][1] and attribute not in observedAttributes:
-        self.errors.missingGeneralAttributeInConfigurationFile(pipeline, attribute, allowedAttributes, True)
+        if self.allowTermination: self.errors.missingGeneralAttributeInConfigurationFile(pipeline, attribute, allowedAttributes, True)
+        return False, attributes
 
-    return attributes
+    return True, attributes
 
   # Check the 'tasks' section of the configuration file.
   def checkTasks(self, pipeline, tasks, toolFiles):
@@ -182,18 +199,23 @@ class pipelineConfiguration:
       observedAttributes = {}
 
       # Check that the task name is accompanied by a dictionary.
-      if not isinstance(tasks[task], dict): self.errors.taskIsNotDictionary(pipeline, task)
+      if not isinstance(tasks[task], dict):
+        if self.allowTermination: self.errors.taskIsNotDictionary(pipeline, task)
+        else: return False
 
       # Loop over the included attributes.
       for attribute in tasks[task]:
-        #if attribute not in allowedAttributes: self.errors.invalidAttributeInTasks(pipeline, task, attribute, allowedAttributes)
-        if attribute not in allowedAttributes: self.errors.invalidAttributeInTasks(pipeline, task, attribute, allowedAttributes)
+        if attribute not in allowedAttributes:
+          if self.allowTermination: self.errors.invalidAttributeInTasks(pipeline, task, attribute, allowedAttributes)
+          return False
 
         # Check that the value given to the attribute is of the correct type. If the value is unicode,
         # convert to a string first.
         value = str(tasks[task][attribute]) if isinstance(tasks[task][attribute], unicode) else tasks[task][attribute]
         if allowedAttributes[attribute][0] != type(value):
-          self.errors.incorrectTypeInPipelineConfigurationFile(pipeline, attribute, value, allowedAttributes[attribute][0], 'tasks')
+          if self.allowTermination:
+            self.errors.incorrectTypeInPipelineConfigurationFile(pipeline, attribute, value, allowedAttributes[attribute][0], 'tasks')
+          else: return False
 
         # Mark the attribute as seen.
         observedAttributes[attribute] = True
@@ -205,14 +227,19 @@ class pipelineConfiguration:
       # are present.
       for attribute in allowedAttributes:
         if allowedAttributes[attribute][1] and attribute not in observedAttributes:
-          self.errors.missingAttributeInPipelineConfigurationFile(pipeline, attribute, allowedAttributes, 'tasks', None)
+          if self.allowTermination: self.errors.missingAttributeInPipelineConfigurationFile(pipeline, attribute, allowedAttributes, 'tasks', None)
+          else: return False
 
       # Check that each task has a tool defined and that a tool configuration file exists for this tool.
       tool = tasks[task]['tool']
-      if tool + '.json' not in toolFiles: self.errors.invalidToolInPipelineConfigurationFile(pipeline, task, tool)
+      if tool + '.json' not in toolFiles:
+        if self.allowTermination: self.errors.invalidToolInPipelineConfigurationFile(pipeline, task, tool)
+        else: return False
 
       # Store the attributes for the task.
       self.taskAttributes[task] = attributes
+
+    return True
 
   # Check the contents of the nodes section.
   def checkNodes(self, pipeline, nodes):
@@ -233,7 +260,9 @@ class pipelineConfiguration:
     for node in nodes:
 
       # Check that node is a dictionary.
-      if not isinstance(node, dict): self.errors.nodeIsNotADictionary(pipeline)
+      if not isinstance(node, dict):
+        if self.allowTermination: self.errors.nodeIsNotADictionary(pipeline)
+        else: return False
 
       # Define the attributes object.
       attributes = pipelineNodeAttributes()
@@ -243,17 +272,23 @@ class pipelineConfiguration:
 
       # Check that the node has an ID. This will be used to identify the node in error messages.
       try: ID = node['ID']
-      except: self.errors.noIDInPipelineNode(pipeline)
+      except: 
+        if self.allowTermination: self.errors.noIDInPipelineNode(pipeline)
+        else: return False
 
       # Loop over all attributes in the node.
       for attribute in node:
-        if attribute not in allowedAttributes: self.errors.invalidAttributeInNodes(pipeline, ID, attribute, allowedAttributes)
+        if attribute not in allowedAttributes:
+          if self.allowTermination: self.errors.invalidAttributeInNodes(pipeline, ID, attribute, allowedAttributes)
+          else: return False
 
         # Check that the value given to the attribute is of the correct type. If the value is unicode,
         # convert to a string first.
         value = str(node[attribute]) if isinstance(node[attribute], unicode) else node[attribute]
         if allowedAttributes[attribute][0] != type(value):
-          self.errors.incorrectTypeInPipelineConfigurationFile(pipeline, attribute, value, allowedAttributes[attribute][0], 'nodes')
+          if self.allowTermination:
+            self.errors.incorrectTypeInPipelineConfigurationFile(pipeline, attribute, value, allowedAttributes[attribute][0], 'nodes')
+          else: return False
 
         # Mark the attribute as seen.
         observedAttributes[attribute] = True
@@ -265,10 +300,13 @@ class pipelineConfiguration:
       # are present.
       for attribute in allowedAttributes:
         if allowedAttributes[attribute][1] and attribute not in observedAttributes:
-          self.errors.missingAttributeInPipelineConfigurationFile(pipeline, attribute, allowedAttributes, 'nodes', ID)
+          if self.allowTermination: self.errors.missingAttributeInPipelineConfigurationFile(pipeline, attribute, allowedAttributes, 'nodes', ID)
+          else: return False
 
       # Store the attributes.
       self.nodeAttributes[ID] = attributes
+
+    return True
 
   # Check the validity and completeness of the pipeline argument definitions.
   def setPipelineArguments(self):
@@ -308,7 +346,9 @@ class pipelineConfiguration:
         for task in self.nodeAttributes[configNodeID].tasks:
 
           # Check that the task is valid.
-          if task not in self.taskAttributes.keys(): self.errors.invalidTaskInNode(pipeline, configNodeID, task, False)
+          if task not in self.taskAttributes.keys():
+            if self.allowTermination: self.errors.invalidTaskInNode(pipeline, configNodeID, task, False)
+            else: return False
 
           # Link the pipeline argument to the task/arguments listed with the node.
           taskArgument = self.nodeAttributes[configNodeID].tasks[task]
@@ -328,7 +368,9 @@ class pipelineConfiguration:
         for task in self.nodeAttributes[configNodeID].greedyTasks:
 
           # Check that the task is valid.
-          if task not in self.taskAttributes.keys(): self.errors.invalidTaskInNode(pipeline, configNodeID, task, True)
+          if task not in self.taskAttributes.keys():
+            if self.allowTermination: self.errors.invalidTaskInNode(pipeline, configNodeID, task, True)
+            else: return False
 
           # Link the pipeline argument to the task/arguments listed with the node.
           if task not in self.taskArgument: self.taskArgument[task] = {}
@@ -350,7 +392,11 @@ class pipelineConfiguration:
     # appears in multiple nodes, the results can be unexpected, so this isn't permitted.
     for task in observedArguments:
       for argument in observedArguments[task]:
-        if len(observedArguments[task][argument]) > 1: self.errors.repeatedArgumentInNode(task, argument, observedArguments[task][argument])
+        if len(observedArguments[task][argument]) > 1:
+          if self.allowTermination: self.errors.repeatedArgumentInNode(task, argument, observedArguments[task][argument])
+          else: return False
+
+    return True
 
   # Get information about any associated extensions. Check that this only occurs for nodes with an
   # filename stub and that all linked arguments that are not stubs themselves are given an extension.
