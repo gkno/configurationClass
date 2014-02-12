@@ -216,7 +216,9 @@ class toolConfiguration:
       # First get the 'long form' for this argument. This will be used to identify the argument in error messages and
       # will be used as the key when storing attributes in a dictionary.
       try: longForm = argumentDescription['long form argument']
-      except: self.errors.noLongFormForToolArgument(tool)
+      except:
+        if self.allowTermination: self.errors.noLongFormForToolArgument(tool)
+        else: return False
 
       # Check that this argument is unique.
       if longForm in self.argumentAttributes[tool]:
