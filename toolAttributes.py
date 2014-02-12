@@ -65,12 +65,23 @@ class toolConfiguration:
     # Define the errors class for handling errors.
     self.errors               = configurationClassErrors()
 
+    # Define a variable to determine whether termination should result if an error in a
+    # configuration file is found.
+    self.allowTermination = True
+
+    # TODO ARE THESE NEEDED?
     self.availableTools       = {}
     self.configurationData    = {}
     self.filename             = None
 
   # Process the tool data.
-  def processConfigurationData(self, tool, data):
+  def processConfigurationData(self, tool, data, allowTermination):
+
+    # Set the allowTermination variable. Each of the following subroutines check different
+    # aspects of the configuration file. If problems are found, termination will result with
+    # an error message unless allowTermination is set to False.
+    self.allowTermination = allowTermination
+    success               = True
 
     # Include the tool in the list of available tools.
     self.availableTools[tool] = tool
@@ -80,22 +91,24 @@ class toolConfiguration:
     # as the checks are performed.
     #
     # Check the general tool information.
-    self.attributes[tool] = self.checkGeneralAttributes(tool, data)
+    success, self.attributes[tool] = self.checkGeneralAttributes(tool, data)
 
     # Check the validity of all of the supplied arguments.
-    self.checkToolArguments(tool, data['arguments'])
+    if success: success = self.checkToolArguments(tool, data['arguments'])
 
     # Check general and argument attribute dependencies.
-    self.checkAttributeDependencies(tool)
+    if success: success = self.checkAttributeDependencies(tool)
 
     # Generate a dictionary that links the long and short form arguments with each other..
-    self.consolidateArguments(tool)
+    if success: success = self.consolidateArguments(tool)
 
     # Look to see if the 'argument order' section is present and check its validity.
-    self.checkArgumentOrder(tool, self.attributes[tool])
+    if success: success = self.checkArgumentOrder(tool, self.attributes[tool])
 
     # If filename constuction instructions are provided, check that all is provided.
-    self.checkConstructionInstructions(tool)
+    if success: success = self.checkConstructionInstructions(tool)
+
+    return success
 
   # Check and store the top level tool attibutes.
   def checkGeneralAttributes(self, tool, data):
@@ -128,7 +141,9 @@ class toolConfiguration:
 
       # If the value is not in the allowedAttributes, it is not an allowed value and execution
       # should be terminate with an error.
-      if attribute not in allowedAttributes: self.errors.invalidGeneralAttributeInConfigurationFile(tool, attribute, allowedAttributes, False)
+      if attribute not in allowedAttributes:
+        if self.allowTermination: self.errors.invalidGeneralAttributeInConfigurationFile(tool, attribute, allowedAttributes, False)
+        else: return False, attributes
 
       # Mark this values as having been observed,
       observedAttributes[attribute] = True
@@ -137,7 +152,9 @@ class toolConfiguration:
       # convert to a string first.
       value = str(data[attribute]) if isinstance(data[attribute], unicode) else data[attribute]
       if allowedAttributes[attribute][0] != type(value):
-        self.errors.incorrectTypeInToolConfigurationFile(tool, attribute, None, value, allowedAttributes[attribute][0], False)
+        if self.allowTermination:
+          self.errors.incorrectTypeInToolConfigurationFile(tool, attribute, None, value, allowedAttributes[attribute][0], False)
+        else: return False, attributes
 
       # At this point, the attribute in the configuration file is allowed and of valid type. Check that 
       # the value itself is valid (if necessary) and store the value.
@@ -147,9 +164,10 @@ class toolConfiguration:
     # are present.
     for attribute in allowedAttributes:
       if allowedAttributes[attribute][1] and attribute not in observedAttributes:
-        self.errors.missingGeneralAttributeInConfigurationFile(tool, attribute, allowedAttributes, False)
+        if self.allowTermination: self.errors.missingGeneralAttributeInConfigurationFile(tool, attribute, allowedAttributes, False)
+        else: return False, attributes
 
-    return attributes
+    return True, attributes
 
   # Check that all the supplied arguments are valid and complete.
   def checkToolArguments(self, tool, arguments):
@@ -201,7 +219,9 @@ class toolConfiguration:
       except: self.errors.noLongFormForToolArgument(tool)
 
       # Check that this argument is unique.
-      if longForm in self.argumentAttributes[tool]: self.errors.repeatedToolArgumentInToolConfigurationFile(tool, longForm, isLongForm = True)
+      if longForm in self.argumentAttributes[tool]:
+        if self.allowTermination: self.errors.repeatedToolArgumentInToolConfigurationFile(tool, longForm, isLongForm = True)
+        else: return False
 
       # Initialise the data structure for holding the argument information.
       attributes = argumentAttributes()
@@ -210,13 +230,16 @@ class toolConfiguration:
       # since these are required argument. If the value is already included, fail.
       if 'short form argument' in argumentDescription:
         shortForm  = argumentDescription['short form argument']
-        if shortForm in observedShortForms: self.errors.repeatedToolArgumentInToolConfigurationFile(tool, shortForm, isLongForm = False)
+        if shortForm in observedShortForms:
+          if self.allowTermination: self.errors.repeatedToolArgumentInToolConfigurationFile(tool, shortForm, isLongForm = False)
+          else: return False
         else: observedShortForms[shortForm] = True
 
       # Loop over all entries in the argument description, checking that the attributes are allowed and valid.
       for attribute in argumentDescription:
         if attribute not in allowedAttributes:
-          self.errors.invalidArgumentAttributeInToolConfigurationFile(tool, longForm, attribute, allowedAttributes)
+          if self.allowTermination: self.errors.invalidArgumentAttributeInToolConfigurationFile(tool, longForm, attribute, allowedAttributes)
+          else: return False
 
         # Mark the attribute as observed.
         observedAttributes[attribute] = True
@@ -225,7 +248,9 @@ class toolConfiguration:
         # convert to a string first.
         value = str(argumentDescription[attribute]) if isinstance(argumentDescription[attribute], unicode) else argumentDescription[attribute]
         if allowedAttributes[attribute][0] != type(value):
-          self.errors.incorrectiTypeInConfigurationFile(tool, attribute, longForm, value, allowedAttributes[attribute][0])
+          if self.allowTermination:
+            self.errors.incorrectiTypeInConfigurationFile(tool, attribute, longForm, value, allowedAttributes[attribute][0])
+          else: return False
 
         # Store the information in the attributes structure.
         self.setAttribute(attributes, tool, allowedAttributes[attribute][2], value)
@@ -233,10 +258,13 @@ class toolConfiguration:
       # Check if any required arguments are missing.
       for attribute in allowedAttributes:
         if allowedAttributes[attribute][1] and attribute not in observedAttributes:
-          self.errors.missingArgumentAttributeInToolConfigurationFile(tool, longForm, attribute, allowedAttributes)
+          if self.allowTermination: self.errors.missingArgumentAttributeInToolConfigurationFile(tool, longForm, attribute, allowedAttributes)
+          else: return False
 
       # Store the attributes.
       self.argumentAttributes[tool][longForm] = attributes
+
+    return True
 
   # Check all argument attribute dependencies.
   def checkAttributeDependencies(self, tool):
@@ -254,6 +282,8 @@ class toolConfiguration:
     dependencies['inputIsStream'] = [('general', 'present', 'any', [('argument', 'includeOnCommandLine', False)])]
     dependencies['inputStream']   = [('argument', True)]
 
+    return True
+
   # Generate a dictionary that links the long and short form arguments with each other.
   def consolidateArguments(self, tool):
     self.longFormArguments[tool]  = {}
@@ -263,24 +293,31 @@ class toolConfiguration:
       self.longFormArguments[tool][longForm]   = shortForm
       self.shortFormArguments[tool][shortForm] = longForm
 
+    return True
+
   # If the order in which the arguments should be used is included, check that all of the arguments are
   # included in the list and no invalid arguments are present.
   def checkArgumentOrder(self, tool, attributes):
 
     # If this tool does not include an argument order, the following checks are not required.
-    if not attributes.argumentOrder: return
+    if not attributes.argumentOrder: return True
 
     # Loop over all of the arguments and check that they are represented in the argument order.
     for argument in self.argumentAttributes[tool]:
       if argument not in attributes.argumentOrder:
-        self.errors.missingArgumentInArgumentOrder(tool, argument)
+        if self.allowTermination: self.errors.missingArgumentInArgumentOrder(tool, argument)
+        else: return False
 
     # Loop over all of the arguments in the argument order and check that no arguments are invalid or repeated.
     observedArguments = []
     for argument in attributes.argumentOrder:
       if argument not in self.argumentAttributes[tool]: self.errors.invalidArgumentInArgumentOrder(tool, argument)
-      if argument in observedArguments: self.errors.repeatedArgumentInArgumentOrder(tool, argument)
+      if argument in observedArguments:
+        if self.allowTermination: self.errors.repeatedArgumentInArgumentOrder(tool, argument)
+        else: return False
       observedArguments.append(argument)
+
+    return True
 
   # Check that filename constructions are valid and complete.
   def checkConstructionInstructions(self, tool):
@@ -297,9 +334,13 @@ class toolConfiguration:
 
         # Now check the specifics of each method.
         method = self.argumentAttributes[tool][argument].constructionInstructions['method']
-        if method == 'define name': self.checkDefineName(tool, argument)
-        elif method == 'from tool argument': self.checkFromToolArgument(tool, argument)
-        else: self.errors.unknownConstructionMethod(tool, argument, method, allowedMethods)
+        if method == 'define name': success = self.checkDefineName(tool, argument)
+        elif method == 'from tool argument': success = self.checkFromToolArgument(tool, argument)
+        else:
+          if self.allowTermination: self.errors.unknownConstructionMethod(tool, argument, method, allowedMethods)
+          else: return False
+
+    return True
 
   # Check constructions instructions for the 'define name' method.
   def checkDefineName(self, tool, argument):
@@ -317,7 +358,9 @@ class toolConfiguration:
 
       # If the value is not in the allowedAttributes, it is not an allowed value and execution
       # should be terminate with an error.
-      if attribute not in allowedAttributes: self.errors.invalidAttributeInConstruction(tool, argument, attribute, 'define name', allowedAttributes)
+      if attribute not in allowedAttributes:
+        if self.allowTermination: self.errors.invalidAttributeInConstruction(tool, argument, attribute, 'define name', allowedAttributes)
+        else: return False
 
       # Mark this values as having been observed,
       observedAttributes[attribute] = True
@@ -327,12 +370,14 @@ class toolConfiguration:
       value = self.argumentAttributes[tool][argument].constructionInstructions[attribute]
       value = str(value) if isinstance(value, unicode) else value
       if allowedAttributes[attribute][0] != type(value):
-        self.errors.incorrectTypeInConstruction(tool, argument, attribute, 'define name', value, allowedAttributes[attribute][0])
+        if self.allowTermination:
+          self.errors.incorrectTypeInConstruction(tool, argument, attribute, 'define name', value, allowedAttributes[attribute][0])
+        else: return False
 
     # Having parsed all of the general attributes attributes, check that all those that are required
     # are present.
     for attribute in allowedAttributes:
-      if allowedAttributes[attribute][1] and attribute not in observedAttributes: 
+      if allowedAttributes[attribute][1] and attribute not in observedAttributes and self.allowTermination: 
         self.errors.missingAttributeInConstruction(tool, argument, attribute, 'define name', allowedAttributes)
 
     # If the 'directory argument' was present, check that this is a valid  argument for this tool. Being
@@ -347,7 +392,10 @@ class toolConfiguration:
       # Check the validity of the entry in the configuration file.
       addArgument = self.argumentAttributes[tool][argument].constructionInstructions['directory argument']
       if addArgument not in directoryArguments:
-        self.errors.invalidArgumentInConstruction(tool, argument, addArgument, directoryArguments, 'directory argument')
+        if self.allowTermination: self.errors.invalidArgumentInConstruction(tool, argument, addArgument, directoryArguments, 'directory argument')
+        else: return False
+
+    return True
 
   # Check constructions instructions for the 'from tool argument' method.
   def checkFromToolArgument(self, tool, argument):
@@ -366,7 +414,9 @@ class toolConfiguration:
 
       # If the value is not in the allowedAttributes, it is not an allowed value and execution
       # should be terminate with an error.
-      if attribute not in allowedAttributes: self.errors.invalidAttributeInConstruction(tool, argument, attribute, 'from tool argument', allowedAttributes)
+      if attribute not in allowedAttributes:
+        if self.allowTermination: self.errors.invalidAttributeInConstruction(tool, argument, attribute, 'from tool argument', allowedAttributes)
+        else: return False
 
       # Mark this values as having been observed,
       observedAttributes[attribute] = True
@@ -376,19 +426,26 @@ class toolConfiguration:
       value = self.argumentAttributes[tool][argument].constructionInstructions[attribute]
       value = str(value) if isinstance(value, unicode) else value
       if allowedAttributes[attribute][0] != type(value):
-        self.errors.incorrectTypeInConstruction(tool, argument, attribute, 'from tool argument', value, allowedAttributes[attribute][0])
+        if self.allowTermination:
+          self.errors.incorrectTypeInConstruction(tool, argument, attribute, 'from tool argument', value, allowedAttributes[attribute][0])
+        else: return False
 
     # Having parsed all of the general attributes attributes, check that all those that are required
     # are present.
     for attribute in allowedAttributes:
-      if allowedAttributes[attribute][1] and attribute not in observedAttributes: 
-        self.errors.missingAttributeInConstruction(tool, argument, attribute, 'from tool argument', allowedAttributes)
+      if allowedAttributes[attribute][1] and attribute not in observedAttributes:
+        if self.allowTermination: self.errors.missingAttributeInConstruction(tool, argument, attribute, 'from tool argument', allowedAttributes)
+        else: return False
 
     # If the 'add argument values' was present, check that this list contains valid arguments for this tool.
     if 'add argument values' in self.argumentAttributes[tool][argument].constructionInstructions:
       for addArgument in self.argumentAttributes[tool][argument].constructionInstructions['add argument values']:
         if addArgument not in self.argumentAttributes[tool]:
-          self.errors.invalidArgumentInConstruction(tool, argument, addArgument, self.argumentAttributes[tool].keys(), 'add argument values')
+          if self.allowTermination:
+            self.errors.invalidArgumentInConstruction(tool, argument, addArgument, self.argumentAttributes[tool].keys(), 'add argument values')
+          else: return False
+
+    return True
 
   # Get a tool argument attribute.
   def getGeneralAttribute(self, tool, attribute):
