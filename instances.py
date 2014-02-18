@@ -83,7 +83,7 @@ class instanceConfiguration:
 
       # Now loop over the remaining attributes.
       for attribute in instance:
-        if attribute not in allowedAttributes: self.errors.invalidAttributeInInstance(runName, instanceID, attribute, allowedAttributes, isPipeline)
+        if attribute not in allowedAttributes: self.errors.invalidAttributeInInstance(runName, instanceID, attribute, allowedAttributes)
 
         # Mark the attribute as seen.
         observedAttributes[attribute] = True

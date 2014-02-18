@@ -310,22 +310,32 @@ class pipelineConfiguration:
 
   # Check the validity and completeness of the pipeline argument definitions.
   def setPipelineArguments(self):
+    observedLongFormArguments  = []
+    observedShortFormArguments = []
 
     # Loop over all of the nodes and set the pipeline arguments.
     for nodeID in self.nodeAttributes:
 
       # The long form argument will be used as the key in this dictionary.
-      longFormArgument = str(self.nodeAttributes[nodeID].longFormArgument)
+      longFormArgument = self.nodeAttributes[nodeID].longFormArgument
 
       # Set the other attributes only if the long form argument is present.
-      if longFormArgument:
+      if longFormArgument != None:
+        shortFormArgument = self.nodeAttributes[nodeID].shortFormArgument
+
+        # Check that the long forma rgument hasn't already been seen in the pipeline configuration
+        # file. All command line arguments must be unique.
+        if longFormArgument in observedLongFormArguments: self.errors.nonUniquePipelineFormArgument(nodeID, longFormArgument, shortFormArgument, True)
+        if shortFormArgument in observedShortFormArguments: self.errors.nonUniquePipelineFormArgument(nodeID, longFormArgument, shortFormArgument, False)
+        observedLongFormArguments.append(longFormArgument)
+        observedShortFormArguments.append(shortFormArgument)
 
         # Define the structure to hold the argument information for this pipeline.
         attributes = argumentAttributes()
 
         self.setAttribute(attributes, 'description', self.nodeAttributes[nodeID].description)
         self.setAttribute(attributes, 'configNodeID', nodeID)
-        self.setAttribute(attributes, 'shortFormArgument', str(self.nodeAttributes[nodeID].shortFormArgument))
+        self.setAttribute(attributes, 'shortFormArgument', shortFormArgument)
         self.setAttribute(attributes, 'isRequired', self.nodeAttributes[nodeID].isRequired)
   
         # Store the information.
@@ -387,14 +397,16 @@ class pipelineConfiguration:
           if str(taskArgument) not in observedArguments[str(task)]: observedArguments[str(task)][str(taskArgument)] = []
           observedArguments[str(task)][str(taskArgument)].append(str(configNodeID))
 
+    # TODO THIS CHECK WAS REMOVED FOR FASTQ-TANGRAM AS TWO ARGUMENTS ARE REQUIRED TO POINT TO THE
+    # SAME ARGUMENT. MAYBE ONLY PERFORM THIS CHECK IF THE TOOL ARGUMENT ALLOWS MULTIPLE VALUES.
     # Each node in the pipeline configuration file contains a list of task/argument pairs that take the
     # same value and can thus be merged into a single node in the pipeline graph. If a task/argument pair
     # appears in multiple nodes, the results can be unexpected, so this isn't permitted.
-    for task in observedArguments:
-      for argument in observedArguments[task]:
-        if len(observedArguments[task][argument]) > 1:
-          if self.allowTermination: self.errors.repeatedArgumentInNode(task, argument, observedArguments[task][argument])
-          else: return False
+    #for task in observedArguments:
+    #  for argument in observedArguments[task]:
+    #    if len(observedArguments[task][argument]) > 1:
+    #      if self.allowTermination: self.errors.repeatedArgumentInNode(task, argument, observedArguments[task][argument])
+    #      else: return False
 
     return True
 

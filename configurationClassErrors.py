@@ -607,6 +607,18 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
+  # A pipeline argument is repeated.
+  def nonUniquePipelineFormArgument(self, nodeID, longFormArgument, shortFormArgument, longFormError):
+    if longFormError: text = 'long form argument \'' + longFormArgument + '\''
+    else: text = 'short form argument \'' + shortFormArgument + '\''
+    self.text.append('Repeated argument in the pipeline configuration file.')
+    self.text.append('The pipeline configuration file contains a node in the \'nodes\' section with the ID \'' + nodeID + '\'. The ' + \
+    'arguments associated with this node are \'' + longFormArgument + ' (' + shortFormArgument + ')\', but the ' + text + ' appears multiple ' + \
+    'times in the configuration file. Each long and short form argument must be unique. Please remove this duplication from the ' + \
+    'configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
   ###########################################################
   # Errors associated with instances in configuration file. #
   ###########################################################

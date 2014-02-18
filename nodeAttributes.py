@@ -125,9 +125,9 @@ class nodeClass:
 
     # If the node represents an option for defining an input or output file, create
     # a file node.
-    shortForm = tools.getArgumentAttribute(tool, argument, 'shortFormArgument')
-    if self.getGraphNodeAttribute(graph, nodeID, 'isInput'): self.buildTaskFileNodes(graph, tools, nodeID, task, argument, shortForm, 'input')
-    elif self.getGraphNodeAttribute(graph, nodeID, 'isOutput'): self.buildTaskFileNodes(graph, tools, nodeID, task, argument, shortForm, 'output')
+    shortFormArgument = tools.getArgumentAttribute(tool, argument, 'shortFormArgument')
+    if self.getGraphNodeAttribute(graph, nodeID, 'isInput'): self.buildTaskFileNodes(graph, tools, nodeID, task, argument, shortFormArgument, 'input')
+    elif self.getGraphNodeAttribute(graph, nodeID, 'isOutput'): self.buildTaskFileNodes(graph, tools, nodeID, task, argument, shortFormArgument, 'output')
 
     return nodeID
 
@@ -226,18 +226,24 @@ class nodeClass:
     graph.add_node(task, attributes = attributes)
 
   # Build all of the predecessor nodes for the task and attach them to the task node.
-  def buildRequiredPredecessorNodes(self, graph, tools, task):
+  def buildRequiredPredecessorNodes(self, graph, tools, pipeline, task):
     tool = self.getGraphNodeAttribute(graph, task, 'tool')
     for argument in tools.getArguments(tool):
       attributes = self.buildNodeFromToolConfiguration(tools, tool, argument)
       isRequired = tools.getArgumentAttribute(tool, argument, 'isRequired')
+
+      # If this is a pipeline and the argument isn't required by the tool, check to see if
+      # it is required by the pipeline.
+      pipelineLongFormArgument, pipelineShortFormArgument = pipeline.getPipelineArgument(task, argument)
+      if not isRequired and pipelineLongFormArgument:
+        isRequired            = pipeline.pipelineArguments[pipelineLongFormArgument].isRequired
+        attributes.isRequired = isRequired
       if isRequired: self.buildOptionNode(graph, tools, task, tool, argument, attributes)
 
   # Check each option node and determine if a value is required.  This can be determined in one of two 
   # ways.  If any of the edges beginning at the option node correspond to a tool argument that is 
   # listed as required by the tool, or if the node corresponds to a command line argument that is 
-  # listed as required.  If the node is a required pipeline argument, it has already been tagged as 
-  # required. 
+  # listed as required.  If the node is a required pipeline argument, set it as required.
   def setRequiredNodes(self, graph, tools): 
  
     # Loop over all data nodes. 

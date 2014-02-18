@@ -70,7 +70,7 @@ class configurationMethods:
 
       # Find all required arguments for this task and build nodes for them all.  Link these nodes
       # to the task node.
-      self.nodeMethods.buildRequiredPredecessorNodes(graph, self.tools, task)
+      self.nodeMethods.buildRequiredPredecessorNodes(graph, self.tools, self.pipeline, task)
 
   # Assign values from the nodes section of the pipeline configuration file to the nodes.
   def assignPipelineAttributes(self, graph, tasks):
@@ -495,7 +495,7 @@ class configurationMethods:
       self.nodeMethods.addValuesToGraphNode(graph, nodeIDToSet, node.values, write = 'replace')
 
   # Check that all required files and values have been set. All files and parameters that are listed as
-  # required by the infividual tools should already have been checked, but if the pipeline has some
+  # required by the individual tools should already have been checked, but if the pipeline has some
   # additional requirements, these may not yet have been checked.
   def checkRequiredFiles(self, graph):
 
