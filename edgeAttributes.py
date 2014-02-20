@@ -140,3 +140,13 @@ class edgeClass:
     try: edge = graph[sourceNodeID][targetNodeID]
     except: return False
     return True
+
+  # Determine if an edge exists between two nodes and that the given argument is associated with the edge.
+  def checkIfEdgeAssociatedWithArgument(self, graph, sourceNodeID, targetNodeID, argument):
+    try: edge = graph[sourceNodeID][targetNodeID]
+    except: return False
+
+    # Check that this edge is associated with the given argument.
+    edgeArgument = self.getEdgeAttribute(graph, sourceNodeID, targetNodeID, 'longFormArgument')
+    if edgeArgument == argument: return True
+    else: return False

@@ -91,6 +91,9 @@ class pipelineConfiguration:
     # Keep track of tasks that output to the stream
     self.tasksOutputtingToStream = {}
 
+    # Define a structure to keep track of which task arguments are linked to others.
+    self.linkedTaskArguments = {}
+
     # Define a variable to determine whether termination should result if an error in a
     # configuration file is found.
     self.allowTermination = True
@@ -351,6 +354,10 @@ class pipelineConfiguration:
     for configNodeID in self.nodeAttributes:
       self.commonNodes[configNodeID] = []
 
+      numberOfTasks       = len(self.nodeAttributes[configNodeID].tasks) if self.nodeAttributes[configNodeID].tasks else 0
+      numberOfGreedyTasks = len(self.nodeAttributes[configNodeID].greedyTasks) if self.nodeAttributes[configNodeID].greedyTasks else 0
+      isLinked = True if (numberOfTasks + numberOfGreedyTasks) > 1 else False
+
       # Parse the tasks.
       if self.nodeAttributes[configNodeID].tasks:
         for task in self.nodeAttributes[configNodeID].tasks:
@@ -372,6 +379,11 @@ class pipelineConfiguration:
           if str(task) not in observedArguments: observedArguments[str(task)] = {}
           if str(taskArgument) not in observedArguments[str(task)]: observedArguments[str(task)][str(taskArgument)] = []
           observedArguments[str(task)][str(taskArgument)].append(str(configNodeID))
+
+          # If the taskArgument is linked to another argument, store this in the pipelineArguments structure.
+          if isLinked:
+            if task not in self.linkedTaskArguments: self.linkedTaskArguments[task] = []
+            if taskArgument not in self.linkedTaskArguments[task]: self.linkedTaskArguments[task].append(taskArgument)
 
       # Then parse the greedy tasks.
       if self.nodeAttributes[configNodeID].greedyTasks:
@@ -396,6 +408,11 @@ class pipelineConfiguration:
           if str(task) not in observedArguments: observedArguments[str(task)] = {}
           if str(taskArgument) not in observedArguments[str(task)]: observedArguments[str(task)][str(taskArgument)] = []
           observedArguments[str(task)][str(taskArgument)].append(str(configNodeID))
+
+          # If the taskArgument is linked to another argument, store this in the pipelineArguments structure.
+          if isLinked:
+            if task not in self.linkedTaskArguments: self.linkedTaskArguments[task] = []
+            if taskArgument not in self.linkedTaskArguments[task]: self.linkedTaskArguments[task].append(taskArgument)
 
     # TODO THIS CHECK WAS REMOVED FOR FASTQ-TANGRAM AS TWO ARGUMENTS ARE REQUIRED TO POINT TO THE
     # SAME ARGUMENT. MAYBE ONLY PERFORM THIS CHECK IF THE TOOL ARGUMENT ALLOWS MULTIPLE VALUES.
