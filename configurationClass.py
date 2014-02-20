@@ -309,8 +309,10 @@ class configurationMethods:
       
       # Get the extension that the file is expecting. Add a '.' to the front of this extension. The extensions
       # supplied for filename stubs begin with a '.'.
-      extension = '.' + self.pipeline.getExtension(task, longFormArgument, self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'linkedExtension'))
-      if extension in self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'allowedExtensions'):
+      extensionA = self.pipeline.getExtension(task, longFormArgument, self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'linkedExtension'))
+      extensionB = '.' + self.pipeline.getExtension(task, longFormArgument, self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'linkedExtension'))
+      allowedExtensions = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'allowedExtensions')
+      if extensionA in allowedExtensions or extensionB in allowedExtensions:
         foundMatch = True
 
         # Create the edge from the file node to the task.
@@ -504,7 +506,9 @@ class configurationMethods:
 
       # Loop over all predecessor file nodes.
       for fileNodeID in self.nodeMethods.getPredecessorFileNodes(graph, task):
-        if not self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values'):
+        optionNodeID = self.nodeMethods.getOptionNodeIDFromFileNodeID(fileNodeID)
+        isRequired   = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'isRequired')
+        if not self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values') and isRequired:
 
           # Get the long and short form of the argument.
           taskLongFormArgument                                = self.edgeMethods.getEdgeAttribute(graph, fileNodeID, task, 'longFormArgument')
@@ -821,3 +825,27 @@ class configurationMethods:
       if not isConstructed and values: arguments.append((str(argument), values))
 
     return arguments
+
+  # Check that all pipeline arguments listed as required were set.
+  def checkArguments(self, graph, commandLine, runName, instanceName):
+    for longFormArgument in self.pipeline.pipelineArguments:
+      isSet             = False
+      shortFormArgument = self.pipeline.pipelineArguments[longFormArgument].shortFormArgument
+      description       = self.pipeline.pipelineArguments[longFormArgument].description
+      if self.pipeline.pipelineArguments[longFormArgument].isRequired:
+
+        # Check if this required pipeline argument was set on the command line.
+        if longFormArgument in commandLine.argumentDictionary: isSet = True
+
+        # If the argument wasn't set on the command line, check to see if it was set using an instance.
+        # First check the default instance.
+        if not isSet:
+          for node in self.instances.instanceAttributes[runName]['default'].nodes:
+            if longFormArgument == node.argument: isSet = True
+
+        # Then, if necessary, check the requested instance.
+        if not isSet and instanceName != 'default':
+          for node in self.instances.instanceAttributes[runName][instanceName].nodes:
+            if longFormArgument == node.argument: isSet = True
+
+        if not isSet: self.errors.unsetFile(longFormArgument, shortFormArgument, description)

@@ -175,7 +175,7 @@ class nodeClass:
     return attributes
 
   # Add input file nodes.
-  def buildTaskFileNodes(self, graph, tools, nodeID, task, argument, shortForm, fileType):
+  def buildTaskFileNodes(self, graph, tools, nodeID, task, longFormArgument, shortFormArgument, fileType):
 
     # Check if the node argument is a filename stub.  If it is, there are multiple file nodes to be
     # created.
@@ -203,8 +203,8 @@ class nodeClass:
     # Add the edges.
     for fileNodeID in fileNodeIDs:
       tool = self.getGraphNodeAttribute(graph, task, 'tool')
-      if fileType == 'input': self.edgeMethods.addEdge(graph, self, tools, fileNodeID, task, argument)
-      else: self.edgeMethods.addEdge(graph, self, tools, task, fileNodeID, argument)
+      if fileType == 'input': self.edgeMethods.addEdge(graph, self, tools, fileNodeID, task, longFormArgument)
+      else: self.edgeMethods.addEdge(graph, self, tools, task, fileNodeID, longFormArgument)
 
       # Add the file node to the list of file nodes associated with the option node.
       self.setGraphNodeAttribute(graph, nodeID, 'associatedFileNodes', fileNodeID)
@@ -238,6 +238,12 @@ class nodeClass:
       if not isRequired and pipelineLongFormArgument:
         isRequired            = pipeline.pipelineArguments[pipelineLongFormArgument].isRequired
         attributes.isRequired = isRequired
+
+      # If the task argument is linked to another argument in the pipeline, it is required.
+      if argument in pipeline.linkedTaskArguments[task]:
+        isRequired = True
+        attributes.isRequired = isRequired
+
       if isRequired: self.buildOptionNode(graph, tools, task, tool, argument, attributes)
 
   # Check each option node and determine if a value is required.  This can be determined in one of two 
@@ -406,7 +412,7 @@ class nodeClass:
                                                                    
       # If there are currently no data sets associated with this node, create the '1' iteration.
       if numberOfDataSets == 0 and iteration == 1:
-        numberOfDataSets = 1
+        self.setGraphNodeAttribute(graph, nodeID, 'numberOfDataSets', 1)
         definedValues[1] = []
 
       # Check that the defined iteration exists.
@@ -648,3 +654,11 @@ class nodeClass:
 
     # Remove the original node.
     graph.remove_node(originalNodeID)
+
+  # Check if a particular node is a predecessor to another node.
+  def isPredecessor(self, graph, sourceNodeID, targetNodeID):
+
+    # Get the predecessors to the targetNodeID.
+    predecessorNodeIDs = graph.predecessors(targetNodeID)
+    if sourceNodeID in predecessorNodeIDs: return True
+    else: return False
