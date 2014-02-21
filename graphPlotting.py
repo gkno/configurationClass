@@ -54,6 +54,14 @@ class drawGraph():
         newNodeID       = nodeID + str(edgeMethods.getEdgeAttribute(graphToDraw, nodeID, task, 'argument'))
         mapping[nodeID] = newNodeID
 
+    # Modify the edges so that the command line argument is displayed in the graph plot.
+    for nodeID in graphToDraw:
+      successorNodeIDs = graphToDraw.successors(nodeID)
+      for successorNodeID in successorNodeIDs:
+        longFormArgument = '"' + edgeMethods.getEdgeAttribute(graphToDraw, nodeID, successorNodeID, 'longFormArgument') + '"'
+        graphToDraw.remove_edge(nodeID, successorNodeID)
+        graphToDraw.add_edge(nodeID, successorNodeID, label = longFormArgument)
+
     # Map the new node names.
     graphToDraw = nx.relabel_nodes(graphToDraw, mapping)
     nx.write_dot(graphToDraw, filename)
