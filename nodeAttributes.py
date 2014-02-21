@@ -240,9 +240,10 @@ class nodeClass:
         attributes.isRequired = isRequired
 
       # If the task argument is linked to another argument in the pipeline, it is required.
-      if argument in pipeline.linkedTaskArguments[task]:
-        isRequired = True
-        attributes.isRequired = isRequired
+      if pipeline.linkedTaskArguments:
+        if argument in pipeline.linkedTaskArguments[task]:
+          isRequired = True
+          attributes.isRequired = isRequired
 
       if isRequired: self.buildOptionNode(graph, tools, task, tool, argument, attributes)
 
