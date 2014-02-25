@@ -102,8 +102,8 @@ class edgeClass:
 
     # Since this edge does not represent an actual argument, leave the arguments as None. Set the readJson
     # flag to true. Also set the isInput flag as this node must be reading in a json file.
-    attributes.readJson = True
-    attributes.isInput  = True
+    attributes.readJson          = True
+    attributes.isInput           = True
     graph.add_edge(sourceNodeID, targetNodeID, attributes = attributes)
 
   # Get an attribute from a graph edge.  Fail with sensible message if the edge or attribute does not exist.

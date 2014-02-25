@@ -411,8 +411,8 @@ class configurationClassErrors:
 
   # An unknown command line argument was requested,
   def unknownToolArgument(self, tool, argument):
-    self.text.append('Unknown argument: ' + argument)
-    text = 'The argument \'' + argument + '\' was included on the command line, but is not a valid argument for the current tool (' + \
+    self.text.append('Unknown argument: ' + str(argument))
+    text = 'The argument \'' + str(argument) + '\' was included on the command line, but is not a valid argument for the current tool (' + \
     tool + ').'
     self.text.append(text)
     self.writeFormattedText()
