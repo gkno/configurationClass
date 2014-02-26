@@ -179,8 +179,13 @@ class instanceConfiguration:
     return attributes
 
   # Get an instance node attribute.
-  def getArguments(self, runName, instanceName):
+  def getArguments(self, runName, instanceName, isPipeline):
     arguments = []
+
+    # Check that the instance exists.
+    if instanceName not in self.instanceAttributes[runName]:
+      self.errors.missingInstance(runName, instanceName, isPipeline, self.instanceAttributes[runName].keys())
+
     for node in self.instanceAttributes[runName][instanceName].nodes:
       arguments.append((node.argument, node.values))
 
