@@ -49,6 +49,10 @@ class argumentAttributes:
     self.replaceArgument          = None
     self.shortFormArgument        = None
 
+    # Record if the presence of the specified file/directory is not allowed prior
+    # to execution.
+    self.terminateIfPresent = False
+
 class toolConfiguration:
   def __init__(self):
 
@@ -204,6 +208,7 @@ class toolConfiguration:
     allowedAttributes['replace argument with']                = (dict, False, 'replaceArgument')
     allowedAttributes['required']                             = (bool, True, 'isRequired')
     allowedAttributes['short form argument']                  = (str, False, 'shortFormArgument')
+    allowedAttributes['terminate if present']                 = (bool, False, 'terminateIfPresent')
 
     for argumentDescription in arguments:
 
@@ -215,14 +220,14 @@ class toolConfiguration:
 
       # First get the 'long form' for this argument. This will be used to identify the argument in error messages and
       # will be used as the key when storing attributes in a dictionary.
-      try: longForm = argumentDescription['long form argument']
+      try: longFormArgument = argumentDescription['long form argument']
       except:
         if self.allowTermination: self.errors.noLongFormForToolArgument(tool)
         else: return False
 
       # Check that this argument is unique.
-      if longForm in self.argumentAttributes[tool]:
-        if self.allowTermination: self.errors.repeatedToolArgumentInToolConfigurationFile(tool, longForm, isLongForm = True)
+      if longFormArgument in self.argumentAttributes[tool]:
+        if self.allowTermination: self.errors.repeatedToolArgumentInToolConfigurationFile(tool, longFormArgument, isLongForm = True)
         else: return False
 
       # Initialise the data structure for holding the argument information.
@@ -231,16 +236,16 @@ class toolConfiguration:
       # Store the long and short form arguments. If these aren't included, the routine will fail at the final check
       # since these are required argument. If the value is already included, fail.
       if 'short form argument' in argumentDescription:
-        shortForm  = argumentDescription['short form argument']
-        if shortForm in observedShortForms:
-          if self.allowTermination: self.errors.repeatedToolArgumentInToolConfigurationFile(tool, shortForm, isLongForm = False)
+        shortFormArgument = argumentDescription['short form argument']
+        if shortFormArgument in observedShortForms:
+          if self.allowTermination: self.errors.repeatedToolArgumentInToolConfigurationFile(tool, shortFormArgument, isLongForm = False)
           else: return False
-        else: observedShortForms[shortForm] = True
+        else: observedShortForms[shortFormArgument] = True
 
       # Loop over all entries in the argument description, checking that the attributes are allowed and valid.
       for attribute in argumentDescription:
         if attribute not in allowedAttributes:
-          if self.allowTermination: self.errors.invalidArgumentAttributeInToolConfigurationFile(tool, longForm, attribute, allowedAttributes)
+          if self.allowTermination: self.errors.invalidArgumentAttributeInToolConfigurationFile(tool, longFormArgument, attribute, allowedAttributes)
           else: return False
 
         # Mark the attribute as observed.
@@ -251,7 +256,7 @@ class toolConfiguration:
         value = str(argumentDescription[attribute]) if isinstance(argumentDescription[attribute], unicode) else argumentDescription[attribute]
         if allowedAttributes[attribute][0] != type(value):
           if self.allowTermination:
-            self.errors.incorrectiTypeInConfigurationFile(tool, attribute, longForm, value, allowedAttributes[attribute][0])
+            self.errors.incorrectiTypeInConfigurationFile(tool, attribute, longFormArgument, value, allowedAttributes[attribute][0])
           else: return False
 
         # Store the information in the attributes structure.
@@ -260,11 +265,11 @@ class toolConfiguration:
       # Check if any required arguments are missing.
       for attribute in allowedAttributes:
         if allowedAttributes[attribute][1] and attribute not in observedAttributes:
-          if self.allowTermination: self.errors.missingArgumentAttributeInToolConfigurationFile(tool, longForm, attribute, allowedAttributes)
+          if self.allowTermination: self.errors.missingArgumentAttributeInToolConfigurationFile(tool, longFormArgument, attribute, allowedAttributes)
           else: return False
 
       # Store the attributes.
-      self.argumentAttributes[tool][longForm] = attributes
+      self.argumentAttributes[tool][longFormArgument] = attributes
 
     return True
 

@@ -520,6 +520,21 @@ class nodeClass:
 
     return optionNodes
 
+  # Get all successor file nodes for a task.
+  def getSuccessorOptionNodes(self, graph, task):
+    optionNodes = []
+
+    try: successors = graph.successors(task)
+    except:
+
+      #TODO SORT OUT ERROR MESSAGE.
+      print('failed')
+
+    for successor in successors:
+      if self.getGraphNodeAttribute(graph, successor, 'nodeType') == 'option': optionNodes.append(successor)
+
+    return optionNodes
+
   # Get all predecessor file nodes for a task.
   def getPredecessorFileNodes(self, graph, task):
     fileNodeIDs = []
