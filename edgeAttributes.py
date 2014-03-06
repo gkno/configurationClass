@@ -13,11 +13,11 @@ import sys
 
 class edgeAttributes:
   def __init__(self):
-    self.isFilenameStub       = False
-    self.isGreedy             = False
-    self.isInput              = False
-    self.isRequired           = False
-    self.modifyArgument       = None
+    self.isFilenameStub = False
+    self.isGreedy       = False
+    self.isInput        = False
+    self.isRequired     = False
+    self.modifyArgument = None
 
     # Define the arguments associated with the edge.
     self.longFormArgument  = None
