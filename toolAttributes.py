@@ -351,11 +351,12 @@ class toolConfiguration:
 
   # Check constructions instructions for the 'define name' method.
   def checkDefineName(self, tool, argument):
-    allowedAttributes                       = {}
-    allowedAttributes['filename']           = (str, True)
-    allowedAttributes['method']             = (str, True)
-    allowedAttributes['add extension']      = (bool, True)
-    allowedAttributes['directory argument'] = (str, False)
+    allowedAttributes                                 = {}
+    allowedAttributes['add extension']                = (bool, True)
+    allowedAttributes['directory argument']           = (str, False)
+    allowedAttributes['filename']                     = (str, True)
+    allowedAttributes['for multiple runs connect to'] = (str, True)
+    allowedAttributes['method']                       = (str, True)
 
     # Keep track of the observed required values.
     observedAttributes = {}
@@ -530,9 +531,19 @@ class toolConfiguration:
 
     else: None
 
-  # Get the defined filename from the construction instructions.
-  def getFilenameFromConstruction(self, tool, argument):
-    return self.argumentAttributes[tool][argument].constructionInstructions['filename']
+  # Get the information for the construction instructions.
+  def getAttributeFromDefinedConstruction(self, tool, argument, attribute):
+    try: value = self.argumentAttributes[tool]
+    except: print('ERROR - configurationClass.tools.getAttributeFromDefinedConstruction'); self.errors.terminate()
+
+    try: value = self.argumentAttributes[tool][argument]
+    except: print('ERROR - configurationClass.tools.getAttributeFromDefinedConstruction'); self.errors.terminate()
+
+    if attribute not in self.argumentAttributes[tool][argument].constructionInstructions:
+      print('ERROR - configurationClass.tools.getAttributeFromDefinedConstruction')
+      self.errors.terminate()
+
+    else: return self.argumentAttributes[tool][argument].constructionInstructions[attribute]
 
   # Determine whether to add an extension when constructing the filename.
   def addExtensionFromConstruction(self, tool, argument):

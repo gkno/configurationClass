@@ -33,6 +33,12 @@ class taskNodeAttributes:
     # If the task is hidden in help messsages, store the information.
     self.isHidden = False
 
+    # If any of the input arguments to this task are greedy, mark the task as greedy.
+    self.isGreedy = False
+
+    # If a task has multiple iterations, record that fact.
+    self.hasMultipleIterations = False
+
     # If the executable has a precommand (e.g. java -jar), or a modifier (e.g. bamtools sort),
     # store the values.
     self.modifier   = None
@@ -78,6 +84,9 @@ class optionNodeAttributes:
     self.nodeType            = 'option'
     self.numberOfDataSets    = 0
     self.values              = {}
+
+    # Record if this node points to a directory.
+    self.isDirectory = False
 
     # Mark the node if the values were construced, rather than set by the user.
     self.isConstructed = False
@@ -139,6 +148,7 @@ class nodeClass:
     attributes = optionNodeAttributes()
     self.setNodeAttribute(attributes, 'dataType', tools.getArgumentAttribute(tool, argument, 'dataType'))
     self.setNodeAttribute(attributes, 'description', tools.getArgumentAttribute(tool, argument, 'description'))
+    self.setNodeAttribute(attributes, 'isDirectory', tools.getArgumentAttribute(tool, argument, 'isDirectory'))
     self.setNodeAttribute(attributes, 'isInput', tools.getArgumentAttribute(tool, argument, 'isInput'))
     self.setNodeAttribute(attributes, 'isOutput', tools.getArgumentAttribute(tool, argument, 'isOutput'))
     if tools.getArgumentAttribute(tool, argument, 'isInput') or tools.getArgumentAttribute(tool, argument, 'isOutput'):
@@ -579,6 +589,17 @@ class nodeClass:
       if self.getGraphNodeAttribute(graph, successor, 'nodeType') == 'task': tasks.append(successor)
 
     return tasks
+
+  # For a given file node, find the predecessor task.
+  def getFilesPredecessorTask(self, graph, fileNodeID):
+    if not graph.predecessors(fileNodeID): return False, None
+    taskNodeIDs = graph.predecessors(fileNodeID)
+
+    # If there is more than one predecessor task, something is wrong.
+    if len(taskNodeIDs) > 1: print('ERROR - configurationClass.nodeMethods.getFilesPredecessorTask'); self.errors.terminate()
+
+    # If there is only a single task predecessor, return the task.
+    return True, taskNodeIDs[0]
 
   # Given a file node ID, return the corresponding option node ID.
   def getOptionNodeIDFromFileNodeID(self, nodeID):

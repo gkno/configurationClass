@@ -1,10 +1,8 @@
 """
 Version information for configurationClass, created during installation.
 
-Do not add this file to the repository.
-
 """
 
 __author__  = 'Alistair Ward'
-__version__ = '0.78'
-__date__    = 'February 2014'
+__version__ = '0.79'
+__date__    = 'March 2014'
