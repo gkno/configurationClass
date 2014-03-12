@@ -682,12 +682,14 @@ class nodeClass:
     # Set all of the predecessor edges.
     predecessorNodeIDs = graph.predecessors(originalNodeID)
     for nodeID in predecessorNodeIDs:
-      self.edgeMethods.addEdge(graph, self, tools, nodeID, newNodeID, self.edgeMethods.getEdgeAttribute(graph, nodeID, originalNodeID, 'longFormArgument'))
+      longFormArgument = self.edgeMethods.getEdgeAttribute(graph, nodeID, originalNodeID, 'longFormArgument')
+      self.edgeMethods.addEdge(graph, self, tools, nodeID, newNodeID, longFormArgument)
 
     # Set all of the successor edges.
     successorNodeIDs = graph.successors(originalNodeID)
     for nodeID in successorNodeIDs:
-      self.edgeMethods.addEdge(graph, self, tools, newNodeID, nodeID, self.edgeMethods.getEdgeAttribute(graph, originalNodeID, nodeID, 'longFormArgument'))
+      longFormArgument = self.edgeMethods.getEdgeAttribute(graph, originalNodeID, nodeID, 'longFormArgument')
+      if longFormArgument != None: self.edgeMethods.addEdge(graph, self, tools, newNodeID, nodeID, longFormArgument)
 
     # Remove the original node.
     graph.remove_node(originalNodeID)
