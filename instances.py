@@ -57,7 +57,7 @@ class instanceConfiguration:
     allowedAttributes                = {}
     allowedAttributes['description'] = (str, True, True, 'description')
     allowedAttributes['ID']          = (str, True, True, 'ID')
-    allowedAttributes['nodes']       = (dict, True, False, None)
+    allowedAttributes['nodes']       = (list, True, False, None)
 
     # Define allowed node attributes.
     allowedNodeAttributes = {}
