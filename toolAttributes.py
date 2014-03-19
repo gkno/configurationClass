@@ -26,12 +26,22 @@ class toolAttributes:
 
 class argumentAttributes:
   def __init__(self):
+
+    # If an argument is allowed to be set multiple times.
     self.allowMultipleValues      = False
-    self.commandLineArgument      = None
+
+    # Store the defined long and short form of the argument recognised as well
+    # as the argument expected by the tool.
+    self.commandLineArgument = None
+    self.longFormArgument    = None
+    self.shortFormArgument   = None
+
+    # Define the extensions allowed for the argument.
+    self.extensions = []
+
     self.constructionInstructions = None
     self.description              = None
     self.dataType                 = None
-    self.extension                = None
     self.filenameExtensions       = None
     self.hideInHelp               = False
     self.includeOnCommandLine     = True
@@ -42,12 +52,10 @@ class argumentAttributes:
     self.isInputList              = False
     self.isOutput                 = False
     self.isRequired               = False
-    self.longFormArgument         = None
     self.modifyArgument           = None
     self.outputStream             = False
     self.repeatArgument           = None
     self.replaceArgument          = None
-    self.shortFormArgument        = None
 
     # Record if the presence of the specified file/directory is not allowed prior
     # to execution.
@@ -193,7 +201,7 @@ class toolConfiguration:
     allowedAttributes['data type']                            = (str, True, 'dataType')
     allowedAttributes['description']                          = (str, True, 'description')
     allowedAttributes['directory']                            = (bool, False, 'isDirectory')
-    allowedAttributes['extension']                            = (str, True, 'extension')
+    allowedAttributes['extensions']                           = (list, True, 'extensions')
     allowedAttributes['filename extensions']                  = (list, False, 'filenameExtensions')
     allowedAttributes['hide in help']                         = (bool, False, 'hideInHelp')
     allowedAttributes['if input is stream']                   = (str, False, 'inputStream')

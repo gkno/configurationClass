@@ -448,10 +448,11 @@ class pipelineConfiguration:
           hasJsonOutput = False
           for checkTask, checkArgument in self.commonNodes[configNodeID]:
             if checkTask != task and checkArgument != argument:
-              checkTool = self.taskAttributes[checkTask].tool
-              isOutput  = tools.getArgumentAttribute(checkTool, checkArgument, 'isOutput')
-              extension = tools.getArgumentAttribute(checkTool, checkArgument, 'extension')
-              if isOutput and extension.endswith('json'): hasJsonOutput = True
+              checkTool  = self.taskAttributes[checkTask].tool
+              isOutput   = tools.getArgumentAttribute(checkTool, checkArgument, 'isOutput')
+              extensions = tools.getArgumentAttribute(checkTool, checkArgument, 'extensions')
+              for extension in extensions:
+                if isOutput and extension.endswith('json'): hasJsonOutput = True
 
           # If no json files are output as part of this node, the task reading in the json will not get
           # the required information, so fail.

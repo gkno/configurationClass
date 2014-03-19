@@ -168,19 +168,7 @@ class nodeClass:
 
     # If multiple extensions are allowed, they will be separated by pipes in the configuration
     # file. Add all allowed extensions to the list.
-    else:
-      extension = tools.getArgumentAttribute(tool, argument, 'extension')
-      if '|' in extension:
-        extensions       = extension.split('|')
-        stringExtensions = []
-        for extension in extensions: stringExtensions.append(str(extension))
-        self.setNodeAttribute(attributes, 'allowedExtensions', stringExtensions)
-  
-      #else: attributes.allowedExtensions.append(extension)
-      else:
-        extensions = []
-        extensions.append(str(extension))
-        self.setNodeAttribute(attributes, 'allowedExtensions', extensions)
+    else: self.setNodeAttribute(attributes, 'allowedExtensions', tools.getArgumentAttribute(tool, argument, 'extensions'))
 
     return attributes
 
