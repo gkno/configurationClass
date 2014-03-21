@@ -49,7 +49,8 @@ class configurationMethods:
     self.fileOperations = fileOperations()
 
     # Define a class for handling pipelines.
-    self.pipeline = pipelineConfiguration()
+    self.isPipeline = False
+    self.pipeline   = pipelineConfiguration()
 
     # Define a class for handling tools.
     self.tools = toolConfiguration()

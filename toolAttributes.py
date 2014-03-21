@@ -24,6 +24,10 @@ class toolAttributes:
     self.path          = None
     self.precommand    = None
 
+    # Some tools do not produce any outputs. If this is the case, the tool has to
+    # be marked.
+    self.noOutput = False
+
 class argumentAttributes:
   def __init__(self):
 
@@ -144,6 +148,7 @@ class toolConfiguration:
     allowedAttributes['modifier']           = (str, False, True, 'modifier')
     allowedAttributes['path']               = (str, True, True, 'path')
     allowedAttributes['precommand']         = (str, False, True, 'precommand')
+    allowedAttributes['no output']          = (bool, False, True, 'noOutput')
 
     # Keep track of the observed required values.
     observedAttributes = {}
