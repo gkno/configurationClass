@@ -38,6 +38,9 @@ class edgeAttributes:
     # no argument to set, but the following flag will be set.
     self.readJson = False
 
+    # If a command uses the values from a different task in evaluating a command.
+    self.evaluateCommand = False
+
 class edgeClass:
   def __init__(self):
     self.errors      = configurationClassErrors()
@@ -102,8 +105,20 @@ class edgeClass:
 
     # Since this edge does not represent an actual argument, leave the arguments as None. Set the readJson
     # flag to true. Also set the isInput flag as this node must be reading in a json file.
-    attributes.readJson          = True
-    attributes.isInput           = True
+    attributes.readJson = True
+    attributes.isInput  = True
+    graph.add_edge(sourceNodeID, targetNodeID, attributes = attributes)
+
+  # If the values associated with an argument, the edge represents the use of data, but not an actual
+  # command line argement. In this case, the only attribute to hang on the edge is the evaluateCommand
+  # attribute.
+  def addEvaluateCommandEdge(self, graph, sourceNodeID, targetNodeID):
+    attributes = edgeAttributes()
+
+    # Since this edge does not represent an actual argument, leave the arguments as None. Set the readJson
+    # flag to true. Also set the isInput flag as this node must be reading in a json file.
+    attributes.evaluateCommand = True
+    attributes.isInput         = True
     graph.add_edge(sourceNodeID, targetNodeID, attributes = attributes)
 
   # Get an attribute from a graph edge.  Fail with sensible message if the edge or attribute does not exist.

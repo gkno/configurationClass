@@ -740,6 +740,74 @@ class configurationMethods:
       if isGreedy: self.nodeMethods.setGraphNodeAttribute(graph, task, 'numberOfDataSets', 1)
       else: self.nodeMethods.setGraphNodeAttribute(graph, task, 'numberOfDataSets', totalNumber)
 
+  # Set commands to evaluate at run time.
+  def evaluateCommands(self, graph):
+    for task in self.pipeline.evaluateCommands:
+      tool = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
+      for longFormArgument in self.pipeline.evaluateCommands[task]:
+
+        # Check if values have been set for this argument. If not, set the values as the command
+        # to execute.
+        #TODO Is it possible for multiple nodes to exist in the following call?
+        nodeID = self.nodeMethods.getNodeForTaskArgument(graph, task, longFormArgument, 'option')[0]
+        if not self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values'):
+
+          # Get all of the arguments that feed values to the command.
+          commandValues    = {}
+          numberOfDataSets = 0
+          linkedNodeIDs    = []
+          for ID in self.pipeline.evaluateCommands[task][longFormArgument].values:
+            linkedTask     = self.pipeline.evaluateCommands[task][longFormArgument].values[ID][0]
+            linkedTool     = self.nodeMethods.getGraphNodeAttribute(graph, linkedTask, 'tool')
+            linkedArgument = self.pipeline.evaluateCommands[task][longFormArgument].values[ID][1]
+
+            # Check that the argument is valid.
+            linkedLongFormArgument = self.tools.getLongFormArgument(linkedTool, linkedArgument, False)
+            if linkedLongFormArgument == None: self.errors.invalidArgumentInEvaluateCommand(ID, linkedTask, linkedArgument)
+            linkedNodeID      = self.nodeMethods.getNodeForTaskArgument(graph, linkedTask, linkedLongFormArgument, 'option')[0]
+            commandValues[ID] = self.nodeMethods.getGraphNodeAttribute(graph, linkedNodeID, 'values')
+            numberOfDataSets  = len(commandValues[ID]) if len(commandValues[ID]) > numberOfDataSets else numberOfDataSets
+            linkedNodeIDs.append(linkedNodeID)
+
+          # Check that all of the values have the same number of data sets.
+          for ID in commandValues: 
+            if len(commandValues[ID]) == 0:
+              #TODO ERROR
+              print('configurationClass.evaluateCommands - number of values')
+              self.errors.terminate()
+
+            if len(commandValues[ID]) != 1 and len(commandValues[ID]) != numberOfDataSets:
+              #TODO ERROR
+              print('configurationClass.evaluateCommands - number of values')
+              self.errors.terminate()
+
+          # Build the command for each data set.
+          commands = {}
+          for count in range(1, numberOfDataSets + 1):
+            commands[count] = self.pipeline.evaluateCommands[task][longFormArgument].command
+            for ID in commandValues:
+              if len(commandValues[ID]) == 1:
+                if len(commandValues[ID][1]) != 1:
+                  #TODO ERROR                               
+                  print('configurationClass.evaluateCommands - number of values')
+                  self.errors.terminate() 
+                commands[count] = [str('$(') + str(commands[count].replace(str(ID), str(commandValues[ID][1][0]))) + str(')')]
+
+              else:
+                if len(commandValues[ID][count]) != 1:
+                  #TODO ERROR                               
+                  print('configurationClass.evaluateCommands - number of values')
+                  self.errors.terminate() 
+                commands[count] = [str('$(') + str(commands[count].replace(ID, commandValues[ID][count])) + str(')')]
+          self.nodeMethods.setGraphNodeAttribute(graph, nodeID, 'isCommandToEvaluate', True)
+          self.nodeMethods.setGraphNodeAttribute(graph, nodeID, 'values', commands)
+
+          # Create an edge between the nodes used for evaluating the command and this task.
+          for optionNodeID in linkedNodeIDs:
+            fileNodeIDs = self.nodeMethods.getAssociatedFileNodeIDs(graph, optionNodeID)
+            self.edgeMethods.addEvaluateCommandEdge(graph, optionNodeID, task)
+            self.edgeMethods.addEvaluateCommandEdge(graph, fileNodeIDs[0], task)
+
   # Identify streaming file nodes.
   def identifyStreamingNodes(self, graph):
     for task in self.pipeline.workflow:
@@ -860,4 +928,8 @@ class configurationMethods:
           for node in self.instances.instanceAttributes[runName][instanceName].nodes:
             if longFormArgument == node.argument: isSet = True
 
+        # Finally check if instructions were provided for evaluating a command in lieu of values.
+        if self.pipeline.nodeAttributes[self.pipeline.pipelineArguments[longFormArgument].configNodeID].evaluateCommand: isSet = True
+
+        # If the argument was not set, terminate.
         if not isSet: self.errors.unsetFile(longFormArgument, shortFormArgument, description)

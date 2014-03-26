@@ -44,6 +44,19 @@ class pipelineNodeAttributes:
     self.shortFormArgument = None
     self.tasks             = None
 
+    # Store information about evaluating a command.
+    self.evaluateCommand = None
+
+# Define a class to store information for evaluating commands at run-time.
+class evaluateCommandAttributes:
+  def __init__(self):
+
+    # Define the command to be evaluated.
+    self.command = None
+
+    # Store the values to be added to the command.
+    self.values = {}
+
 # Define a class to store pipeline argument attributes.
 class argumentAttributes:
   def __init__(self):
@@ -64,6 +77,9 @@ class pipelineConfiguration:
 
     # Define the node attributes.
     self.nodeAttributes = {}
+
+    # Define commands to be evaluated at run time.
+    self.evaluateCommands = {}
 
     # Define the errors class for handling errors.
     self.errors = configurationClassErrors()
@@ -128,6 +144,9 @@ class pipelineConfiguration:
 
     # Check the contents of the nodes section.
     if success: success = self.checkNodes(pipeline, data['nodes'])
+
+    # Check evaluate commands information.
+    if success: success = self.checkEvaluateCommands(pipeline)
 
     # Check and store the pipeline arguments.
     if success: self.setPipelineArguments()
@@ -251,9 +270,10 @@ class pipelineConfiguration:
     allowedAttributes                        = {}
     allowedAttributes['ID']                  = (str, True, True, 'ID')
     allowedAttributes['description']         = (str, True, True, 'description')
+    allowedAttributes['evaluate command']    = (dict, False, True, 'evaluateCommand')
     allowedAttributes['extensions']          = (dict, False, True, 'extensions')
     allowedAttributes['greedy tasks']        = (dict, False, True, 'greedyTasks')
-    allowedAttributes['delete files']          = (bool, False, True, 'deleteFiles')
+    allowedAttributes['delete files']        = (bool, False, True, 'deleteFiles')
     allowedAttributes['long form argument']  = (str, False, True, 'longFormArgument')
     allowedAttributes['required']            = (bool, False, True, 'isRequired')
     allowedAttributes['short form argument'] = (str, False, True, 'shortFormArgument')
@@ -310,6 +330,121 @@ class pipelineConfiguration:
       self.nodeAttributes[ID] = attributes
 
     return True
+
+  # Check evaluate commands information.
+  def checkEvaluateCommands(self, pipeline):
+
+    # Define the allowed nodes attributes.
+    allowedAttributes              = {}
+    allowedAttributes['command']   = (str, False, True, '')
+    allowedAttributes['add values'] = (dict, False, False, '')
+
+    # Loop over all of the defined nodes.
+    for ID in self.nodeAttributes:
+      if self.nodeAttributes[ID].evaluateCommand:
+
+        # Get the task/argument pair whose value is to be set as the evaulation of a command.
+        taskList = self.nodeAttributes[ID].tasks
+
+        # Check that the task/argument pair has not already had a command assigned.
+        for task in taskList:
+          argument = taskList[task]
+          if task in self.evaluateCommands:
+            if argument in self.evaluateCommands[task]:
+              if self.allowTermination: self.errors.multipleEvaluationsForArgument(pipeline, ID, task, argument)
+              else: return False
+
+        # Keep track of the observed required values.
+        observedAttributes = {}
+
+        # Loop over all the attributes.
+        for attribute in self.nodeAttributes[ID].evaluateCommand:
+          value = self.nodeAttributes[ID].evaluateCommand[attribute]
+
+          # Check that the attribute is valid.
+          if attribute not in allowedAttributes:
+            if self.allowTermination: self.errors.invalidAttributeInEvaluateCommand(pipeline, ID, attribute, allowedAttributes)
+            else: return False
+
+          # Record that the attribute was observed.
+          observedAttributes[attribute] = True
+
+        # Having parsed all of the general attributes attributes, check that all those that are required
+        # are present.
+        for attribute in allowedAttributes:
+          if allowedAttributes[attribute][1] and attribute not in observedAttributes:
+            if self.allowTermination: self.errors.missingAttributeInEvaluateCommand(pipeline, ID, attribute, allowedAttributes)
+            else: return False
+
+        # If the add values attribute is present, check that the task/argument it points to are valid
+        # and that the ID associated with the value is present in the command and is unique.
+        observedIDs = []
+        for valueDictionary in self.nodeAttributes[ID].evaluateCommand['add values']:
+          success, observedID = self.checkEvaluateCommandValues(pipeline, ID, valueDictionary, self.nodeAttributes[ID].evaluateCommand['command'])
+          if observedID:
+            if observedID in observedIDs:
+              if self.allowTermination: self.errors.nonUniqueEvaluateCommandID(pipeline, ID, observedID)
+              else: return False
+
+            # Store the observedID.
+            observedIDs.append(observedID)
+
+        # Store the command information.
+        for task in taskList:
+          attributes         = evaluateCommandAttributes()
+          attributes.command = self.nodeAttributes[ID].evaluateCommand['command']
+          attributes.values  = {}
+          for valueDictionary in self.nodeAttributes[ID].evaluateCommand['add values']:
+            attributes.values[valueDictionary['ID']] = (valueDictionary['task'], valueDictionary['argument'])
+
+          if task not in self.evaluateCommands: self.evaluateCommands[task] = {}
+          self.evaluateCommands[task][argument] = attributes
+
+    return True
+
+  # Check the values supplied for evaluate commands.
+  def checkEvaluateCommandValues(self, pipeline, ID, dictionary, command):
+
+    # Define the allowed attributes.
+    allowedAttributes             = {}
+    allowedAttributes['argument'] = (str, True)
+    allowedAttributes['ID']       = (str, True)
+    allowedAttributes['task']     = (str, True)
+
+    # Keep track of the observed required values.
+    observedAttributes = {}
+
+    # Loop through the attributes.
+    for attribute in dictionary:
+      value = dictionary[attribute]
+
+      # Check that the attribute is valid.
+      if attribute not in allowedAttributes:
+        if self.allowTermination: self.errors.invalidAttributeInEvaluateCommandValues(pipeline, ID, attribute, allowedAttributes)
+  
+      # Record that the attribute was observed.
+      observedAttributes[attribute] = True
+
+    # Having parsed all of the general attributes attributes, check that all those that are required
+    # are present.
+    for attribute in allowedAttributes:
+      if allowedAttributes[attribute][1] and attribute not in observedAttributes:
+        if self.allowTermination: self.errors.missingAttributeInEvaluateCommandValues(pipeline, ID, attribute, allowedAttributes)
+        else: return False, ''
+
+    # Having determine that the 'add values' section is complete and valid, check that the task is valid and that the
+    # ID defining the value is present in the command. Checking that the argument is valid is performed later, when all
+    # of the tool configuration files have been evaluated.
+    if dictionary['task'] not in self.taskAttributes.keys():
+      if self.allowTermination: self.errors.unknownTaskInEvaluateCommandValues(pipeline, ID, dictionary['task'])
+      else: return False, ''
+
+    # Check that the ID is in the command.
+    if dictionary['ID'] not in command:
+      if self.allowTermination: self.errors.unknownIDInEvaluateCommandValues(pipeline, ID, dictionary['ID'])
+      else: return False, ''
+
+    return True, dictionary['ID']
 
   # Check the validity and completeness of the pipeline argument definitions.
   def setPipelineArguments(self):

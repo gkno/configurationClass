@@ -570,6 +570,144 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
+  # If the attribute is not recognised in evaluate command block.
+  def invalidAttributeInEvaluateCommand(self, pipeline, ID, attribute, allowedAttributes):
+    self.text.append('Invalid attribute in nodes section of the configuration file for pipeline: ' + pipeline)
+    self.text.append('The \'nodes\' section of the configuration file for pipeline \'' + pipeline + '\' contains the node identified with the ID ' + \
+    '\'' + ID + '\'. This node contains the \'evaluate command\' dictionary containing the attribute \'' + attribute + '\'. This is an ' + \
+    'unrecognised attribute which is not permitted. The attributes allowed in the evaluate command dictionary are:')
+    self.text.append('\t')
+
+    # Create a sorted list of the allowed attributes.
+    allowed = []
+    for attribute in allowedAttributes: allowed.append(attribute)
+
+    # Add the attributes to the text to be written along with the expected type.
+    for attribute in sorted(allowed):
+      self.text.append(attribute + ':\t' + str(allowedAttributes[attribute][0]) + ', required = ' + str(allowedAttributes[attribute][1]))
+
+    self.text.append('\t')
+    self.text.append('Please remove or correct the invalid attribute in the configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # A pipeline attribute is missing.
+  def missingAttributeInEvaluateCommand(self, pipeline, ID, attribute, allowedAttributes):
+    self.text.append('Missing attribute in nodes section of configuration file: ' + pipeline)
+    self.text.append('The \'nodes\' section of the configuration file for pipeline \'' + pipeline + '\' contains the node identified with the ' + \
+    'ID \'' + ID + '\'. This node contains the \'evaluate command\' dictionary, but is missing the attribute \'' + attribute + '\'. The ' + \
+    'following attributes are required in the \'evaluate commands\' section of the pipeline configuration file:')
+    self.text.append('\t')
+
+    # Create a sorted list of the required attributes.
+    requiredAttributes = []
+    for attribute in allowedAttributes:
+       if allowedAttributes[attribute][1]: requiredAttributes.append(attribute)
+
+    # Add the attributes to the text to be written along with the expected type.
+    for attribute in sorted(requiredAttributes): self.text.append(attribute + ':\t' + str(allowedAttributes[attribute][0]))
+
+    self.text.append('\t')
+    self.text.append('Please add the missing attribute to the configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # If the attribute is not recognised in evaluate command values block.
+  def invalidAttributeInEvaluateCommandValues(self, pipeline, ID, attribute, allowedAttributes):
+    self.text.append('Invalid attribute in nodes section of the configuration file for pipeline: ' + pipeline)
+    self.text.append('The \'nodes\' section of the configuration file for pipeline \'' + pipeline + '\' contains the node identified with the ID ' + \
+    '\'' + ID + '\'. This node contains the \'evaluate command\' dictionary containing the \'add values\' field. Within this dictionary, the ' + \
+    'attribute \'' + attribute + '\' is defined, but this is an unrecognised attribute. The attributes allowed in the evaluate command, ' + \
+    ' \'add values\' dictionary are:')
+    self.text.append('\t')
+
+    # Create a sorted list of the allowed attributes.
+    allowed = []
+    for attribute in allowedAttributes: allowed.append(attribute)
+
+    # Add the attributes to the text to be written along with the expected type.
+    for attribute in sorted(allowed):
+      self.text.append(attribute + ':\t' + str(allowedAttributes[attribute][0]) + ', required = ' + str(allowedAttributes[attribute][1]))
+
+    self.text.append('\t')
+    self.text.append('Please remove or correct the invalid attribute in the configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # An attribute is missing in the evaluate commands, add values dictionary.
+  def missingAttributeInEvaluateCommandValues(self, pipeline, ID, attribute, allowedAttributes):
+    self.text.append('Missing attribute in nodes section of configuration file: ' + pipeline)
+    self.text.append('The \'nodes\' section of the configuration file for pipeline \'' + pipeline + '\' contains the node identified with the ' + \
+    'ID \'' + ID + '\'. This node contains the \'evaluate command\' dictionary, which in turn contains the \'add values\' dictionary. The ' + \
+    'attribute \'' + attribute + '\' is required in this dictionary, but is missing. The following attributes are required in the \'add values\'' + \
+    ' dictionary within the \'evaluate commands\' section of the pipeline configuration file:')
+    self.text.append('\t')
+
+    # Create a sorted list of the required attributes.
+    requiredAttributes = []
+    for attribute in allowedAttributes:
+       if allowedAttributes[attribute][1]: requiredAttributes.append(attribute)
+
+    # Add the attributes to the text to be written along with the expected type.
+    for attribute in sorted(requiredAttributes): self.text.append(attribute + ':\t' + str(allowedAttributes[attribute][0]))
+
+    self.text.append('\t')
+    self.text.append('Please add the missing attribute to the configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # If a task in the evaluate command, add values section is invalid.
+  def unknownTaskInEvaluateCommandValues(self, pipeline, ID, task):
+    self.text.append('Unknown task in evaluate command section in the configuration file: ' + pipeline)
+    self.text.append('The \'nodes\' section of the configuration file for pipeline \'' + pipeline + '\' contains the node identified with the ' + \
+    'ID \'' + ID + '\'. This node contains the \'evaluate command\' dictionary, which in turn contains the \'add values\' dictionary. Within ' + \
+    'this section, one of the entries points to the task \'' + task + '\', but this is not a task available in the current pipeline. Please ' + \
+    'check the configuration file and ensure that the tasks included in the section are valid.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # If an ID in the evaluate command, add values section is no present in the command.
+  def unknownIDInEvaluateCommandValues(self, pipeline, ID, valueID):
+    self.text.append('Unknown task in evaluate command section in the configuration file: ' + pipeline)
+    self.text.append('The \'nodes\' section of the configuration file for pipeline \'' + pipeline + '\' contains the node identified with the ' + \
+    'ID \'' + ID + '\'. This node contains the \'evaluate command\' dictionary, which in turn contains the \'add values\' dictionary. Within ' + \
+    'this section, one of the entries has the ID \'' + valueID + '\'. This ID must be present in the string included in the \'command\' ' + \
+    'field, but it is not. Please check the configuration file and ensure that the IDs in the \'add values\' section are present in the command.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # If a task/argument has multiple commands set to evaluate at run time.
+  def multipleEvaluationsForArgument(self, pipeline, ID, task, argument):
+    self.text.append('Argument given multiple commands to evaluate in the configuration file: ' + pipeline)
+    self.text.append('The \'nodes\' section of the configuration file for pipeline \'' + pipeline + '\' contains the node identified with the ' + \
+    'ID \'' + ID + '\'. This node contains the \'evaluate command\' dictionary. This gives instructions on how to generate a value if none ' + \
+    'has been supplied. The task \'' + task + '\', argument \'' + argument + '\' has already been given a command to evaluate. Only a single ' + \
+    'command can be evaluated at run time. Please ensure that the task/argument pair is only listed in a single configuration file node with ' + \
+    'instructions on evaluating a command.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # If an evaluate command ID is repeated.
+  def nonUniqueEvaluateCommandID(self, pipeline, ID, observedID):
+    self.text.append('Duplicated ID in evaluate command field in the configuration file: ' + pipeline)
+    self.text.append('The \'nodes\' section of the configuration file for pipeline \'' + pipeline + '\' contains the node identified with the ' + \
+    'ID \'' + ID + '\'. This node contains the \'evaluate command\' dictionary. This gives instructions on how to generate a value if none ' + \
+    'has been supplied and includes a command with IDs indicating the task/argument pair to use to include in the command. The ID \'' + observedID + \
+    '\' appears multiple times for this command, but the \'add values\' field must be comprised of values defined with unique IDs. Please check ' + \
+    'and repair the pipeline configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # If an argument in the evaluate commands block is invalid.
+  def invalidArgumentInEvaluateCommand(self, ID, task, argument):
+    self.text.append('Invalid argument in evaluate command field.')
+    self.text.append('The \'nodes\' section of the pipeline configuration file contains a node containing the \'evaluate command\' dictionary. ' + \
+    'This gives instructions on how to generate a value if none has been supplied and includes a command with IDs indicating the task/argument ' + \
+    'pair to use to include in the command. The ID \'' + ID + '\' uses the task \'' + task + '\', but the supplied argument \'' + argument + \
+    '\' is not valid. Please check and repair the pipeline configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
   # If a node is shared by multiple arguments, one of which is set as 'read json file', but
   # none of the arguments for that node output a json file.
   def noJsonOutput(self, nodeID, task):
