@@ -522,7 +522,7 @@ class toolConfiguration:
     return attributes
 
   # Get the long form of a tool argument.
-  def getLongFormArgument(self, tool, argument):
+  def getLongFormArgument(self, tool, argument, allowTermination = True):
 
     # Check that the tool is valid.
     if tool not in self.longFormArguments: self.errors.missingToolInGetLongFormArgument(tool)
@@ -535,7 +535,8 @@ class toolConfiguration:
 
     # If this argument is in neither of the previous dictionaries, the argument is not valid for this tool.
     # were the supplied argument, the argument is not valid for this tool.
-    self.errors.unknownToolArgument(tool, argument)
+    if allowTermination: self.errors.unknownToolArgument(tool, argument)
+    else: return None
 
   # Get the method of filename construction.
   def getConstructionMethod(self, tool, argument):
