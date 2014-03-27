@@ -749,7 +749,12 @@ class configurationMethods:
         # Check if values have been set for this argument. If not, set the values as the command
         # to execute.
         #TODO Is it possible for multiple nodes to exist in the following call?
-        nodeID = self.nodeMethods.getNodeForTaskArgument(graph, task, longFormArgument, 'option')[0]
+        try: nodeID = self.nodeMethods.getNodeForTaskArgument(graph, task, longFormArgument, 'option')[0]
+        except:
+          #TODO ERROR
+          print('\tconfigurationClass.evaluateCommands - no node IDs')
+          self.errors.terminate()
+
         if not self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values'):
 
           # Get all of the arguments that feed values to the command.

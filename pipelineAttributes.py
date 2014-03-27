@@ -391,6 +391,7 @@ class pipelineConfiguration:
 
         # Store the command information.
         for task in taskList:
+          argument = taskList[task]
           attributes         = evaluateCommandAttributes()
           attributes.command = self.nodeAttributes[ID].evaluateCommand['command']
           attributes.values  = {}
