@@ -28,6 +28,9 @@ class toolAttributes:
     # be marked.
     self.noOutput = False
 
+    # Store the tools that need to be compiled for this tool to be available.
+    self.requiredCompiledTools = []
+
 class argumentAttributes:
   def __init__(self):
 
@@ -149,6 +152,7 @@ class toolConfiguration:
     allowedAttributes['path']               = (str, True, True, 'path')
     allowedAttributes['precommand']         = (str, False, True, 'precommand')
     allowedAttributes['no output']          = (bool, False, True, 'noOutput')
+    allowedAttributes['tools']              = (list, True, True, 'requiredCompiledTools')
 
     # Keep track of the observed required values.
     observedAttributes = {}
