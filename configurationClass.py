@@ -58,6 +58,10 @@ class configurationMethods:
     # Define methods for plotting the pipeline graph.
     self.drawing = drawGraph()
 
+    # If any of the tools have a command to be evaluated at execution time, set
+    # hasCommandToEvaluate to True.
+    hasCommandToEvaluate = False
+
     self.nodeIDs = {}
 
   # Build a graph for an individual task.  The pipeline is built by merging nodes between
@@ -346,7 +350,7 @@ class configurationMethods:
     outputExtensions = self.tools.getArgumentAttribute(tool, longFormArgument, 'filenameExtensions')
 
     # Rename the existing file node and reset the extension.
-    self.nodeMethods.renameNode(graph, self.tools, mergeFileNodeIDs[0], mergeFileNodeIDs[0] + '_1')
+    self.nodeMethods.renameNode(graph, self.tools, mergeFileNodeIDs[0], mergeFileNodeIDs[0] + '_1', allowNullArgument = False)
     fileNodeIDs.append(mergeFileNodeIDs[0] + '_1')
 
     # Create the additional file nodes.
@@ -427,7 +431,7 @@ class configurationMethods:
 
   # Generate the task workflow from the topologically sorted pipeline graph.
   def generateWorkflow(self, graph):
-    workflow  = []
+    workflow = []
     for nodeID in nx.topological_sort(graph):
       if self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'nodeType') == 'task': workflow.append(nodeID)
 
@@ -812,6 +816,9 @@ class configurationMethods:
             fileNodeIDs = self.nodeMethods.getAssociatedFileNodeIDs(graph, optionNodeID)
             self.edgeMethods.addEvaluateCommandEdge(graph, optionNodeID, task)
             self.edgeMethods.addEvaluateCommandEdge(graph, fileNodeIDs[0], task)
+
+          # Record that the pipeline contains an argument that evaluated a command.
+          self.hasCommandToEvaluate = True
 
   # Identify streaming file nodes.
   def identifyStreamingNodes(self, graph):

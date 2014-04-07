@@ -667,7 +667,7 @@ class nodeClass:
 
   # Rename a node.  This involves creating a new node with the same attributes as the node being
   # removed.  Then reproduce all of the edges, before removing the old node.
-  def renameNode(self, graph, tools, originalNodeID, newNodeID):
+  def renameNode(self, graph, tools, originalNodeID, newNodeID, allowNullArgument):
     graph.add_node(newNodeID, attributes = graph.node[originalNodeID]['attributes'])
 
     # Set all of the predecessor edges.
@@ -681,6 +681,13 @@ class nodeClass:
     for nodeID in successorNodeIDs:
       longFormArgument = self.edgeMethods.getEdgeAttribute(graph, originalNodeID, nodeID, 'longFormArgument')
       if longFormArgument != None: self.edgeMethods.addEdge(graph, self, tools, newNodeID, nodeID, longFormArgument)
+
+      # If the argument is None, check if this is allowed. If so, add an edge with no details.
+      elif allowNullArgument:
+        attributes                   = edgeAttributes()
+        attributes.longFormArgument  = None
+        attributes.shortFormArgument = None
+        graph.add_edge(newNodeID, nodeID, attributes = attributes)
 
     # Remove the original node.
     graph.remove_node(originalNodeID)
