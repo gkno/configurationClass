@@ -36,7 +36,7 @@ class drawGraph():
         except: newNodeID = nodeID
 
         # Rename the node.
-        if nodeID != newNodeID: nodeMethods.renameNode(graphToDraw, tools, nodeID, newNodeID)
+        if nodeID != newNodeID: nodeMethods.renameNode(graphToDraw, tools, nodeID, newNodeID, allowNullArgument = True)
 
     elif nodes == 'option':
       for nodeID in fileNodeIDs: nodeMethods.setGraphNodeAttribute(graphToDraw, nodeID, 'isMarkedForRemoval', True)
@@ -58,7 +58,13 @@ class drawGraph():
     for nodeID in graphToDraw:
       successorNodeIDs = graphToDraw.successors(nodeID)
       for successorNodeID in successorNodeIDs:
-        longFormArgument = '"' + edgeMethods.getEdgeAttribute(graphToDraw, nodeID, successorNodeID, 'longFormArgument') + '"'
+
+        # If the long form argument is 'None', replace the value with 'dependency'. This edge does not represent a
+        # typical argument, but the task is dependent on the file. It may be that the file may be evaluated using a
+        # defined command or something else, but the edge should be shown to fully represent dependencies.
+        argument = edgeMethods.getEdgeAttribute(graphToDraw, nodeID, successorNodeID, 'longFormArgument')
+        if argument == None: longFormArgument = '"dependency"'
+        else: longFormArgument = '"' + argument + '"'
         graphToDraw.remove_edge(nodeID, successorNodeID)
         graphToDraw.add_edge(nodeID, successorNodeID, label = longFormArgument)
 
