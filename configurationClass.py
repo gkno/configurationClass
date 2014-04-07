@@ -60,7 +60,7 @@ class configurationMethods:
 
     # If any of the tools have a command to be evaluated at execution time, set
     # hasCommandToEvaluate to True.
-    hasCommandToEvaluate = False
+    self.hasCommandToEvaluate = False
 
     self.nodeIDs = {}
 
