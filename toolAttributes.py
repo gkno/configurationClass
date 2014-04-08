@@ -13,16 +13,31 @@ import sys
 
 class toolAttributes:
   def __init__(self):
-    self.arguments     = {}
+
+    # Define the arguments associated with the tool.
+    self.arguments = {}
+
+    # Define the order in which the argument should be written.
     self.argumentOrder = []
-    self.delimiter     = ' '
-    self.description   = None
-    self.executable    = None
+
+    # Define the delimiter between the argument and the value on the
+    # tool commmand line. This is usually a space.
+    self.delimiter = ' '
+
+    # A description of the tool.
+    self.description = None
+
+    # The tool executable and its path and any modifiers.
+    self.executable = None
+    self.modifier   = None
+    self.path       = None
+    self.precommand = None
+
+    # Record if the input to this tool needs to be a stream.
     self.inputIsStream = False
-    self.isHidden      = False
-    self.modifier      = None
-    self.path          = None
-    self.precommand    = None
+
+    # Record if this tool is hidden in the help.
+    self.isHidden = False
 
     # Some tools do not produce any outputs. If this is the case, the tool has to
     # be marked.
@@ -46,15 +61,25 @@ class argumentAttributes:
     # Define the extensions allowed for the argument.
     self.extensions = []
 
+    # Store instructions on how to construct the filename
     self.constructionInstructions = None
-    self.description              = None
-    self.dataType                 = None
-    self.filenameExtensions       = None
-    self.hideInHelp               = False
-    self.includeOnCommandLine     = True
+
+    # Record the argument description.
+    self.description = None
+
+    # Store the data type of the value supplied with this argument.
+    self.dataType = None
+
+    # Record id the argument points to a filename stub and store the 
+    # associated extensions.
+    self.filenameExtensions = None
+    self.isFilenameStub     = False
+
+    # Record if this argument should be hidden in the help.
+    self.hideInHelp = False
+
     self.inputStream              = False
     self.isDirectory              = False
-    self.isFilenameStub           = False
     self.isInput                  = False
     self.isInputList              = False
     self.isOutput                 = False
@@ -215,7 +240,6 @@ class toolConfiguration:
     allowedAttributes['hide in help']                         = (bool, False, 'hideInHelp')
     allowedAttributes['if input is stream']                   = (str, False, 'inputStream')
     allowedAttributes['if output to stream']                  = (str, False, 'outputStream')
-    allowedAttributes['include on command line']              = (bool, False, 'includeOnCommandLine')
     allowedAttributes['input']                                = (bool, True, 'isInput')
     allowedAttributes['is filename stub']                     = (bool, False, 'isFilenameStub')
     allowedAttributes['list of input files']                  = (bool, False, 'isInputList')
