@@ -27,6 +27,9 @@ class toolAttributes:
     # A description of the tool.
     self.description = None
 
+    # The category to which the tool belongs.
+    self.category = None
+
     # The tool executable and its path and any modifiers.
     self.executable = None
     self.modifier   = None
@@ -167,6 +170,7 @@ class toolConfiguration:
     allowedAttributes['arguments']          = (list, True, False, None)
     allowedAttributes['argument delimiter'] = (str, False, True, 'delimiter')
     allowedAttributes['argument order']     = (list, False, True, 'argumentOrder')
+    allowedAttributes['category']           = (str, True, True, 'category')
     allowedAttributes['description']        = (str, True, True, 'description')
     allowedAttributes['executable']         = (str, True, True, 'executable')
     allowedAttributes['help']               = (str, True, False, None)
