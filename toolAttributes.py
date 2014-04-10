@@ -14,6 +14,9 @@ import sys
 class toolAttributes:
   def __init__(self):
 
+    # Record the tool ID.
+    self.id = None
+
     # Define the arguments associated with the tool.
     self.arguments = {}
 
@@ -180,6 +183,7 @@ class toolConfiguration:
     allowedAttributes['executable']         = (str, True, True, 'executable')
     allowedAttributes['help']               = (str, True, False, None)
     allowedAttributes['hide tool']          = (bool, False, True, 'isHidden')
+    allowedAttributes['id']                 = (str, True, True, 'id')
     allowedAttributes['input is stream']    = (bool, False, True, 'inputIsStream')
     allowedAttributes['instances']          = (list, True, False, None)
     allowedAttributes['modifier']           = (str, False, True, 'modifier')
@@ -254,7 +258,6 @@ class toolConfiguration:
 
     # Now set all of the other arguments from user defined argument groups.
     for argumentGroup in arguments.keys():
-      if argumentGroup in observedArgumentGroups: self.errors.repeatedArgumentGroup(tool, argumentGroup)
       allowedAttributes = self.setAllowedArgumentAttributes(str(argumentGroup))
       success           = self.checkArgumentGroup(tool, argumentGroup, arguments.pop(argumentGroup), allowedAttributes, observedShortForms)
 
