@@ -81,11 +81,16 @@ class argumentAttributes:
     # Record if this argument should be hidden in the help.
     self.hideInHelp = False
 
+    # Record the argument group to which the argument belongs.
+    self.argumentGroup = None
+
+    # Record if the argument is for an input or output file.
+    self.isInput                  = False
+    self.isOutput                 = False
+
     self.inputStream              = False
     self.isDirectory              = False
-    self.isInput                  = False
     self.isInputList              = False
-    self.isOutput                 = False
     self.isRequired               = False
     self.modifyArgument           = None
     self.outputStream             = False
@@ -167,7 +172,7 @@ class toolConfiguration:
     # value is required, whether the value should be stored and finally the name in the
     # attributes data structure under which it should be stored..
     allowedAttributes                       = {}
-    allowedAttributes['arguments']          = (list, True, False, None)
+    allowedAttributes['arguments']          = (dict, True, False, None)
     allowedAttributes['argument delimiter'] = (str, False, True, 'delimiter')
     allowedAttributes['argument order']     = (list, False, True, 'argumentOrder')
     allowedAttributes['category']           = (str, True, True, 'category')
@@ -203,7 +208,7 @@ class toolConfiguration:
       value = str(data[attribute]) if isinstance(data[attribute], unicode) else data[attribute]
       if allowedAttributes[attribute][0] != type(value):
         if self.allowTermination:
-          self.errors.incorrectTypeInToolConfigurationFile(tool, attribute, None, value, allowedAttributes[attribute][0], False)
+          self.errors.incorrectTypeInToolConfigurationFile(tool, '', attribute, None, value, allowedAttributes[attribute][0])
         else: return False, attributes
 
       # At this point, the attribute in the configuration file is allowed and of valid type. Check that 
@@ -228,32 +233,35 @@ class toolConfiguration:
     # Keep track of the short from arguments for this tool.
     observedShortForms = {}
 
-    # Define the allowed attributes. The structure describes the expected data type, whether the
-    # attribute is requred and finally, the name of the attribute in the data structure storing the
-    # values.
-    allowedAttributes                                         = {}
-    allowedAttributes['allow multiple values']                = (bool, False, 'allowMultipleValues')
-    allowedAttributes['apply by repeating this argument']     = (str, False, 'repeatArgument')
-    allowedAttributes['command line argument']                = (str, True, 'commandLineArgument')
-    allowedAttributes['construct filename']                   = (dict, False, 'constructionInstructions')
-    allowedAttributes['data type']                            = (str, True, 'dataType')
-    allowedAttributes['description']                          = (str, True, 'description')
-    allowedAttributes['directory']                            = (bool, False, 'isDirectory')
-    allowedAttributes['extensions']                           = (list, True, 'extensions')
-    allowedAttributes['filename extensions']                  = (list, False, 'filenameExtensions')
-    allowedAttributes['hide in help']                         = (bool, False, 'hideInHelp')
-    allowedAttributes['if input is stream']                   = (str, False, 'inputStream')
-    allowedAttributes['if output to stream']                  = (str, False, 'outputStream')
-    allowedAttributes['input']                                = (bool, True, 'isInput')
-    allowedAttributes['is filename stub']                     = (bool, False, 'isFilenameStub')
-    allowedAttributes['list of input files']                  = (bool, False, 'isInputList')
-    allowedAttributes['long form argument']                   = (str, True, 'longFormArgument')
-    allowedAttributes['modify argument name on command line'] = (str, False, 'modifyArgument')
-    allowedAttributes['output']                               = (bool, True, 'isOutput')
-    allowedAttributes['replace argument with']                = (dict, False, 'replaceArgument')
-    allowedAttributes['required']                             = (bool, True, 'isRequired')
-    allowedAttributes['short form argument']                  = (str, False, 'shortFormArgument')
-    allowedAttributes['terminate if present']                 = (bool, False, 'terminateIfPresent')
+    # The arguments are organised in named groups. The 'inputs' and 'outputs' groups, but then the configuration
+    # file author is free to title any other groups as they see fit.
+
+    # Start by checking the 'inputs'.
+    try: validateArguments = arguments.pop('inputs')
+    except: self.errors.missingRequiredArgumentGroup(tool, True)
+
+    # Set any additional fields that are valid for this group.
+    allowedAttributes = self.setAllowedArgumentAttributes('inputs')
+    success           = self.checkArgumentGroup(tool, 'inputs', validateArguments, allowedAttributes, observedShortForms)
+
+    # Next check the 'outputs'.
+    try: validateArguments = arguments.pop('outputs')
+    except: self.errors.missingRequiredArgumentGroup(tool, True)
+
+    # Set any additional fields that are valid for this group.
+    allowedAttributes = self.setAllowedArgumentAttributes('outputs')
+    sucess            = self.checkArgumentGroup(tool, 'outputs', validateArguments, allowedAttributes, observedShortForms)
+
+    # Now set all of the other arguments from user defined argument groups.
+    for argumentGroup in arguments.keys():
+      if argumentGroup in observedArgumentGroups: self.errors.repeatedArgumentGroup(tool, argumentGroup)
+      allowedAttributes = self.setAllowedArgumentAttributes(str(argumentGroup))
+      success           = self.checkArgumentGroup(tool, argumentGroup, arguments.pop(argumentGroup), allowedAttributes, observedShortForms)
+
+    return success
+
+  # Validate the argument group.
+  def checkArgumentGroup(self, tool, group, arguments, allowedAttributes, observedShortForms):
 
     for argumentDescription in arguments:
 
@@ -267,7 +275,7 @@ class toolConfiguration:
       # will be used as the key when storing attributes in a dictionary.
       try: longFormArgument = argumentDescription['long form argument']
       except:
-        if self.allowTermination: self.errors.noLongFormForToolArgument(tool)
+        if self.allowTermination: self.errors.noLongFormForToolArgument(tool, group)
         else: return False
 
       # Check that this argument is unique.
@@ -290,7 +298,7 @@ class toolConfiguration:
       # Loop over all entries in the argument description, checking that the attributes are allowed and valid.
       for attribute in argumentDescription:
         if attribute not in allowedAttributes:
-          if self.allowTermination: self.errors.invalidArgumentAttributeInToolConfigurationFile(tool, longFormArgument, attribute, allowedAttributes)
+          if self.allowTermination: self.errors.invalidArgumentAttributeInToolConfigurationFile(tool, group, longFormArgument, attribute, allowedAttributes)
           else: return False
 
         # Mark the attribute as observed.
@@ -301,22 +309,78 @@ class toolConfiguration:
         value = str(argumentDescription[attribute]) if isinstance(argumentDescription[attribute], unicode) else argumentDescription[attribute]
         if allowedAttributes[attribute][0] != type(value):
           if self.allowTermination:
-            self.errors.incorrectiTypeInConfigurationFile(tool, attribute, longFormArgument, value, allowedAttributes[attribute][0])
+            self.errors.incorrectTypeInToolConfigurationFile(tool, group, attribute, longFormArgument, value, allowedAttributes[attribute][0])
           else: return False
 
         # Store the information in the attributes structure.
         self.setAttribute(attributes, tool, allowedAttributes[attribute][2], value)
 
+      # Set additional attributes depending on the argument group.
+      attributes = self.setAdditionalArgumentAttributes(tool, group, attributes)
+
       # Check if any required arguments are missing.
       for attribute in allowedAttributes:
         if allowedAttributes[attribute][1] and attribute not in observedAttributes:
-          if self.allowTermination: self.errors.missingArgumentAttributeInToolConfigurationFile(tool, longFormArgument, attribute, allowedAttributes)
+          if self.allowTermination: self.errors.missingArgumentAttributeInToolConfigurationFile(tool, group, longFormArgument, attribute, allowedAttributes)
           else: return False
 
       # Store the attributes.
       self.argumentAttributes[tool][longFormArgument] = attributes
 
     return True
+
+  # Set the attributes allowed in the argument block. The structure describes the expected data type, 
+  # whether the attribute is requred and finally, the name of the attribute in the data structure storing
+  # the values.
+  def setAllowedArgumentAttributes(self, groupName):
+    allowedAttributes                                         = {}
+
+    # Set attributes that are available to all groups.
+    allowedAttributes['allow multiple values']                = (bool, False, 'allowMultipleValues')
+    allowedAttributes['command line argument']                = (str, True, 'commandLineArgument')
+    allowedAttributes['data type']                            = (str, True, 'dataType')
+    allowedAttributes['description']                          = (str, True, 'description')
+    allowedAttributes['directory']                            = (bool, False, 'isDirectory')
+    allowedAttributes['extensions']                           = (list, True, 'extensions')
+    allowedAttributes['hide in help']                         = (bool, False, 'hideInHelp')
+    allowedAttributes['long form argument']                   = (str, True, 'longFormArgument')
+    allowedAttributes['modify argument name on command line'] = (str, False, 'modifyArgument')
+    allowedAttributes['required']                             = (bool, False, 'isRequired')
+    allowedAttributes['short form argument']                  = (str, False, 'shortFormArgument')
+    allowedAttributes['terminate if present']                 = (bool, False, 'terminateIfPresent')
+
+    # Set attributes that are specific to particular groups.
+    if groupName == 'inputs' or groupName == 'outputs':
+      allowedAttributes['apply by repeating this argument'] = (str, False, 'repeatArgument')
+      allowedAttributes['construct filename']               = (dict, False, 'constructionInstructions')
+      allowedAttributes['filename extensions']              = (list, False, 'filenameExtensions')
+      allowedAttributes['is filename stub']                 = (bool, False, 'isFilenameStub')
+
+    # Attributes specific to input files.
+    if groupName == 'inputs':
+      allowedAttributes['if input is stream']    = (str, False, 'inputStream')
+      allowedAttributes['list of input files']   = (bool, False, 'isInputList')
+      allowedAttributes['replace argument with'] = (dict, False, 'replaceArgument')
+
+    # Attributes specific to output files.
+    if groupName == 'outputs':
+      allowedAttributes['if output to stream'] = (str, False, 'outputStream')
+
+    return allowedAttributes
+
+  # Set additional argument attributes depending on the argument group.
+  def setAdditionalArgumentAttributes(self, tool, group, attributes):
+
+    # Set the argument group.
+    self.setAttribute(attributes, tool, 'argumentGroup', group)
+
+    # Set attributes for inputs.
+    if group == 'inputs': self.setAttribute(attributes, tool, 'isInput', True)
+
+    # Set attributes for required outputs.
+    if group == 'outputs': self.setAttribute(attributes, tool, 'isOutput', True)
+
+    return attributes
 
   # Check all argument attribute dependencies.
   def checkAttributeDependencies(self, tool):
