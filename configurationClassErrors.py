@@ -131,7 +131,7 @@ class configurationClassErrors:
   ##########################################
 
   # Attribute has the wrong type.
-  def incorrectTypeInToolConfigurationFile(self, name, attribute, argument, value, expectedType, isPipeline):
+  def incorrectTypeInToolConfigurationFile(self, tool, group, attribute, argument, value, expectedType):
 
     # Find the given type.
     isType    = self.findType(type(value))
@@ -139,13 +139,23 @@ class configurationClassErrors:
     if isType == None: isType = 'Unknown'
     if needsType == None: needsType = 'Unknown'
     self.text.append('Invalid attribute value in tool configuration file.')
-    text = 'The attribute \'' + str(attribute) + '\' in the configuration file for \'' + str(name) + '\''
-    text += ', argument \'' + argument + '\' ' if argument else ' '
+    text = 'The attribute \'' + str(attribute) + '\' in the configuration file for \'' + str(tool) + '\''
+    text += ', argument \'' + argument + '\' in argument group \'' + str(group) + '\' ' if argument else ' '
     if isType == 'list' or isType == 'dictionary':  text += 'is given a value '
     else: text += 'is given the value \'' + str(value) + '\'. This value is '
     text += 'of an incorrect type (' + isType + '); the expected type is \'' + needsType + '\'. Please correct ' + \
     'this value in the configuration file.'
     self.text.append(text)
+    self.writeFormattedText()
+    self.terminate()
+
+  # The 'inputs' or 'outputs' argument groups are missing.
+  def missingRequiredArgumentGroup(self, tool, isInputs):
+    self.text.append('Missing argument group in tool configuration file.')
+    self.text.append('The arguments available for the tool \'' + tool + '\' are defined in the \'arguments\' section of the tool ' + \
+    'configuration file. Each argument definition is stored in one of the named argument groups. The groups \'inputs\' and ' + \
+    '\'outputs\' must be present, but one of them is missing. Please ensure that the configuration file conforms ' + \
+    'to all requirements.')
     self.writeFormattedText()
     self.terminate()
 
@@ -160,21 +170,21 @@ class configurationClassErrors:
     self.terminate()
 
   # If a tool argument does not have a long form argument.
-  def noLongFormForToolArgument(self, tool):
+  def noLongFormForToolArgument(self, tool, group):
     self.text.append('Missing long form for tool argument in configuration file')
     self.text.append('All arguments defined in a tool configuration file, must have a long and short form defined. The long form version is' + \
     'used to identify the argument in all of the relevant data structures as well as for identifying problematic arguments in error messages. ' + \
-    'Please check the configuration file for tool \'' + tool + '\' and ensure that the \'long form argument\' attribute is present for all ' + \
-    'arguments.')
+    'The \'long form argument\' field is missing for one of the arguments in the \'' + group + '\' argument group. Please check the ' + \
+    'configuration file for tool \'' + tool + '\' and ensure that the \'long form argument\' attribute is present for all arguments.')
     self.writeFormattedText()
     self.terminate()
 
   # An argument attribute in the configuration file is invalid.
-  def invalidArgumentAttributeInToolConfigurationFile(self, tool, argument, attribute, allowedAttributes):
+  def invalidArgumentAttributeInToolConfigurationFile(self, tool, group, argument, attribute, allowedAttributes):
     self.text.append('Invalid argument attribute in tool configuration file: ' + attribute)
-    text = 'The configuration file for tool \'' + tool + '\' contains the argument \'' + argument + '\'. This argument contains the ' + \
-    'attribute \'' + attribute + '\', which is not recognised. The argument attributes allowed in a tool configuration file are:'
-    self.text.append(text)
+    self.text.append('The configuration file for tool \'' + tool + '\' contains the argument \'' + argument + '\' in argument group \'' + group + \
+    '\'. This argument contains the attribute \'' + attribute + '\', which is not recognised. The argument attributes allowed in a tool ' + \
+    'configuration file are:')
     self.text.append('\t')
 
     # Create a sorted list of the allowed attributes.
@@ -191,11 +201,10 @@ class configurationClassErrors:
     self.terminate()
 
   # An argument attribute in the configuration file is missing.
-  def missingArgumentAttributeInToolConfigurationFile(self, tool, argument, attribute, allowedAttributes):
+  def missingArgumentAttributeInToolConfigurationFile(self, tool, group, argument, attribute, allowedAttributes):
     self.text.append('Missing attribute in tool configuration file for argument: ' + argument)
-    text = 'The configuration file for tool \'' + tool + '\', argument \'' + argument + '\' is missing the attribute \'' + attribute + '\'. The ' + \
-    'following attributes are required for each argument in a tool configuration file:'
-    self.text.append(text)
+    self.text.append('The configuration file for tool \'' + tool + '\', argument \'' + argument + '\' in argument group \'' + group + \
+    '\' is missing the attribute \'' + attribute + '\'. The following attributes are required for each argument in a tool configuration file:')
     self.text.append('\t')
 
     # Create a sorted list of the required attributes.
