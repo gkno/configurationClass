@@ -52,6 +52,9 @@ class toolAttributes:
     # Store the tools that need to be compiled for this tool to be available.
     self.requiredCompiledTools = []
 
+    # Store the URL for the tool.
+    self.url = None
+
 class argumentAttributes:
   def __init__(self):
 
@@ -90,6 +93,10 @@ class argumentAttributes:
     # Record if the argument is for an input or output file.
     self.isInput                  = False
     self.isOutput                 = False
+
+    # Store whether the argument can be suggested as a possible tool to use in a
+    # pipeline builder.
+    self.isSuggestible = False
 
     self.inputStream              = False
     self.isDirectory              = False
@@ -191,6 +198,7 @@ class toolConfiguration:
     allowedAttributes['precommand']         = (str, False, True, 'precommand')
     allowedAttributes['no output']          = (bool, False, True, 'noOutput')
     allowedAttributes['tools']              = (list, True, True, 'requiredCompiledTools')
+    allowedAttributes['url']                = (str, False, True, 'url')
 
     # Keep track of the observed required values.
     observedAttributes = {}
@@ -364,6 +372,7 @@ class toolConfiguration:
       allowedAttributes['if input is stream']    = (str, False, 'inputStream')
       allowedAttributes['list of input files']   = (bool, False, 'isInputList')
       allowedAttributes['replace argument with'] = (dict, False, 'replaceArgument')
+      allowedAttributes['suggestible']           = (bool, False, 'isSuggestible')
 
     # Attributes specific to output files.
     if groupName == 'outputs':
