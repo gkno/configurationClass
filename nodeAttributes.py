@@ -335,8 +335,7 @@ class nodeClass:
   # Set an attribute from the nodes data structure.  Check to ensure that the requested attribute is
   # available for the type of node.  If not, terminate with an error.
   def setGraphNodeAttribute(self, graph, nodeID, attribute, value):
-    try:
-      test = getattr(graph.node[nodeID]['attributes'], attribute)
+    try: test = getattr(graph.node[nodeID]['attributes'], attribute)
 
     # If there is an error, determine if the node exists in the graph.  If the node exists, the problem
     # lies with the attribute.  Determine if the attribute belongs to any of the node data structures,
@@ -358,8 +357,8 @@ class nodeClass:
         if hasattr(fileNodeAttributes(), attribute): inFileNode      = True
         if hasattr(optionNodeAttributes(), attribute): inOptionsNode = True
         if graph.node[nodeID]['attributes'].nodeType == 'task': nodeType = 'task node'
-        if graph.node[nodeID]['attributes'].nodeType == 'file': nodeType = 'file node'
-        if graph.node[nodeID]['attributes'].nodeType == 'option': nodeType = 'options node'
+        elif graph.node[nodeID]['attributes'].nodeType == 'file': nodeType = 'file node'
+        elif graph.node[nodeID]['attributes'].nodeType == 'option': nodeType = 'options node'
         self.errors.attributeNotAssociatedWithNodeInSet(nodeID, attribute, nodeType, inTaskNode, inFileNode, inOptionsNode)
 
     # Set the attribute.  If the attribute points to a list, append the value.
