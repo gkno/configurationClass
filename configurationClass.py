@@ -807,7 +807,8 @@ class configurationMethods:
                   #TODO ERROR                               
                   print('configurationClass.evaluateCommands - number of values')
                   self.errors.terminate() 
-                commands[count] = [str('$(') + str(commands[count].replace(ID, commandValues[ID][count])) + str(')')]
+                commands[count] = [str('$(') + str(commands[count].replace(ID, value)) + str(')') for value in commandValues[ID][count]]
+
           self.nodeMethods.setGraphNodeAttribute(graph, nodeID, 'isCommandToEvaluate', True)
           self.nodeMethods.setGraphNodeAttribute(graph, nodeID, 'values', commands)
 
