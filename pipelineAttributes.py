@@ -23,7 +23,14 @@ import sys
 # Define a class to store general pipeline attributes,
 class pipelineAttributes:
   def __init__(self):
+
+    # Provide a description of the pipeline.
     self.description = None
+
+    # As with the tools, untested pipelines can be listed as experimental until they
+    # have been refined. This ensures that  users are aware that the pipeline should
+    # be used with caution.
+    self.isExperimental = False
 
 # Define a class to store task attribtues.
 class taskAttributes:
@@ -162,11 +169,12 @@ class pipelineConfiguration:
     attributes = pipelineAttributes()
 
     # Define the allowed general attributes.
-    allowedAttributes                = {}
-    allowedAttributes['description'] = (str, True, True, 'description')
-    allowedAttributes['instances']   = (list, True, False, None)
-    allowedAttributes['nodes']       = (list, True, False, None)
-    allowedAttributes['tasks']       = (dict, True, False, None)
+    allowedAttributes                 = {}
+    allowedAttributes['description']  = (str, True, True, 'description')
+    allowedAttributes['experimental'] = (bool, False, True, 'isExperimental')
+    allowedAttributes['instances']    = (list, True, False, None)
+    allowedAttributes['nodes']        = (list, True, False, None)
+    allowedAttributes['tasks']        = (dict, True, False, None)
 
     # Keep track of the observed required values.
     observedAttributes = {}
@@ -707,3 +715,13 @@ class pipelineConfiguration:
   # Clear a pipeline from storage.
   def clearPipeline(self):
     self.__init__()
+
+  # Get a pipeline attribute.
+  def getPipelineAttribute(self, attribute):
+    try: value = getattr(self.attributes, attribute)
+    except:
+      # TODO ERROR
+      print('pipeline.getPipelineArgument')
+      self.errors.terminate()
+
+    return value
