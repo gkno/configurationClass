@@ -55,6 +55,10 @@ class toolAttributes:
     # Store the URL for the tool.
     self.url = None
 
+    # If the tool is untested, but available, the isExperimental flag can be set. This
+    # will ensure that the tool is listed as experimental and urge caution in its use.
+    self.isExperimental = False
+
 class argumentAttributes:
   def __init__(self):
 
@@ -188,6 +192,7 @@ class toolConfiguration:
     allowedAttributes['category']           = (str, True, True, 'category')
     allowedAttributes['description']        = (str, True, True, 'description')
     allowedAttributes['executable']         = (str, True, True, 'executable')
+    allowedAttributes['experimental']       = (bool, False, True, 'isExperimental')
     allowedAttributes['help']               = (str, True, False, None)
     allowedAttributes['hide tool']          = (bool, False, True, 'isHidden')
     allowedAttributes['id']                 = (str, True, True, 'id')
