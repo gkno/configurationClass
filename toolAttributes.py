@@ -102,7 +102,14 @@ class argumentAttributes:
     # pipeline builder.
     self.isSuggestible = False
 
-    self.inputStream              = False
+    # Handle streaming inputs. inputStream is used to describe how to modify the command
+    # line argument in the event that a stream is piped to the tool. isStream identifies
+    # the argument which accepts the stream. If the tool is used in isolation (no pipe),
+    # the tool can still be run, but the file associated with the argument identified with
+    # isStream will be streamed to the tool.
+    self.inputStream = False
+    self.isStream    = False
+
     self.isDirectory              = False
     self.isInputList              = False
     self.isRequired               = False
@@ -375,6 +382,7 @@ class toolConfiguration:
     # Attributes specific to input files.
     if groupName == 'inputs':
       allowedAttributes['if input is stream']    = (str, False, 'inputStream')
+      allowedAttributes['is stream']             = (bool, False, 'isStream')
       allowedAttributes['list of input files']   = (bool, False, 'isInputList')
       allowedAttributes['replace argument with'] = (dict, False, 'replaceArgument')
       allowedAttributes['suggestible']           = (bool, False, 'isSuggestible')
