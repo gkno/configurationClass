@@ -920,7 +920,7 @@ class configurationMethods:
     return arguments
 
   # Check that all pipeline arguments listed as required were set.
-  def checkArguments(self, graph, commandLine, runName, instanceName):
+  def checkArguments(self, graph, commandLine, runName, instanceName, hasMultipleRuns, loopData):
     for longFormArgument in self.pipeline.pipelineArguments:
       isSet             = False
       shortFormArgument = self.pipeline.pipelineArguments[longFormArgument].shortFormArgument
@@ -940,6 +940,11 @@ class configurationMethods:
         if not isSet and instanceName != 'default':
           for node in self.instances.instanceAttributes[runName][instanceName].nodes:
             if longFormArgument == node.argument: isSet = True
+
+        # If necessary, check if multiple runs/internal loops are being used and the argument is set
+        # in the provided file.
+        if not isSet and hasMultipleRuns:
+          if longFormArgument in loopData.arguments: isSet = True
 
         # Finally check if instructions were provided for evaluating a command in lieu of values.
         if self.pipeline.nodeAttributes[self.pipeline.pipelineArguments[longFormArgument].configNodeID].evaluateCommand: isSet = True
