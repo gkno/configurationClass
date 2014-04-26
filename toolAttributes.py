@@ -546,9 +546,9 @@ class toolConfiguration:
     allowedAttributes                        = {}
     allowedAttributes['method']              = (str, True)
     allowedAttributes['modify extension']    = (str, True)
-    allowedAttributes['use argument']        = (str, True)
     allowedAttributes['modify text']         = (list, False)
-    allowedAttributes['add argument values'] = (list, False)
+    allowedAttributes['use argument']        = (str, True)
+    allowedAttributes['use path']            = (bool, False)
 
     # Keep track of the observed required values.
     observedAttributes = {}
