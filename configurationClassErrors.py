@@ -2,6 +2,9 @@
 
 from __future__ import print_function
 
+import inspect
+from inspect import currentframe, getframeinfo, getouterframes
+
 import os
 import sys
 
@@ -12,6 +15,9 @@ class configurationClassErrors:
     self.hasError  = False
     self.errorType = 'ERROR'
     self.text      = []
+
+    # Store if in debugging mode.
+    self.isDebug = False
 
   # Format the error message and write to screen.
   def writeFormattedText(self):
@@ -266,6 +272,25 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
+  # The 'modify text' list in the 'construct filename' contains a field that has more than one instruction.
+  def multipleInstructionsInModifyTextDictionary(self, tool, argument):
+    self.text.append('Multiple instructions in construct filename.')
+    self.text.append('The tool \'' + tool + '\' has an argument \'' + argument + '\' that has instructions on how to construct the filename. ' + \
+    'As part of the instructions, the field \'modify text\' is included. All fields in this list must be dictionaries containing a single ' + \
+    'instruction. The filename construction proceeds in the order that the dictionaries appear in the \'modify text\' list and to preserve ' + \
+    'the order, each included dictionary can only contain one instruction.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # The 'modify text' list in the 'construct filename' contains a field that is not a dictionary.
+  def notDictionaryInModifyText(self, tool, argument):
+    self.text.append('Invalid field in construct filename.')
+    self.text.append('The tool \'' + tool + '\' has an argument \'' + argument + '\' that has instructions on how to construct the filename. ' + \
+    'As part of the instructions, the field \'modify text\' is included. All fields in this list must be dictionaries, but there is at least ' + \
+    'one none dictionary field. Please modify the configuration file to conform to the requirements outlined in the documentation.')
+    self.writeFormattedText()
+    self.terminate()
+
   # Given a value, return a string representation of the data type.
   def findType(self, providedType):
     if providedType == str: return 'string'
@@ -319,6 +344,28 @@ class configurationClassErrors:
       else: self.text.append(allowedAttribute + ' (' + str(dataType) + '): optional.')
     self.text.append('\t')
     self.text.append('Please amend the \'' + tool + '\' configuration file to be consistent with the requirements.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # The construction instructions included in the modify text field, must be dictionaries, each of which contains
+  # a list as the value.
+  def nonListInConstruction(self, tool, argument, field):
+    self.text.append('Error with filename construction instructions.')
+    self.text.append('Argument \'' + argument + '\' associated with tool \'' + tool + '\' has instructions on how the filename should be ' + \
+    'constructed. As part of the construction, there are instructions on how to modify the text. This a list of dictionaries, where each ' + \
+    'dictionary contains an instruction as the key and a list of strings as the value. The field \'' + field + '\', however does not have ' + \
+    'a list as the value. Please check the construction instructions.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # The construction instructions included in the modify text field, must be dictionaries, each of which contains
+  # a list as the value. Ths list needs to be strings, no dicts or lists.
+  def invalidStringInConstruction(self, tool, argument, field):
+    self.text.append('Error with filename construction instructions.')
+    self.text.append('Argument \'' + argument + '\' associated with tool \'' + tool + '\' has instructions on how the filename should be ' + \
+    'constructed. As part of the construction, there are instructions on how to modify the text. This a list of dictionaries, where each ' + \
+    'dictionary contains an instruction as the key and a list of strings as the value. The field \'' + field + '\', however contains a value ' + \
+    'that is either a dictionary or a list. Please check the construction instructions.')
     self.writeFormattedText()
     self.terminate()
 
@@ -1223,4 +1270,14 @@ class configurationClassErrors:
     print('================================================================================================', file=sys.stderr)
     print('  TERMINATED: Errors in configurationClass.  See specific error messages above for resolution.', file=sys.stderr)
     print('================================================================================================', file=sys.stderr)
+
+    # If in debugging mode, list where the errors came from.
+    if self.isDebug:
+      frameInfo = getframeinfo(currentframe().f_back, 2)
+      print()
+      print(frameInfo.filename, ' line ', frameInfo.lineno, ': ', sep = '', file = sys.stdout)
+      previousFrameInfo = getframeinfo(getouterframes(currentframe())[2][0])
+      print(previousFrameInfo.filename, previousFrameInfo.lineno, previousFrameInfo.function)
+
+    # Terminate.
     exit(2)
