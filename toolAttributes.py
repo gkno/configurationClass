@@ -541,11 +541,13 @@ class toolConfiguration:
 
   # Check constructions instructions for the 'from tool argument' method.
   def checkFromToolArgument(self, tool, argument):
+
+    # Define the allowed attributes.
     allowedAttributes                        = {}
     allowedAttributes['method']              = (str, True)
     allowedAttributes['modify extension']    = (str, True)
     allowedAttributes['use argument']        = (str, True)
-    allowedAttributes['add additional text'] = (str, False)
+    allowedAttributes['modify text']         = (list, False)
     allowedAttributes['add argument values'] = (list, False)
 
     # Keep track of the observed required values.
@@ -579,15 +581,78 @@ class toolConfiguration:
         if self.allowTermination: self.errors.missingAttributeInConstruction(tool, argument, attribute, 'from tool argument', allowedAttributes)
         else: return False
 
-    # If the 'add argument values' was present, check that this list contains valid arguments for this tool.
-    if 'add argument values' in self.argumentAttributes[tool][argument].constructionInstructions:
-      for addArgument in self.argumentAttributes[tool][argument].constructionInstructions['add argument values']:
-        if addArgument not in self.argumentAttributes[tool]:
-          if self.allowTermination:
-            self.errors.invalidArgumentInConstruction(tool, argument, addArgument, self.argumentAttributes[tool].keys(), 'add argument values')
-          else: return False
+    # If the 'modify text' field was present, check its contents.
+    if 'modify text' in self.argumentAttributes[tool][argument].constructionInstructions: self.checkModifyText(tool, argument)
 
-    return True
+  # Check the contents of the 'modify values' field.
+  def checkModifyText(self, tool, argument):
+
+    success = True
+
+    # Define the allowed attributes.
+    allowedInstructions                        = {}
+    allowedInstructions['add argument values'] = (list, True)
+    allowedInstructions['add text'] = (list, True)
+    allowedInstructions['remove text']         = (list, True)
+
+    # Loop over the instructions.
+    for instructionDict in self.argumentAttributes[tool][argument].constructionInstructions['modify text']:
+      if not isinstance(instructionDict, dict): self.errors.notDictionaryInModifyText(tool, argument)
+
+      # Each dictionary can only contain one instruction. This preserves the order in which to make the filename
+      # construction.
+      if len(instructionDict) != 1:
+        if self.allowTermination: self.errors.multipleInstructionsInModifyTextDictionary(tool, argument)
+        else: return False
+
+      instruction = instructionDict.iterkeys().next()
+      value       = instructionDict[instruction]
+
+      # If the value is not in the allowedAttributes, it is not an allowed value and execution
+      # should be terminate with an error.
+      if instruction not in allowedInstructions:
+        if self.allowTermination: self.errors.invalidAttributeInConstruction(tool, argument, instruction, 'from tool argument', allowedInstructions)
+        else: return False
+
+      # Check the individual instructions.
+      if instruction == 'add text':
+        success, instructionDict[instruction] = self.checkConstructionStrings(tool, argument, value, 'add text')
+
+      # Check fields associated with 'add argument values'.
+      elif instruction == 'add argument values':
+        success, instructionDict[instruction] = self.checkConstructionStrings(tool, argument, value, 'add argument values')
+
+        # Check that the values are all arguments associated with this tool.
+        for addArgument in instructionDict[instruction]:
+          if addArgument not in self.argumentAttributes[tool]:
+            if self.allowTermination:
+              self.errors.invalidArgumentInConstruction(tool, argument, addArgument, self.argumentAttributes[tool].keys(), 'add argument values')
+            else: return False
+
+      # Check fields associated with 'remove text'.
+      elif instruction == 'remove text': 
+        success, instructionDict[instruction] = self.checkConstructionStrings(tool, argument, value, 'remove text')
+
+    return success
+
+  # Check the field is a list of strings.
+  def checkConstructionStrings(self, tool, argument, valueList, field):
+    strings = []
+
+    # Check that the value is a list.
+    if not isinstance(valueList, list):
+      if self.allowTermination: self.errors.nonListInConstruction(tool, argument, field)
+      else: return False, strings
+
+    # Loop over all values in the list and check that they are strings.
+    for value in valueList:
+      if isinstance(value, list) or isinstance(value, dict):
+        if self.allowTermination: self.errors.invalidStringInConstruction(tool, argument, field)
+        else: return False, strings
+      strings.append(str(value))
+
+    # Return the original list with unicodes and integers etc converted to strings.
+    return True, strings
 
   # Get a tool argument attribute.
   def getGeneralAttribute(self, tool, attribute):
