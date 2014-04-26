@@ -707,24 +707,27 @@ class configurationMethods:
       if not isStreaming and not isDirectory:
         values = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values')
 
-        # If the task is greedy, use all of the iterations.
-        if isGreedy: iteration = 'all'
+        # If there are values associated with the argument.
+        if values:
 
-        # Get the dependencies.
-        if iteration == 'all':
-          for counter in values:
-            for value in values[counter]: dependencies.append(value)
+          # If the task is greedy, use all of the iterations.
+          if isGreedy: iteration = 'all'
   
-        elif iteration in values:
-          for value in values[iteration]: dependencies.append(value)
-  
-        elif iteration != 1:
-          for value in values[1]: dependencies.append(value)
-  
-        else:
-          #TODO ERROR
-          print('Unknown iteration in getTaskDependencies.')
-          self.errors.terminate()
+          # Get the dependencies.
+          if iteration == 'all':
+            for counter in values:
+              for value in values[counter]: dependencies.append(value)
+    
+          elif iteration in values:
+            for value in values[iteration]: dependencies.append(value)
+    
+          elif iteration != 1:
+            for value in values[1]: dependencies.append(value)
+    
+          else:
+            #TODO ERROR
+            print('Unknown iteration in getTaskDependencies.')
+            self.errors.terminate()
 
     return dependencies
 
