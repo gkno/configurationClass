@@ -706,8 +706,6 @@ class configurationMethods:
       isStreaming  = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'isStreaming')
       if not isStreaming and not isDirectory:
         values = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values')
-
-        # If there are values associated with the argument.
         if values:
 
           # If the task is greedy, use all of the iterations.

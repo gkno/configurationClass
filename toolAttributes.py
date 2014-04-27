@@ -110,12 +110,16 @@ class argumentAttributes:
     self.inputStream = False
     self.isStream    = False
 
+    # If the argument is an inputList, it must also include information on the tool argument
+    # that is set using all the values in the list.
+    self.isInputList    = False
+    self.repeatArgument = None
+
+
     self.isDirectory              = False
-    self.isInputList              = False
     self.isRequired               = False
     self.modifyArgument           = None
     self.outputStream             = False
-    self.repeatArgument           = None
     self.replaceArgument          = None
 
     # Record if the presence of the specified file/directory is not allowed prior
