@@ -241,7 +241,7 @@ class nodeClass:
         attributes.isRequired = isRequired
 
       # If the task argument is linked to another argument in the pipeline, it is required.
-      if pipeline.linkedTaskArguments:
+      if task in pipeline.linkedTaskArguments:
         if argument in pipeline.linkedTaskArguments[task]:
           isRequired = True
           attributes.isRequired = isRequired

@@ -466,14 +466,19 @@ class configurationMethods:
       self.nodeMethods.addValuesToGraphNode(graph, nodeIDToSet, node.values, write = 'replace')
 
   # Attach the instance arguments to the relevant nodes.
-  def attachToolInstanceArgumentsToNodes(self, graph, tool, instance):
+  def attachToolInstanceArgumentsToNodes(self, graph, task, instance):
+
+    # If this is a pipeline adding the tool instance values, ensure that the task and tool are identified.
+    if self.isPipeline: tool = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
+    else: tool = task
+
     for node in self.instances.instanceAttributes[tool][instance].nodes:
       nodeIDToSet = None
 
       # Check all of the nodes set for this tool, determine the associated arguments and find the node ID
       # of the node for the argument set in the instance.
-      for nodeID in self.nodeMethods.getPredecessorOptionNodes(graph, tool):
-        argument = self.edgeMethods.getEdgeAttribute(graph, nodeID, tool, 'longFormArgument')
+      for nodeID in self.nodeMethods.getPredecessorOptionNodes(graph, task):
+        argument = self.edgeMethods.getEdgeAttribute(graph, nodeID, task, 'longFormArgument')
         if argument == node.argument: nodeIDToSet = nodeID
 
       # If the node doesn't exist, check that the argument requested in the instance is valid for this tool.
