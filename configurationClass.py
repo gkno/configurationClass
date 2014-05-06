@@ -498,7 +498,7 @@ class configurationMethods:
         graph.add_node(nodeIDToSet, attributes = attributes)
 
         # Add an edge from the new node to the tool node.
-        self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, nodeIDToSet, tool, longFormArgument)
+        self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, nodeIDToSet, task, longFormArgument)
 
         # If the option node corresponds to a file, build a file node.
         if self.nodeMethods.getGraphNodeAttribute(graph, nodeIDToSet, 'isFile'):
