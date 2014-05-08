@@ -579,37 +579,35 @@ class configurationMethods:
     for task in taskList:
       for fileNodeID in self.nodeMethods.getSuccessorFileNodes(graph, task):
 
-        # If the node refers to a directory, do not include it.
         optionNodeID = self.nodeMethods.getOptionNodeIDFromFileNodeID(fileNodeID)
-        if not self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'isDirectory'):
-          deleteFiles  = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'deleteFiles')
-          isStreaming  = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'isStreaming')
+        deleteFiles  = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'deleteFiles')
+        isStreaming  = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'isStreaming')
+
+        # Get the tasks associated with this option node.
+        tasks = graph.successors(optionNodeID)
+
+        # By default, all files produced by the pipeline are kept and so should be listed as
+        # outputs. However, some files are listed as to be deleted, so do not include these as
+        # outputs.
+        if not deleteFiles and not isStreaming:
+          values = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values')
+          if key == 'all':
+            for iteration in values.keys():
+              for value in values[iteration]: outputs.append((optionNodeID, value))
   
-          # Get the tasks associated with this option node.
-          tasks = graph.successors(optionNodeID)
+          # Just get values for a particular key.
+          elif key in values:
+            for value in values[key]: outputs.append((optionNodeID, value))
   
-          # By default, all files produced by the pipeline are kept and so should be listed as
-          # outputs. However, some files are listed as to be deleted, so do not include these as
-          # outputs.
-          if not deleteFiles and not isStreaming:
-            values = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values')
-            if key == 'all':
-              for iteration in values.keys():
-                for value in values[iteration]: outputs.append((optionNodeID, value))
-    
-            # Just get values for a particular key.
-            elif key in values:
-              for value in values[key]: outputs.append((optionNodeID, value))
-    
-            #TODO CHECK
-            elif key not in values and key != 1:
-              for value in values[1]: outputs.append((optionNodeID, value))
-  
-            # If the key is unknown, fail.
-            #TODO Errors.
-            else:
-              print('UNKNOWN KEY: configurationClass.getGraphOutputs', key)
-              self.errors.terminate()
+          #TODO CHECK
+          elif key not in values and key != 1:
+            for value in values[1]: outputs.append((optionNodeID, value))
+
+          # If the key is unknown, fail.
+          #TODO Errors.
+          else:
+            print('UNKNOWN KEY: configurationClass.getGraphOutputs', key)
+            self.errors.terminate()
 
     return outputs
 
@@ -680,7 +678,8 @@ class configurationMethods:
       optionNodeID = self.nodeMethods.getOptionNodeIDFromFileNodeID(fileNodeID)
       isDirectory  = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'isDirectory')
       isStreaming  = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'isStreaming')
-      if not isStreaming and not isDirectory:
+      if not isStreaming:
+      #if not isStreaming and not isDirectory:
         values = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values')
         if iteration == 'all':
           for counter in values:
