@@ -59,6 +59,10 @@ class toolAttributes:
     # will ensure that the tool is listed as experimental and urge caution in its use.
     self.isExperimental = False
 
+    # Define the help group. When showing all tools in the help, the tools will be grouped
+    # according to this value. If not set, the tool is in the general group.
+    self.helpGroup = 'general'
+
 class argumentAttributes:
   def __init__(self):
 
@@ -205,6 +209,7 @@ class toolConfiguration:
     allowedAttributes['executable']         = (str, True, True, 'executable')
     allowedAttributes['experimental']       = (bool, False, True, 'isExperimental')
     allowedAttributes['help']               = (str, True, False, None)
+    allowedAttributes['help group']         = (str, False, True, 'helpGroup')
     allowedAttributes['hide tool']          = (bool, False, True, 'isHidden')
     allowedAttributes['id']                 = (str, True, True, 'id')
     allowedAttributes['input is stream']    = (bool, False, True, 'inputIsStream')
@@ -548,6 +553,7 @@ class toolConfiguration:
 
     # Define the allowed attributes.
     allowedAttributes                        = {}
+    allowedAttributes['add path']            = (str, False)
     allowedAttributes['method']              = (str, True)
     allowedAttributes['modify extension']    = (str, True)
     allowedAttributes['modify text']         = (list, False)
