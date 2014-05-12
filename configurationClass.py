@@ -708,7 +708,8 @@ class configurationMethods:
       optionNodeID = self.nodeMethods.getOptionNodeIDFromFileNodeID(fileNodeID)
       isDirectory  = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'isDirectory')
       isStreaming  = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'isStreaming')
-      if not isStreaming and not isDirectory:
+      #if not isStreaming and not isDirectory:
+      if not isStreaming:
         values = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values')
         if values:
 

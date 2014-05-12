@@ -291,6 +291,16 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
+  # If a files path is defined by another argument and that argument is invalid.
+  def invalidArgumentInPathArgument(self, tool, longFormArgument, pathArgument):
+    self.text.append('Error with configuration file.')
+    self.text.append('The tool \'' + tool + '\' has an argument \'' + longFormArgument + '\' which includes the field \'include path from ' + \
+    'argument\'. This field defines another argument for this tool that will be used for the path of the file/directory. The provided ' + \
+    'argument \'' + pathArgument + '\' is not a valid argument for this tool. Please update the configuration file to include a valid ' + \
+    'argument.')
+    self.writeFormattedText()
+    self.terminate()
+
   # Given a value, return a string representation of the data type.
   def findType(self, providedType):
     if providedType == str: return 'string'
