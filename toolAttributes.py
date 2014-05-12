@@ -61,7 +61,7 @@ class toolAttributes:
 
     # Define the help group. When showing all tools in the help, the tools will be grouped
     # according to this value. If not set, the tool is in the general group.
-    self.helpGroup = 'general'
+    self.helpGroup = 'General'
 
 class argumentAttributes:
   def __init__(self):
@@ -119,9 +119,19 @@ class argumentAttributes:
     self.isInputList    = False
     self.repeatArgument = None
 
+    # For some inputs, the path should not be included on the command line. The path is still
+    # required for the dependency list, however. Store those files/directories listed as not
+    # requiring the path on the command line. Also store the path to use if another command
+    # provides the path.
+    self.includePathOnCommandLine = True
+    self.pathArgument             = None
 
+    # Keep track of argument pointing to input or output directories.
     self.isDirectory              = False
+
+    # Keep track of required arguments.
     self.isRequired               = False
+
     self.modifyArgument           = None
     self.outputStream             = False
     self.replaceArgument          = None
@@ -182,6 +192,10 @@ class toolConfiguration:
 
     # Generate a dictionary that links the long and short form arguments with each other..
     if success: success = self.consolidateArguments(tool)
+
+    # Check if a tool argument includes the pathArgument. If so, ensure that the supplied argument
+    # is valid.
+    if success: success = self.checkPathArguments(tool)
 
     # Look to see if the 'argument order' section is present and check its validity.
     if success: success = self.checkArgumentOrder(tool, self.attributes[tool])
@@ -365,7 +379,7 @@ class toolConfiguration:
   # whether the attribute is requred and finally, the name of the attribute in the data structure storing
   # the values.
   def setAllowedArgumentAttributes(self, groupName):
-    allowedAttributes                                         = {}
+    allowedAttributes = {}
 
     # Set attributes that are available to all groups.
     allowedAttributes['allow multiple values']                = (bool, False, 'allowMultipleValues')
@@ -380,6 +394,7 @@ class toolConfiguration:
     allowedAttributes['required']                             = (bool, False, 'isRequired')
     allowedAttributes['short form argument']                  = (str, False, 'shortFormArgument')
     allowedAttributes['terminate if present']                 = (bool, False, 'terminateIfPresent')
+    allowedAttributes['include path from argument']           = (str, False, 'pathArgument')
 
     # Set attributes that are specific to particular groups.
     if groupName == 'inputs' or groupName == 'outputs':
@@ -390,11 +405,12 @@ class toolConfiguration:
 
     # Attributes specific to input files.
     if groupName == 'inputs':
-      allowedAttributes['if input is stream']    = (str, False, 'inputStream')
-      allowedAttributes['is stream']             = (bool, False, 'isStream')
-      allowedAttributes['list of input files']   = (bool, False, 'isInputList')
-      allowedAttributes['replace argument with'] = (dict, False, 'replaceArgument')
-      allowedAttributes['suggestible']           = (bool, False, 'isSuggestible')
+      allowedAttributes['if input is stream']           = (str, False, 'inputStream')
+      allowedAttributes['is stream']                    = (bool, False, 'isStream')
+      allowedAttributes['list of input files']          = (bool, False, 'isInputList')
+      allowedAttributes['replace argument with']        = (dict, False, 'replaceArgument')
+      allowedAttributes['suggestible']                  = (bool, False, 'isSuggestible')
+      allowedAttributes['include path on command line'] = (bool, False, 'includePathOnCommandLine')
 
     # Attributes specific to output files.
     if groupName == 'outputs':
@@ -415,6 +431,23 @@ class toolConfiguration:
     if group == 'outputs': self.setAttribute(attributes, tool, 'isOutput', True)
 
     return attributes
+
+  # Check if an argument includes a path supplied from a different argument. If so, ensure that the
+  # supplied argument is valid.
+  def checkPathArguments(self, tool):
+    for longFormArgument in self.argumentAttributes[tool]:
+      pathArgument = self.argumentAttributes[tool][longFormArgument].pathArgument
+      if pathArgument:
+        longFormPathArgument = self.getLongFormArgument(tool, pathArgument, False)
+        if longFormPathArgument not in self.argumentAttributes[tool]:
+          if self.allowTermination: self.errors.invalidArgumentInPathArgument(tool, longFormArgument, pathArgument)
+          return False
+
+        # Replace the provided argument with the long form.
+        else:
+          self.argumentAttributes[tool][longFormArgument].pathArgument = longFormPathArgument
+
+    return True
 
   # Check all argument attribute dependencies.
   def checkAttributeDependencies(self, tool):
@@ -461,7 +494,8 @@ class toolConfiguration:
     # Loop over all of the arguments in the argument order and check that no arguments are invalid or repeated.
     observedArguments = []
     for argument in attributes.argumentOrder:
-      if argument not in self.argumentAttributes[tool]: self.errors.invalidArgumentInArgumentOrder(tool, argument)
+      if argument not in self.argumentAttributes[tool]:
+        if self.allowTermination: self.errors.invalidArgumentInArgumentOrder(tool, argument)
       if argument in observedArguments:
         if self.allowTermination: self.errors.repeatedArgumentInArgumentOrder(tool, argument)
         else: return False

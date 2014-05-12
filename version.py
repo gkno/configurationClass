@@ -4,5 +4,5 @@ Version information for configurationClass, created during installation.
 """
 
 __author__  = 'Alistair Ward'
-__version__ = '0.104'
-__date__    = 'April 2014'
+__version__ = '0.105'
+__date__    = 'May 2014'
