@@ -99,8 +99,9 @@ class argumentAttributes:
     self.argumentGroup = None
 
     # Record if the argument is for an input or output file.
-    self.isInput                  = False
-    self.isOutput                 = False
+    self.isInput     = False
+    self.isOutput    = False
+    self.isTemporary = False
 
     # Store whether the argument can be suggested as a possible tool to use in a
     # pipeline builder.
@@ -402,6 +403,7 @@ class toolConfiguration:
       allowedAttributes['construct filename']               = (dict, False, 'constructionInstructions')
       allowedAttributes['filename extensions']              = (list, False, 'filenameExtensions')
       allowedAttributes['is filename stub']                 = (bool, False, 'isFilenameStub')
+      allowedAttributes['temporary']                        = (bool, False, 'isTemporary')
 
     # Attributes specific to input files.
     if groupName == 'inputs':

@@ -88,6 +88,9 @@ class optionNodeAttributes:
     # Record if this node points to a directory.
     self.isDirectory = False
 
+    # If the node points to a temporary file/directory, mark the node as temporary.
+    self.isTemporary = False
+
     # Mark the node if the values were construced, rather than set by the user.
     self.isConstructed = False
 
@@ -154,6 +157,7 @@ class nodeClass:
     self.setNodeAttribute(attributes, 'isDirectory', tools.getArgumentAttribute(tool, argument, 'isDirectory'))
     self.setNodeAttribute(attributes, 'isInput', tools.getArgumentAttribute(tool, argument, 'isInput'))
     self.setNodeAttribute(attributes, 'isOutput', tools.getArgumentAttribute(tool, argument, 'isOutput'))
+    self.setNodeAttribute(attributes, 'isTemporary', tools.getArgumentAttribute(tool, argument, 'isTemporary'))
     if tools.getArgumentAttribute(tool, argument, 'isInput') or tools.getArgumentAttribute(tool, argument, 'isOutput'):
       self.setNodeAttribute(attributes, 'isFile', True)
     self.setNodeAttribute(attributes, 'isRequired', tools.getArgumentAttribute(tool, argument, 'isRequired'))
