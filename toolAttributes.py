@@ -78,7 +78,7 @@ class argumentAttributes:
     # Define the extensions allowed for the argument.
     self.extensions = []
 
-    # Store instructions on how to construct the filename
+    # Store instructions on how to construct the filename.
     self.constructionInstructions = None
 
     # Record the argument description.
@@ -588,13 +588,14 @@ class toolConfiguration:
   def checkFromToolArgument(self, tool, argument):
 
     # Define the allowed attributes.
-    allowedAttributes                        = {}
-    allowedAttributes['add path']            = (str, False)
-    allowedAttributes['method']              = (str, True)
-    allowedAttributes['modify extension']    = (str, True)
-    allowedAttributes['modify text']         = (list, False)
-    allowedAttributes['use argument']        = (str, True)
-    allowedAttributes['use path']            = (bool, False)
+    allowedAttributes                             = {}
+    allowedAttributes['add path']                 = (str, False)
+    allowedAttributes['fail if cannot construct'] = (bool, False)
+    allowedAttributes['method']                   = (str, True)
+    allowedAttributes['modify extension']         = (str, True)
+    allowedAttributes['modify text']              = (list, False)
+    allowedAttributes['use argument']             = (str, True)
+    allowedAttributes['use path']                 = (bool, False)
 
     # Keep track of the observed required values.
     observedAttributes = {}
