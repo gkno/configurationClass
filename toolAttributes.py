@@ -133,6 +133,10 @@ class argumentAttributes:
     # Keep track of required arguments.
     self.isRequired               = False
 
+    # Some argument require the values to be in quotation marks on the command line. Store if this
+    # is the case.
+    self.inQuotations = False
+
     self.modifyArgument           = None
     self.outputStream             = False
     self.replaceArgument          = None
@@ -390,6 +394,7 @@ class toolConfiguration:
     allowedAttributes['directory']                            = (bool, False, 'isDirectory')
     allowedAttributes['extensions']                           = (list, True, 'extensions')
     allowedAttributes['hide in help']                         = (bool, False, 'hideInHelp')
+    allowedAttributes['include value in quotations']          = (bool, False, 'inQuotations')
     allowedAttributes['long form argument']                   = (str, True, 'longFormArgument')
     allowedAttributes['modify argument name on command line'] = (str, False, 'modifyArgument')
     allowedAttributes['required']                             = (bool, False, 'isRequired')
