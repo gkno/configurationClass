@@ -118,7 +118,10 @@ class argumentAttributes:
     # If the argument is an inputList, it must also include information on the tool argument
     # that is set using all the values in the list.
     self.isInputList    = False
-    self.repeatArgument = None
+    self.repeatArgument = None # FIXME Remove when all files converted to 'list argument' field.
+    self.listValues     = None
+    self.listArgument   = None
+    self.listMode       = None
 
     # For some inputs, the path should not be included on the command line. The path is still
     # required for the dependency list, however. Store those files/directories listed as not
@@ -128,7 +131,7 @@ class argumentAttributes:
     self.pathArgument             = None
 
     # Keep track of argument pointing to input or output directories.
-    self.isDirectory              = False
+    self.isDirectory = False
 
     # Keep track of required arguments.
     self.isRequired               = False
@@ -207,6 +210,9 @@ class toolConfiguration:
 
     # If filename constuction instructions are provided, check that all is provided.
     if success: success = self.checkConstructionInstructions(tool)
+
+    # If any argument lists were provided, check the values.
+    if success: success = self.checkListValues(tool)
 
     return success
 
@@ -388,6 +394,7 @@ class toolConfiguration:
 
     # Set attributes that are available to all groups.
     allowedAttributes['allow multiple values']                = (bool, False, 'allowMultipleValues')
+    allowedAttributes['argument list']                        = (dict, False, 'listValues')
     allowedAttributes['command line argument']                = (str, True, 'commandLineArgument')
     allowedAttributes['data type']                            = (str, True, 'dataType')
     allowedAttributes['description']                          = (str, True, 'description')
@@ -638,7 +645,6 @@ class toolConfiguration:
 
   # Check the contents of the 'modify values' field.
   def checkModifyText(self, tool, argument):
-
     success = True
 
     # Define the allowed attributes.
@@ -705,6 +711,48 @@ class toolConfiguration:
 
     # Return the original list with unicodes and integers etc converted to strings.
     return True, strings
+
+  # Check if there are any list values specified. If so, check the contents.
+  def checkListValues(self, tool):
+    allowedAttributes                 = {}
+    allowedAttributes['use argument'] = (str, True)
+    allowedAttributes['mode']         = (str, True)
+
+    # Define the allowed modes.
+    allowedModes = []
+    allowedModes.append('multiple makefiles')
+    allowedModes.append('repeat argument')
+    allowedModes.append('single makefile')
+
+    # Record the observed attributes.
+    observedAttributes = []
+
+    # Check the values.
+    for longFormArgument in self.argumentAttributes[tool]:
+      if self.argumentAttributes[tool][longFormArgument].listValues:
+        for attribute in self.argumentAttributes[tool][longFormArgument].listValues:
+          value = self.argumentAttributes[tool][longFormArgument].listValues[attribute]
+
+          # Check that the attribute is valid.
+          if attribute not in allowedAttributes: self.errors.invalidAttributeInList(tool, longFormArgument, attribute, allowedAttributes)
+
+          # If the attribute is 'use argument', check that the argument is valid.
+          if attribute == 'use argument':
+            if value not in self.argumentAttributes[tool]:
+
+              # Check to see if the value is a short form of a valid argument.
+              longFormValue = self.shortFormArguments[tool][value] if value in self.shortFormArguments[tool] else None
+              if longFormValue not in self.argumentAttributes[tool]: self.errors.invalidArgumentInList(tool, longFormArgument, value)
+              value = longFormValue
+            self.argumentAttributes[tool][longFormArgument].listArgument = value
+
+          # If the attribute is 'mode', check that the supplied value is allowed.
+          if attribute == 'mode':
+            if value not in allowedModes: self.errors.invalidModeInList(tool, longFormArgument, value, allowedModes)
+            self.argumentAttributes[tool][longFormArgument].listMode = value
+
+          # Record that this attribute was observed.
+          observedAttributes.append(attribute)
 
   # Get a tool argument attribute.
   def getGeneralAttribute(self, tool, attribute):
