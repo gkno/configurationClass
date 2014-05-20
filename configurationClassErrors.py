@@ -301,6 +301,58 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
+  # If an attribute in the 'argument list' field is not recognised.
+  def invalidAttributeInList(self, tool, longFormArgument, attribute, allowedAttributes):
+    self.text.append('Invalid attribute in argument list.')
+    self.text.append('The configuration file for tool \'' + tool + '\' contains information for the argument \'' + longFormArgument + '\'. This ' + \
+    'argument contains the \'argument list\' field, which is a dictionary containing instructions on how to use the values included in the list. ' + \
+    'Within this dictionary is the attribute \'' + attribute + '\' which is not recognised. The allowed attributes are:')
+    self.text.append('\t')
+
+    # Create a sorted list of the allowed attributes.
+    allowed = []
+    for attribute in allowedAttributes: allowed.append(attribute)
+
+    # Add the attributes to the text to be written along with the expected type.
+    for attribute in sorted(allowed):
+      self.text.append(attribute + ':\t' + str(allowedAttributes[attribute][0]) + ', required = ' + str(allowedAttributes[attribute][1]))
+
+    self.text.append('\t')
+    self.text.append('Please remove or correct the invalid attribute in the configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # If an attribute in the 'argument list' field is not recognised.
+  def invalidArgumentInList(self, tool, longFormArgument, argument):
+    self.text.append('Invalid argument in argument list.')
+    self.text.append('The configuration file for tool \'' + tool + '\' contains information for the argument \'' + longFormArgument + '\'. This ' + \
+    'argument contains the \'argument list\' field, which is a dictionary containing instructions on how to use the values included in the list. ' + \
+    'Within this dictionary is the attribute \'use argument\' which defines the tool argument to use for the values supplied in the list. ' + \
+    'The supplied argument \'' + argument + '\' is not a valid argument for this tool. Please correct the invalid argument in the configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # If the 'argument list' mode is invalid.
+  def invalidModeInList(self, tool, longFormArgument, mode, allowedModes):
+    self.text.append('Invalid mode in argument list.')
+    self.text.append('The configuration file for tool \'' + tool + '\' contains information for the argument \'' + longFormArgument + '\'. This ' + \
+    'argument contains the \'argument list\' field, which is a dictionary containing instructions on how to use the values included in the list. ' + \
+    'Within this dictionary is the attribute \'mode\' which describes how the makefiles should be constructed using the values in the supplied ' + \
+    'list. The supplied mode \'' + mode + '\' is not recognised. The allowed modes are:')
+    self.text.append('\t')
+
+    # Create a sorted list of the allowed attributes.
+    allowed = []
+    for mode in allowedModes: allowed.append(mode)
+
+    # Add the attributes to the text to be written along with the expected type.
+    for mode in sorted(allowed): self.text.append(mode)
+
+    self.text.append('\t')
+    self.text.append('Please remove or correct the invalid attribute in the configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
   # Given a value, return a string representation of the data type.
   def findType(self, providedType):
     if providedType == str: return 'string'
