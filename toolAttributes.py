@@ -754,6 +754,8 @@ class toolConfiguration:
           # Record that this attribute was observed.
           observedAttributes.append(attribute)
 
+    return True
+
   # Get a tool argument attribute.
   def getGeneralAttribute(self, tool, attribute):
     try: value = getattr(self.attributes[tool], attribute)
