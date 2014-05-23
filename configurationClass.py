@@ -857,11 +857,6 @@ class configurationMethods:
               self.edgeMethods.setEdgeAttribute(graph, optionNodeID, task, 'includeOnCommandLine', False)
               self.edgeMethods.setEdgeAttribute(graph, task, fileNodeID, 'includeOnCommandLine', False)
 
-            else:
-              #TODO ERROR
-              print('config.identifyStreamingNodes.')
-              self.errors.terminate()
-
             # The previous steps marked the edges for the output of the task as streaming. This necessarily
             # means that the input to the next task is a stream and so the corresponding edges that use
             # this input stream must be marked.
