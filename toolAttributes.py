@@ -211,6 +211,10 @@ class toolConfiguration:
     # If filename constuction instructions are provided, check that all is provided.
     if success: success = self.checkConstructionInstructions(tool)
 
+    # If any arguments have the 'if input is stream' or the 'output to stream' fields, check that
+    # all accompanying data is valid.
+    if success: success = self.checkStreams(tool)
+
     # If any argument lists were provided, check the values.
     if success: success = self.checkListValues(tool)
 
@@ -319,7 +323,6 @@ class toolConfiguration:
 
   # Validate the argument group.
   def checkArgumentGroup(self, tool, group, arguments, allowedAttributes, observedShortForms):
-
     for argumentDescription in arguments:
 
       # Keep track of the observed attributes.
@@ -415,6 +418,7 @@ class toolConfiguration:
       allowedAttributes['construct filename']               = (dict, False, 'constructionInstructions')
       allowedAttributes['filename extensions']              = (list, False, 'filenameExtensions')
       allowedAttributes['is filename stub']                 = (bool, False, 'isFilenameStub')
+      allowedAttributes['replace argument with']            = (dict, False, 'replaceArgument')
       allowedAttributes['temporary']                        = (bool, False, 'isTemporary')
 
     # Attributes specific to input files.
@@ -422,7 +426,6 @@ class toolConfiguration:
       allowedAttributes['if input is stream']           = (str, False, 'inputStream')
       allowedAttributes['is stream']                    = (bool, False, 'isStream')
       allowedAttributes['list of input files']          = (bool, False, 'isInputList')
-      allowedAttributes['replace argument with']        = (dict, False, 'replaceArgument')
       allowedAttributes['suggestible']                  = (bool, False, 'isSuggestible')
       allowedAttributes['include path on command line'] = (bool, False, 'includePathOnCommandLine')
 
@@ -711,6 +714,60 @@ class toolConfiguration:
 
     # Return the original list with unicodes and integers etc converted to strings.
     return True, strings
+
+  # Check arguments that describe how to handle input or output streams.
+  def checkStreams(self, tool):
+    for longFormArgument in self.argumentAttributes[tool]:
+
+      # Check to see if the argument has the 'if input is stream' field ot the 'if output to
+      # stream' field..
+      inputStream  = self.argumentAttributes[tool][longFormArgument].inputStream
+      outputStream = self.argumentAttributes[tool][longFormArgument].outputStream
+
+      # If this has details on how to proceed if the input is a stream, ensure that the accompanying
+      # data is valid.
+      if inputStream:
+        allowedValues = ['do not include', 'replace']
+
+        # If the instructions are 'do not include', no further information is required
+        if inputStream == 'do not include': pass
+
+        # If the instructions are 'replace', further information is required.
+        elif inputStream == 'replace': self.checkStreamReplace(tool, longFormArgument, isInput = True)
+
+        # No other values are allowed.
+        else: self.errors.invalidValueArgumentStream(tool, longFormArgument, inputStream, allowedValues, isInput = True)
+
+      # If this has details on how to proceed if the output is a stream, ensure that the accompanying
+      # data is valid.
+      if outputStream:
+        allowedValues = ['do not include', 'replace']
+
+        # If the instructions are 'do not include', no further information is required
+        if outputStream == 'do not include': pass
+
+        # If the instructions are 'replace', further information is required.
+        elif outputStream == 'replace': self.checkStreamReplace(tool, longFormArgument, isInput = False)
+
+        # No other values are allowed.
+        else: self.errors.invalidValueArgumentStream(tool, longFormArgument, outputStream, allowedValues, isInput = False)
+
+    return True
+
+  # Check instructions on replacing arguments in the event of an input/output stream.
+  def checkStreamReplace(self, tool, longFormArgument, isInput):
+
+    # Check that the 'replace argument' field is present.
+    replaceArgument = self.argumentAttributes[tool][longFormArgument].replaceArgument
+    if not replaceArgument: self.errors.noReplace(tool, longFormArgument, isInput = isInput)
+
+    # If present, the replaceArgument field has already been checked to ensure that it is a dictionary.
+    # Now check that the 'argument' field is present and has a valid value and that the value field is
+    # present.
+    if 'argument' not in self.argumentAttributes[tool][longFormArgument].replaceArgument:
+      self.errors.missingAttributeInReplace(tool, longFormArgument, 'argument', isInput = isInput)
+    if 'value' not in self.argumentAttributes[tool][longFormArgument].replaceArgument:
+      self.errors.missingAttributeInReplace(tool, longFormArgument, 'value', isInput = isInput)
 
   # Check if there are any list values specified. If so, check the contents.
   def checkListValues(self, tool):

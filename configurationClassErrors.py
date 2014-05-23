@@ -353,6 +353,56 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
+  # If the instructions for replacing an argument in the event of a stream are invalid.
+  def invalidValueArgumentStream(self, tool, longFormArgument, value, allowedValues, isInput):
+    field = 'if input is stream' if isInput else 'if output to stream' 
+    io    = 'input' if isInput else 'output'
+    self.text.append('Invalid instructions for stream.')
+    self.text.append('The configuration file for tool \'' + tool + '\' contains information for the argument \'' + longFormArgument + '\'. This ' + \
+    'argument contains the \'' + field + '\' field, which describes how to modify the argument in the event that the ' + io + ' is a ' + \
+    'stream. The value accompanying this field \'' + value + '\' is not recognised. The allowed values for this field to take are:')
+    self.text.append('\t')
+
+    # Create a sorted list of the allowed attributes.
+    allowed = []
+    for value in allowedValues: allowed.append(value)
+
+    # Add the attributes to the text to be written along with the expected type.
+    for value in sorted(allowed): self.text.append(value)
+
+    self.text.append('\t')
+    self.text.append('Please remove or correct the invalid attribute in the configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # If the input/output argument has instructions on how to proceed with a stream and the value 'replace' is
+  # given to the 'if input is stream' or the 'if output to stream', instructions on what to replace the
+  # argument/value with are required. If these are missins, terminate.
+  def noReplace(self, tool, longFormArgument, isInput):
+    field = 'if input is stream' if isInput else 'if output to stream' 
+    io    = 'input' if isInput else 'output'
+    self.text.append('Invalid instructions for stream.')
+    self.text.append('The configuration file for tool \'' + tool + '\' contains information for the argument \'' + longFormArgument + '\'. This ' + \
+    'argument contains the \'' + field + '\' field, which describes how to modify the argument in the event that the ' + io + ' is a ' + \
+    'stream. The value accompanying this field is \'replace\', which means that instructions on what to replace the argument/value with are ' + \
+    'required. These instructions are missing in the configuration file. Please ensure that the \'replace argument with\' dictionary is included ' + \
+    'with the argument. This dictionary needs to contain the \'argument\' and \'value\' fields.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # If the 'replace argument with' dictionary is missing either the 'argument' or 'value' fields.
+  def missingAttributeInReplace(self, tool, longFormArgument, attribute, isInput):
+    field = 'if input is stream' if isInput else 'if output to stream' 
+    io    = 'input' if isInput else 'output'
+    self.text.append('Invalid instructions for stream.')
+    self.text.append('The configuration file for tool \'' + tool + '\' contains information for the argument \'' + longFormArgument + '\'. This ' + \
+    'argument contains the \'' + field + '\' field, which describes how to modify the argument in the event that the ' + io + ' is a ' + \
+    'stream. The value accompanying this field is \'replace\', which means that instructions on what to replace the argument/value with are ' + \
+    'required. The \'replace argument with\' dictionary provides these instructions, but the contained \'' + attribute + '\' attribute is ' + \
+    'missing. Please repair the configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
   # Given a value, return a string representation of the data type.
   def findType(self, providedType):
     if providedType == str: return 'string'
