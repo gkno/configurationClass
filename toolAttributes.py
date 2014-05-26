@@ -63,6 +63,9 @@ class toolAttributes:
     # according to this value. If not set, the tool is in the general group.
     self.helpGroup = 'General'
 
+    # If the tool has any arguments with commands to evaluate, record them.
+    self.argumentsWithCommands = []
+
 class argumentAttributes:
   def __init__(self):
 
@@ -863,8 +866,9 @@ class toolConfiguration:
           if allowedAttributes[attribute][1] and attribute not in observedAttributes:
             self.errors.missingAttributeInEvaluate(tool, longFormArgument, attribute)
 
-        # Set the command.
+        # Set the command and store this argument in the tool attributes.
         self.argumentAttributes[tool][longFormArgument].commandEvaluation.command = commandInformation['command']
+        self.attributes[tool].argumentsWithCommands.append(longFormArgument)
 
         # Loop over the values, check that they appear in he command and store them.
         if 'add values' in commandInformation:

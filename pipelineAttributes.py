@@ -693,10 +693,8 @@ class pipelineConfiguration:
 
   # Check if an argument is a pipeline argument.  If so, return the nodeID.
   def isArgumentAPipelineArgument(self, argument):
-    try: nodeID = self.pipelineArguments[argument].ID
+    try: return self.pipelineArguments[argument].ID
     except: return None
-
-    return nodeID
 
   # Check if a given a task and argument correspond to a pipeline argument. If so, return the
   # long and short forms.
