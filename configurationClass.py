@@ -753,6 +753,8 @@ class configurationMethods:
 
   # Set commands to evaluate at run time.
   def evaluateCommands(self, graph):
+
+    # Loop over all pipeline arguments with commands to evaluate at run time.
     for task in self.pipeline.evaluateCommands:
       tool = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
       for longFormArgument in self.pipeline.evaluateCommands[task]:
