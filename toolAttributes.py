@@ -148,6 +148,19 @@ class argumentAttributes:
     # to execution.
     self.terminateIfPresent = False
 
+    # If the argument has an argument to evaluate, store the instructions.
+    self.commandToEvaluate = None
+    self.commandEvaluation = commandEvaluation()
+
+class commandEvaluation:
+  def __init__(self):
+
+    # Store the command.
+    self.command = None
+
+    # Store the values included in the command.
+    self.values = {}
+
 class toolConfiguration:
   def __init__(self):
 
@@ -217,6 +230,10 @@ class toolConfiguration:
 
     # If any argument lists were provided, check the values.
     if success: success = self.checkListValues(tool)
+
+    # If any of the arguments require the evaluation of a command, check the command is
+    # correctly set up.
+    if success: success = self.checkCommands(tool)
 
     return success
 
@@ -402,6 +419,7 @@ class toolConfiguration:
     allowedAttributes['data type']                            = (str, True, 'dataType')
     allowedAttributes['description']                          = (str, True, 'description')
     allowedAttributes['directory']                            = (bool, False, 'isDirectory')
+    allowedAttributes['evaluate command']                     = (dict, False, 'commandToEvaluate')
     allowedAttributes['extensions']                           = (list, True, 'extensions')
     allowedAttributes['hide in help']                         = (bool, False, 'hideInHelp')
     allowedAttributes['include value in quotations']          = (bool, False, 'inQuotations')
@@ -812,6 +830,66 @@ class toolConfiguration:
           observedAttributes.append(attribute)
 
     return True
+
+  # Check the instructions on evaluating a command.
+  def checkCommands(self, tool):
+    allowedAttributes               = {}
+    allowedAttributes['command']    = (str, True)
+    allowedAttributes['add values'] = (list, False)
+
+    # Keep track of the observed attributes.
+    observedAttributes = []
+
+    for longFormArgument in self.argumentAttributes[tool]:
+      if self.argumentAttributes[tool][longFormArgument].commandToEvaluate:
+
+        # Loop over the evaluate command attributes.
+        commandInformation = self.argumentAttributes[tool][longFormArgument].commandToEvaluate
+        for attribute in commandInformation:
+          if attribute not in allowedAttributes: self.errors.invalidAttributeInEvaluate(tool, longFormArgument, attribute, allowedAttributes)
+
+          # Convert unicode values to strings.
+          if isinstance(commandInformation[attribute], unicode): commandInformation[attribute] = str(commandInformation[attribute])
+
+          # Check that the attribute has the correct type.
+          if not isinstance(commandInformation[attribute], allowedAttributes[attribute][0]):
+            self.errors.invalidTypeEvaluate(tool, longFormArgument, attribute, allowedAttributes[attribute][0])
+
+          # Store this attribute as observed.
+          observedAttributes.append(attribute)
+
+        # Check that all required attributes were present.
+        for attribute in allowedAttributes:
+          if allowedAttributes[attribute][1] and attribute not in observedAttributes:
+            self.errors.missingAttributeInEvaluate(tool, longFormArgument, attribute)
+
+        # Set the command.
+        self.argumentAttributes[tool][longFormArgument].commandEvaluation.command = commandInformation['command']
+
+        # Loop over the values, check that they appear in he command and store them.
+        if 'add values' in commandInformation:
+
+          # Keep track of the observed IDs. Each ID can only be defined once.
+          observedIDs = []
+          for valueDict in commandInformation['add values']:
+
+            # Get the ID that should appear in the command.
+            if 'ID' not in valueDict: self.errors.errorInEvaluateValues(tool, longFormArgument, 'ID')
+            if valueDict['ID'] not in commandInformation['command']: self.errors.invalidIDInEvaluate(tool, longFormArgument, valueDict['ID'])
+            if valueDict['ID'] in observedIDs: self.errors.IDDefinedMultipleTimesInEvaluate(tool, longFormArgument, valueDict['ID'])
+            observedIDs.append(valueDict['ID'])
+
+            # Get the argument (or tool) which this ID should be replaced by.
+            if 'argument' not in valueDict: self.errors.errorInEvaluateValues(tool, longFormArgument, 'argument')
+
+            # Check that the argument is a valid argument for this tool (or takes the value tool).
+            if valueDict['argument'] != 'tool':
+              if valueDict['argument'] not in self.argumentAttributes[tool]:
+                if valueDict['argument'] not in self.shortFormArguments[tool]:
+                  self.errors.invalidArgumentInEvaluate(tool, longFormArgument, valueDict['ID'], valueDict['argument'])
+                valueDict['argument'] = self.shortFormArguments[tool][valueDict['argument']]
+
+            self.argumentAttributes[tool][longFormArgument].commandEvaluation.values[valueDict['ID']] = valueDict['argument']
 
   # Get a tool argument attribute.
   def getGeneralAttribute(self, tool, attribute):

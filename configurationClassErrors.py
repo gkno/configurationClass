@@ -413,6 +413,86 @@ class configurationClassErrors:
     elif providedType == list: return 'list'
     else: return None
 
+  ##################################
+  # Errors with evaluate commands. #
+  ##################################
+
+  # The evaluate commands field contains an invalid attribute.
+  def invalidAttributeInEvaluate(self, tool, longFormArgument, attribute, allowedAttributes):
+    self.text.append('Invalid attribute in \'evaluate command\'.')
+    self.text.append('The configuration file for tool \'' + tool + '\' contains information for the argument \'' + longFormArgument + '\'. This ' + \
+    'argument contains the \'evaluate command\' field, which contains information on a command that is to be used instead of a value. The ' + \
+    'invalid attribute \'' + attribute + '\' appears in this section. Please ensure that this section only contains the attributes listed below:')
+    self.text.append('\t')
+    for allowedAttribute in allowedAttributes: self.text.append('\t' + allowedAttribute)
+    self.writeFormattedText()
+    self.terminate()
+
+  # If the attribute type is invalid.
+  def invalidTypeEvaluate(self, tool, longFormArgument, attribute, expectedType):
+    stringType = self.findType(expectedType)
+    self.text.append('Invalid attribute type in \'evaluate command\'.')
+    self.text.append('The configuration file for tool \'' + tool + '\' contains information for the argument \'' + longFormArgument + '\'. This ' + \
+    'argument contains the \'evaluate command\' field, which contains information on a command that is to be used instead of a value. The ' + \
+    'attribute \'' + attribute + '\' is of the wrong type (the expected type is \'' + stringType + '\'). Please ensure that all attributes ' + \
+    'are valid.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # If an attribute is missing.
+  def missingAttributeInEvaluate(self, tool, longFormArgument, attribute):
+    self.text.append('Missing attribute in \'evaluate command\'.')
+    self.text.append('The configuration file for tool \'' + tool + '\' contains information for the argument \'' + longFormArgument + '\'. This ' + \
+    'argument contains the \'evaluate command\' field, which contains information on a command that is to be used instead of a value. The ' + \
+    'required attribute \'' + attribute + '\' is missing. Please ensure that all required attributes are present.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # If a required attribute in the 'add values' section is missing.
+  def errorInEvaluateValues(self, tool, longFormArgument, attribute):
+    self.text.append('Missing attribute in \'evaluate command\', \'add values\' section.')
+    self.text.append('The configuration file for tool \'' + tool + '\' contains information for the argument \'' + longFormArgument + '\'. This ' + \
+    'argument contains the \'evaluate command\' field, which contains information on a command that is to be used instead of a value. The ' + \
+    '\'add values\' list is present, which includes both the \'ID\' and \'argument\' attributes. The \'ID\' is a string present in the ' + \
+    'command, and the \'argument\' is the argument whose value should be used in place of this ID. The \'' + attribute + '\' attribute is ' + \
+    'missing in at least one of the dictionaries in the \'add values\' section.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # One of the IDs in the 'add values' section is not present in the command.
+  def invalidIDInEvaluate(self, tool, longFormArgument, ID):
+    self.text.append('Invalid ID in the \'evaluate command\', \'add values\' section.')
+    self.text.append('The configuration file for tool \'' + tool + '\' contains information for the argument \'' + longFormArgument + '\'. This ' + \
+    'argument contains the \'evaluate command\' field, which contains information on a command that is to be used instead of a value. The ' + \
+    '\'add values\' list is present, which includes both the \'ID\' and \'argument\' attributes. The \'ID\' is a string present in the ' + \
+    'command, and the \'argument\' is the argument whose value should be used in place of this ID. The ID \'' + ID + '\' is not present in the ' + \
+    'command.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # An ID in the command has multiple appearances in the 'add values' section.
+  def IDDefinedMultipleTimesInEvaluate(self, tool, longFormArgument, ID):
+    self.text.append('ID defined multiple times in the \'evaluate command\', \'add values\' section.')
+    self.text.append('The configuration file for tool \'' + tool + '\' contains information for the argument \'' + longFormArgument + '\'. This ' + \
+    'argument contains the \'evaluate command\' field, which contains information on a command that is to be used instead of a value. The ' + \
+    '\'add values\' list is present, which includes both the \'ID\' and \'argument\' attributes. The \'ID\' is a string present in the ' + \
+    'command, and the \'argument\' is the argument whose value should be used in place of this ID. Each ID in the command should appear once ' + \
+    'and only once in the \'add values\' section, but the ID \'' + ID + '\' is define multiple times.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # Invalid argument in the 'add values' section.
+  def invalidArgumentInEvaluate(self, tool, longFormArgument, ID, argument):
+    self.text.append('Invalid argument in the \'evaluate command\', \'add values\' section.')
+    self.text.append('The configuration file for tool \'' + tool + '\' contains information for the argument \'' + longFormArgument + '\'. This ' + \
+    'argument contains the \'evaluate command\' field, which contains information on a command that is to be used instead of a value. The ' + \
+    '\'add values\' list is present, which includes both the \'ID\' and \'argument\' attributes. The \'ID\' is a string present in the ' + \
+    'command, and the \'argument\' is the argument whose value should be used in place of this ID. The argument must be a valid argument for ' + \
+    'this tool, or take the value \'tool\' which will replace the ID with the name of the tool. The argument \'' + argument + '\' given for the ' + \
+    'ID \'' + ID + '\' is not a valid argument.')
+    self.writeFormattedText()
+    self.terminate()
+
   ###################################################
   # Errors with filename construction instructions. #
   ###################################################
