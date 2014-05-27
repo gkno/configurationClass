@@ -740,15 +740,22 @@ class configurationMethods:
     for task in self.pipeline.workflow:
       totalNumber = 0
       isGreedy    = False
+      hasMultipleInputFiles = False
       for nodeID in self.nodeMethods.getPredecessorOptionNodes(graph, task):
         numberOfDataSets = len(self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values'))
+        isInput          = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'isInput')
+        if isInput and numberOfDataSets > 1: hasMultipleInputFiles = True
         if numberOfDataSets > totalNumber: totalNumber = numberOfDataSets
 
         # Check if this option is greedy. If the task has a greedy argument, then the number
-        # of data sets is one.
+        # of data sets is one. This is only true if the input argument with multiple values is a 
+        # file. For example, if there is a single input file and multiple parameters, there will
+        # be multiple output files, even though the task is greedy.
         if self.edgeMethods.getEdgeAttribute(graph, nodeID, task, 'isGreedy'): isGreedy = True
 
-      if isGreedy: self.nodeMethods.setGraphNodeAttribute(graph, task, 'numberOfDataSets', 1)
+      # If the task is greedy, check which argument has multiple values. If it is a file, then
+      # the number of data sets is one.
+      if isGreedy and hasMultipleInputFiles: self.nodeMethods.setGraphNodeAttribute(graph, task, 'numberOfDataSets', 1)
       else: self.nodeMethods.setGraphNodeAttribute(graph, task, 'numberOfDataSets', totalNumber)
 
   # Set commands to evaluate at run time.
