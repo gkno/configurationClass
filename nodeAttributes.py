@@ -299,8 +299,11 @@ class nodeClass:
       # If the node to which this argument points has not been defined, no edge linking the node
       # to the task will be found.  Thus, the node and edge need to be created.
       if not foundArgument:
-        attributes        = self.buildNodeFromToolConfiguration(config.tools, tool, taskArgument)
-        predecessorNodeID = self.buildOptionNode(graph, config.tools, task, tool, taskArgument, attributes)
+
+        # Check if the taskArgument is an argument list. If so, a node should not be created.
+        if not config.tools.getArgumentAttribute(tool, taskArgument, 'listValues'):
+          attributes        = self.buildNodeFromToolConfiguration(config.tools, tool, taskArgument)
+          predecessorNodeID = self.buildOptionNode(graph, config.tools, task, tool, taskArgument, attributes)
 
       # Set the nodeID to a graph nodeID.
       config.pipeline.pipelineArguments[argument].ID = predecessorNodeID
