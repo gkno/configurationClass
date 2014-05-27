@@ -895,6 +895,8 @@ class toolConfiguration:
 
             self.argumentAttributes[tool][longFormArgument].commandEvaluation.values[valueDict['ID']] = valueDict['argument']
 
+    return True
+
   # Get a tool argument attribute.
   def getGeneralAttribute(self, tool, attribute):
     try: value = getattr(self.attributes[tool], attribute)
