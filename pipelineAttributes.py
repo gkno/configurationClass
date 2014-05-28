@@ -30,7 +30,10 @@ class pipelineAttributes:
     # As with the tools, untested pipelines can be listed as experimental until they
     # have been refined. This ensures that  users are aware that the pipeline should
     # be used with caution.
-    self.isExperimental = False
+    self.isDevelopmental = False
+
+    # If the pipeline should be hidden in the help.
+    self.isHiddenInHelp = False
 
 # Define a class to store task attribtues.
 class taskAttributes:
@@ -169,12 +172,13 @@ class pipelineConfiguration:
     attributes = pipelineAttributes()
 
     # Define the allowed general attributes.
-    allowedAttributes                 = {}
-    allowedAttributes['description']  = (str, True, True, 'description')
-    allowedAttributes['experimental'] = (bool, False, True, 'isExperimental')
-    allowedAttributes['instances']    = (list, True, False, None)
-    allowedAttributes['nodes']        = (list, True, False, None)
-    allowedAttributes['tasks']        = (dict, True, False, None)
+    allowedAttributes                  = {}
+    allowedAttributes['description']   = (str, True, True, 'description')
+    allowedAttributes['developmental'] = (bool, False, True, 'isDevelopmental')
+    allowedAttributes['hide in help']  = (bool, False, True, 'isHiddenInHelp')
+    allowedAttributes['instances']     = (list, True, False, None)
+    allowedAttributes['nodes']         = (list, True, False, None)
+    allowedAttributes['tasks']         = (dict, True, False, None)
 
     # Keep track of the observed required values.
     observedAttributes = {}
