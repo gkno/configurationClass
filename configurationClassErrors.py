@@ -1391,11 +1391,16 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
-  def unsetFile(self, pipelineLongFormArgument, pipelineShortFormArgument, description):
+  def unsetFile(self, pipelineLongFormArgument, pipelineShortFormArgument, description, validAlternatives):
     self.text.append('The required command line argument ' + pipelineLongFormArgument + ' (' + pipelineShortFormArgument + ') is missing.')
-    self.text.append('This argument is described as the following: ' + description)
+    if validAlternatives:
+      self.text.append('This argument is described as \'' + description + '\' and can also be set by using one of the following arguments:')
+      self.text.append('\t')
+      for alternative in validAlternatives: self.text.append(alternative)
+    else:
+      self.text.append('This argument is described as \'' + description + '\'.')
     self.text.append('\t')
-    self.text.append('Check the usage information for all required arguments.')
+    self.text.append('Please ensure that all required arguments have been set.')
     self.writeFormattedText()
     self.terminate()
 

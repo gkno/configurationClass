@@ -291,7 +291,7 @@ class configurationMethods:
     # If the node has been created, find the associated file node IDs. If the node has not yet been 
     # created in the graph, this is unnecessary.
     if nodeID != None:
-      fileNodeIDs      = self.nodeMethods.getAssociatedFileNodeIDs(graph, nodeID)
+      fileNodeIDs = self.nodeMethods.getAssociatedFileNodeIDs(graph, nodeID)
 
       if len(mergeFileNodeIDs) != 1 or len(fileNodeIDs) != 1:
         #TODO SORT ERROR.
@@ -529,10 +529,14 @@ class configurationMethods:
           taskLongFormArgument                                = self.edgeMethods.getEdgeAttribute(graph, fileNodeID, task, 'longFormArgument')
           taskShortFormArgument                               = self.edgeMethods.getEdgeAttribute(graph, fileNodeID, task, 'shortFormArgument')
           pipelineLongFormArgument, pipelineShortFormArgument = self.pipeline.getPipelineArgument(task, taskLongFormArgument)
-          if not pipelineLongFormArgument: print('NOT HANDLED - configurationClass.checkRequiredFiles'); self.errors.terminate()
+          if not self.isPipeline:
+            description       = self.tools.getArgumentAttribute(task, taskLongFormArgument, 'description')
+            validAlternatives = self.tools.getArgumentAttribute(task, taskLongFormArgument, 'canBeSetByArgument')
+            self.errors.unsetFile(taskLongFormArgument, taskShortFormArgument, description, validAlternatives)
+          elif not pipelineLongFormArgument: print('NOT HANDLED - configurationClass.checkRequiredFiles'); self.errors.terminate()
           else:
             description = self.pipeline.pipelineArguments[pipelineLongFormArgument].description
-            self.errors.unsetFile(pipelineLongFormArgument, pipelineShortFormArgument, description)
+            self.errors.unsetFile(pipelineLongFormArgument, pipelineShortFormArgument, description, [])
 
   # Determine all of the graph dependencies.  This is essentially
   def getGraphDependencies(self, graph, taskList, key):
@@ -961,4 +965,4 @@ class configurationMethods:
         if self.pipeline.nodeAttributes[self.pipeline.pipelineArguments[longFormArgument].configNodeID].evaluateCommand: isSet = True
 
         # If the argument was not set, terminate.
-        if not isSet: self.errors.unsetFile(longFormArgument, shortFormArgument, description)
+        if not isSet: self.errors.unsetFile(longFormArgument, shortFormArgument, description, [])
