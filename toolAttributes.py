@@ -155,6 +155,11 @@ class argumentAttributes:
     self.commandToEvaluate = None
     self.commandEvaluation = commandEvaluation()
 
+    # If another argument can be used to set this argument, store the argument. For example,
+    # the argument may require an input file, but another tool argument defines a list of
+    # input files that will use this argument.
+    self.canBeSetByArgument = []
+
 class commandEvaluation:
   def __init__(self):
 
@@ -237,6 +242,10 @@ class toolConfiguration:
     # If any of the arguments require the evaluation of a command, check the command is
     # correctly set up.
     if success: success = self.checkCommands(tool)
+
+    # Check if any of the arguments are input lists. If so, connect these to the arguments
+    # that they use.
+    if success: success = self.connectArguments(tool)
 
     return success
 
@@ -824,6 +833,9 @@ class toolConfiguration:
               value = longFormValue
             self.argumentAttributes[tool][longFormArgument].listArgument = value
 
+            # This argument can be used to set the argument defined in 'use argument'. Store this fact.
+            self.argumentAttributes[tool][value].canBeSetByArgument.append(str(longFormArgument))
+
           # If the attribute is 'mode', check that the supplied value is allowed.
           if attribute == 'mode':
             if value not in allowedModes: self.errors.invalidModeInList(tool, longFormArgument, value, allowedModes)
@@ -894,6 +906,14 @@ class toolConfiguration:
                 valueDict['argument'] = self.shortFormArguments[tool][valueDict['argument']]
 
             self.argumentAttributes[tool][longFormArgument].commandEvaluation.values[valueDict['ID']] = valueDict['argument']
+
+    return True
+
+  # Connect argument lists to the arguments they use.
+  def connectArguments(self, tool):
+    for longFormArgument in self.argumentAttributes[tool]:
+      if self.argumentAttributes[tool][longFormArgument].isInputList:
+        self.argumentAttributes[tool][self.argumentAttributes[tool][longFormArgument].repeatArgument].canBeSetByArgument.append(str(longFormArgument))
 
     return True
 
