@@ -535,8 +535,14 @@ class configurationMethods:
             self.errors.unsetFile(taskLongFormArgument, taskShortFormArgument, description, validAlternatives)
           elif not pipelineLongFormArgument: print('NOT HANDLED - configurationClass.checkRequiredFiles'); self.errors.terminate()
           else:
-            description = self.pipeline.pipelineArguments[pipelineLongFormArgument].description
-            self.errors.unsetFile(pipelineLongFormArgument, pipelineShortFormArgument, description, [])
+            tool                 = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
+            description          = self.pipeline.pipelineArguments[pipelineLongFormArgument].description
+            validAlternatives    = self.tools.getArgumentAttribute(tool, taskLongFormArgument, 'canBeSetByArgument')
+            pipelineAlternatives = []
+            for alternative in validAlternatives:
+              pipelineLongFormAlternative, pipelineShortFormAlternative = self.pipeline.getPipelineArgument(task, alternative)
+              pipelineAlternatives.append(pipelineLongFormAlternative)
+            self.errors.unsetFile(pipelineLongFormArgument, pipelineShortFormArgument, description, pipelineAlternatives)
 
   # Determine all of the graph dependencies.  This is essentially
   def getGraphDependencies(self, graph, taskList, key):
