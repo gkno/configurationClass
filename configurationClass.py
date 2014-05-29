@@ -532,17 +532,20 @@ class configurationMethods:
           if not self.isPipeline:
             description       = self.tools.getArgumentAttribute(task, taskLongFormArgument, 'description')
             validAlternatives = self.tools.getArgumentAttribute(task, taskLongFormArgument, 'canBeSetByArgument')
-            self.errors.unsetFile(taskLongFormArgument, taskShortFormArgument, description, validAlternatives)
+            alternatives      = []
+            for alternative in validAlternatives:
+              alternatives.append((alternative, self.tools.longFormArguments[task][alternative]))
+            self.errors.unsetFile(taskLongFormArgument, taskShortFormArgument, description, alternatives)
           elif not pipelineLongFormArgument: print('NOT HANDLED - configurationClass.checkRequiredFiles'); self.errors.terminate()
           else:
-            tool                 = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
-            description          = self.pipeline.pipelineArguments[pipelineLongFormArgument].description
-            validAlternatives    = self.tools.getArgumentAttribute(tool, taskLongFormArgument, 'canBeSetByArgument')
-            pipelineAlternatives = []
+            tool              = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
+            description       = self.pipeline.pipelineArguments[pipelineLongFormArgument].description
+            validAlternatives = self.tools.getArgumentAttribute(tool, taskLongFormArgument, 'canBeSetByArgument')
+            alternatives      = []
             for alternative in validAlternatives:
               pipelineLongFormAlternative, pipelineShortFormAlternative = self.pipeline.getPipelineArgument(task, alternative)
-              pipelineAlternatives.append(pipelineLongFormAlternative)
-            self.errors.unsetFile(pipelineLongFormArgument, pipelineShortFormArgument, description, pipelineAlternatives)
+              alternatives.append((pipelineLongFormAlternative, pipelineShortFormAlternative))
+            self.errors.unsetFile(pipelineLongFormArgument, pipelineShortFormArgument, description, alternatives)
 
   # Determine all of the graph dependencies.  This is essentially
   def getGraphDependencies(self, graph, taskList, key):
