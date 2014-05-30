@@ -120,8 +120,6 @@ class argumentAttributes:
 
     # If the argument is an inputList, it must also include information on the tool argument
     # that is set using all the values in the list.
-    self.isInputList    = False
-    self.repeatArgument = None # FIXME Remove when all files converted to 'list argument' field.
     self.listValues     = None
     self.listArgument   = None
     self.listMode       = None
@@ -444,7 +442,6 @@ class toolConfiguration:
 
     # Set attributes that are specific to particular groups.
     if groupName == 'inputs' or groupName == 'outputs':
-      allowedAttributes['apply by repeating this argument'] = (str, False, 'repeatArgument')
       allowedAttributes['construct filename']               = (dict, False, 'constructionInstructions')
       allowedAttributes['filename extensions']              = (list, False, 'filenameExtensions')
       allowedAttributes['is filename stub']                 = (bool, False, 'isFilenameStub')
@@ -455,7 +452,6 @@ class toolConfiguration:
     if groupName == 'inputs':
       allowedAttributes['if input is stream']           = (str, False, 'inputStream')
       allowedAttributes['is stream']                    = (bool, False, 'isStream')
-      allowedAttributes['list of input files']          = (bool, False, 'isInputList')
       allowedAttributes['suggestible']                  = (bool, False, 'isSuggestible')
       allowedAttributes['include path on command line'] = (bool, False, 'includePathOnCommandLine')
 
@@ -909,11 +905,17 @@ class toolConfiguration:
 
     return True
 
+  #TODO IS THIS NEEDED. VALUES ADDED EARLIER.
   # Connect argument lists to the arguments they use.
   def connectArguments(self, tool):
+
+    # Loop over all arguments for the tool.
     for longFormArgument in self.argumentAttributes[tool]:
-      if self.argumentAttributes[tool][longFormArgument].isInputList:
-        self.argumentAttributes[tool][self.argumentAttributes[tool][longFormArgument].repeatArgument].canBeSetByArgument.append(str(longFormArgument))
+
+      # If the argument is an argument list, connect it to the repeated argument.
+      if self.argumentAttributes[tool][longFormArgument].listArgument:
+        if longFormArgument not in self.argumentAttributes[tool][self.argumentAttributes[tool][longFormArgument].listArgument].canBeSetByArgument:
+          self.argumentAttributes[tool][self.argumentAttributes[tool][longFormArgument].listArgument].canBeSetByArgument.append(str(longFormArgument))
 
     return True
 
@@ -974,7 +976,9 @@ class toolConfiguration:
   def getLongFormArgument(self, tool, argument, allowTermination = True):
 
     # Check that the tool is valid.
-    if tool not in self.longFormArguments: self.errors.missingToolInGetLongFormArgument(tool)
+    if tool not in self.longFormArguments:
+      if allowTermination: self.errors.missingToolInGetLongFormArgument(tool)
+      else: return None
 
     # If the argument is already in its long form, return the argument.
     if argument in self.longFormArguments[tool]: return argument
