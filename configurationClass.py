@@ -442,8 +442,8 @@ class configurationMethods:
     for node in self.instances.instanceAttributes[pipelineName][instanceName].nodes:
 
       # Get the long form of the argument.
-      longFormArgument = self.pipeline.getLongFormArgument(graph, node.argument)
-      configNodeID     = self.pipeline.pipelineArguments[longFormArgument].configNodeID
+      longFormArgument, shortFormArgument = self.pipeline.getLongFormArgument(graph, node.argument)
+      configNodeID                        = self.pipeline.pipelineArguments[longFormArgument].configNodeID
 
       # Check all of the available pipeline arguments and find the node ID of the node which
       # this instance node is trying to set.

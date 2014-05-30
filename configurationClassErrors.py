@@ -1386,8 +1386,7 @@ class configurationClassErrors:
   # An unknown command line argument was requested,
   def unknownPipelineArgument(self, argument):
     self.text.append('Unknown pipeline argument: ' + argument)
-    text = 'The argument \'' + argument + '\' was included on the command line, but is not a valid argument for this pipeline.'
-    self.text.append(text)
+    self.text.append('The argument \'' + argument + '\' was included on the command line, but is not a valid argument for this pipeline.')
     self.writeFormattedText()
     self.terminate()
 

@@ -70,10 +70,20 @@ class evaluateCommandAttributes:
 # Define a class to store pipeline argument attributes.
 class argumentAttributes:
   def __init__(self):
-    self.description       = None
-    self.isRequired        = False
-    self.ID                = None
-    self.configNodeID      = None
+
+    # A description of the argument.
+    self.description = None
+
+    # If the argument is required by the pipeline, even if not by the tool.
+    self.isRequired = False
+
+    #
+    self.ID = None
+
+    # The node ID in the configuration file.
+    self.configNodeID = None
+
+    # The arguments short form.
     self.shortFormArgument = None
 
 class pipelineConfiguration:
@@ -108,11 +118,13 @@ class pipelineConfiguration:
     self.workflow = []
 
     # Define a dictionary to store information about extensions.
-    self.linkedExtension     = {}
+    self.linkedExtension = {}
 
     # Define a structure that links the task and argument described in the 'tasks' list in
-    # the nodes section with the pipeline argument.
-    self.taskArgument = {}
+    # the nodes section with the pipeline argument. Also define the reverse, that provides
+    # a list of all tasks and respective arguments for each pipeline argument.
+    self.taskArgument           = {}
+    self.pipelineToTaskArgument = {}
 
     # Keep track of tasks that output to the stream
     self.tasksOutputtingToStream = {}
@@ -516,9 +528,16 @@ class pipelineConfiguration:
             else: return False
 
           # Link the pipeline argument to the task/arguments listed with the node.
-          taskArgument = self.nodeAttributes[configNodeID].tasks[task]
+          taskArgument     = self.nodeAttributes[configNodeID].tasks[task]
+          longFormArgument = self.nodeAttributes[configNodeID].longFormArgument
           if task not in self.taskArgument: self.taskArgument[task] = {}
-          self.taskArgument[task][taskArgument] = self.nodeAttributes[configNodeID].longFormArgument
+
+          # If there is no long form argument, store None in taskArguments and nothing in pipelineToTaskArgument.
+          if longFormArgument:
+            self.taskArgument[task][str(taskArgument)] = str(longFormArgument)
+            if str(longFormArgument) not in self.pipelineToTaskArgument: self.pipelineToTaskArgument[str(longFormArgument)] = []
+            self.pipelineToTaskArgument[str(longFormArgument)].append((str(task), str(taskArgument)))
+          else: self.taskArgument[task][str(taskArgument)] = None
 
           # Store the task and argument.
           self.commonNodes[configNodeID].append((str(task), str(taskArgument)))
@@ -544,8 +563,13 @@ class pipelineConfiguration:
 
           # Link the pipeline argument to the task/arguments listed with the node.
           if task not in self.taskArgument: self.taskArgument[task] = {}
-          taskArgument = self.nodeAttributes[configNodeID].greedyTasks[task]
-          self.taskArgument[task][str(taskArgument)] = self.nodeAttributes[configNodeID].longFormArgument
+          taskArgument     = self.nodeAttributes[configNodeID].greedyTasks[task]
+          longFormArgument = self.nodeAttributes[configNodeID].longFormArgument
+          if longFormArgument:
+            self.taskArgument[task][str(taskArgument)] = self.nodeAttributes[configNodeID].longFormArgument
+            if str(longFormArgument) not in self.pipelineToTaskArgument: self.pipelineToTaskArgument[str(longFormArgument)] = []
+            self.pipelineToTaskArgument[str(longFormArgument)].append((str(task), str(taskArgument)))
+          else: self.taskArgument[task][str(taskArgument)] = None
 
           # Store the task and argument.
           self.commonNodes[configNodeID].append((str(task), str(taskArgument)))
@@ -686,14 +710,16 @@ class pipelineConfiguration:
     return value
 
   # Get the long form argument for a command given on the command line.
-  def getLongFormArgument(self, graph, argument):
+  def getLongFormArgument(self, graph, argument, allowTermination = True):
 
     # Check if the argument is a pipeline argument (as defined in the configuration file).
     for pipelineArgument in self.pipelineArguments:
-      if pipelineArgument == argument: return pipelineArgument
-      elif self.pipelineArguments[pipelineArgument].shortFormArgument == argument: return pipelineArgument
+      if pipelineArgument == argument: return pipelineArgument, self.pipelineArguments[pipelineArgument].shortFormArgument
+      elif self.pipelineArguments[pipelineArgument].shortFormArgument == argument: return pipelineArgument, argument
 
-    self.errors.unknownPipelineArgument(argument)
+    if allowTermination: self.errors.unknownPipelineArgument(argument)
+
+    return None, None
 
   # Check if an argument is a pipeline argument.  If so, return the nodeID.
   def isArgumentAPipelineArgument(self, argument):
