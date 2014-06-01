@@ -35,6 +35,9 @@ class pipelineAttributes:
     # If the pipeline should be hidden in the help.
     self.isHiddenInHelp = False
 
+    # Define the help groups to which pipelines belong.
+    self.helpGroup = 'General'
+
 # Define a class to store task attribtues.
 class taskAttributes:
   def __init__(self):
@@ -187,6 +190,7 @@ class pipelineConfiguration:
     allowedAttributes                  = {}
     allowedAttributes['description']   = (str, True, True, 'description')
     allowedAttributes['developmental'] = (bool, False, True, 'isDevelopmental')
+    allowedAttributes['help group']    = (str, False, True, 'helpGroup')
     allowedAttributes['hide in help']  = (bool, False, True, 'isHiddenInHelp')
     allowedAttributes['instances']     = (list, True, False, None)
     allowedAttributes['nodes']         = (list, True, False, None)
