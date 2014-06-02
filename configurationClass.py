@@ -514,7 +514,7 @@ class configurationMethods:
   # Check that all required files and values have been set. All files and parameters that are listed as
   # required by the individual tools should already have been checked, but if the pipeline has some
   # additional requirements, these may not yet have been checked.
-  def checkRequiredFiles(self, graph):
+  def checkRequiredFiles(self, graph, gknoConfig):
 
     # Loop over all of the tasks in the pipeline.
     for task in self.pipeline.workflow:
@@ -528,9 +528,18 @@ class configurationMethods:
           # Get the long and short form of the argument.
           taskLongFormArgument                                = self.edgeMethods.getEdgeAttribute(graph, fileNodeID, task, 'longFormArgument')
           taskShortFormArgument                               = self.edgeMethods.getEdgeAttribute(graph, fileNodeID, task, 'shortFormArgument')
+
+          # CHeck to see if this argument can be constructed.
+          tool                                  = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
+          cLongFormArgument, cShortFormArgument = gknoConfig.construct.canToolArgumentBeConstructed(graph, self, tool, taskLongFormArgument)
+          if cLongFormArgument:
+            taskLongFormArgument  = cLongFormArgument
+            taskShortFormArgument = cShortFormArgument
+
+          # Check if there are pipeline arguments for the missing argument.
           pipelineLongFormArgument, pipelineShortFormArgument = self.pipeline.getPipelineArgument(task, taskLongFormArgument)
+
           if not self.isPipeline or not pipelineLongFormArgument:
-            tool              = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
             description       = self.tools.getArgumentAttribute(tool, taskLongFormArgument, 'description')
             validAlternatives = self.tools.getArgumentAttribute(tool, taskLongFormArgument, 'canBeSetByArgument')
             alternatives      = []
@@ -538,7 +547,6 @@ class configurationMethods:
               alternatives.append((alternative, self.tools.longFormArguments[tool][alternative]))
             self.errors.unsetFile(taskLongFormArgument, taskShortFormArgument, description, alternatives, self.isPipeline)
           else:
-            tool              = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
             description       = self.pipeline.pipelineArguments[pipelineLongFormArgument].description
             validAlternatives = self.tools.getArgumentAttribute(tool, taskLongFormArgument, 'canBeSetByArgument')
             alternatives      = []
