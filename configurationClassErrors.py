@@ -1390,7 +1390,7 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
-  def unsetFile(self, longFormArgument, shortFormArgument, description, validAlternatives):
+  def unsetFile(self, longFormArgument, shortFormArgument, description, validAlternatives, isPipeline):
     self.text.append('The required command line argument ' + longFormArgument + ' (' + shortFormArgument + ') is missing.')
     if validAlternatives:
       self.text.append('This argument is described as \'' + description + '\' and can also be set by using one of the following arguments:')
@@ -1399,7 +1399,12 @@ class configurationClassErrors:
     else:
       self.text.append('This argument is described as \'' + description + '\'.')
     self.text.append('\t')
-    self.text.append('Please ensure that all required arguments have been set.')
+    if isPipeline:
+      self.text.append('There is not pipeline argument available to set this argument. Please ensure that required arguments are available ' + \
+      'as pipeline arguments, or set the tool argument using the syntax:')
+      self.text.append('\t')
+      self.text.append('gkno pipe <pipeline> --<tool> [' + longFormArgument + ' [value]].')
+    else: self.text.append('Please ensure that all required arguments have been set.')
     self.writeFormattedText()
     self.terminate()
 
