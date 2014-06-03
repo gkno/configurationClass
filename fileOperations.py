@@ -23,13 +23,17 @@ class fileOperations:
 
   # Open a configuration file and store the contents of the file in the
   # configuration dictionary.
-  def readConfigurationFile(self, filename):
+  def readConfigurationFile(self, filename, allowTermination = True):
     try: jsonData = open(filename)
-    except: self.errors.missingFile(filename)
+    except:
+      if allowTermination: self.errors.missingFile(filename)
+      else: return False
 
     try: configurationData = json.load(jsonData)
     except:
-      exc_type, exc_value, exc_traceback = sys.exc_info()
-      self.errors.jsonError(exc_value, filename)
+      if allowTermination:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        self.errors.jsonError(exc_value, filename)
+      else: return False
 
     return configurationData
