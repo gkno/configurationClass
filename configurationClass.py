@@ -573,24 +573,25 @@ class configurationMethods:
         # get all of the values, otherwise, just get those with the specified key.
         if not hasPredecessor:
           values = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values')
-          if key == 'all':
-            for iteration in values.keys():
-              for value in values[iteration]: dependencies.append((fileNodeID, value))
-
-          # Just get values for a particular key.
-          elif key in values:
-            for value in values[key]: dependencies.append((fileNodeID, value))
-
-          # TODO CHECK
-          elif key not in values and key != 1:
-             for value in values[1]: dependencies.append((fileNodeID, value))
-
-          # If the key is unknown, fail.
-          #TODO Errors.
-          else:
-            print('UNKNOWN KEY: configurationClass.getGraphDependencies', key)
-            print(values)
-            self.errors.terminate()
+          if values:
+            if key == 'all':
+              for iteration in values.keys():
+                for value in values[iteration]: dependencies.append((fileNodeID, value))
+  
+            # Just get values for a particular key.
+            elif key in values:
+              for value in values[key]: dependencies.append((fileNodeID, value))
+  
+            # TODO CHECK
+            elif key not in values and key != 1:
+               for value in values[1]: dependencies.append((fileNodeID, value))
+  
+            # If the key is unknown, fail.
+            #TODO Errors.
+            else:
+              print('UNKNOWN KEY: configurationClass.getGraphDependencies', key)
+              print(values)
+              self.errors.terminate()
 
     return dependencies
 
