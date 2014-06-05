@@ -765,7 +765,7 @@ class configurationMethods:
       hasMultipleInputFiles = False
       for nodeID in self.nodeMethods.getPredecessorOptionNodes(graph, task):
         numberOfDataSets = len(self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values'))
-        isInput          = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'isInput')
+        isInput          = self.edgeMethods.getEdgeAttribute(graph, nodeID, task, 'isInput')
         if isInput and numberOfDataSets > 1: hasMultipleInputFiles = True
         if numberOfDataSets > totalNumber: totalNumber = numberOfDataSets
 
