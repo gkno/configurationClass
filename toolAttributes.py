@@ -135,7 +135,8 @@ class argumentAttributes:
     self.isDirectory = False
 
     # Keep track of required arguments.
-    self.isRequired               = False
+    self.isRequired          = False
+    self.isRequiredIfStream  = None
 
     # Some argument require the values to be in quotation marks on the command line. Store if this
     # is the case.
@@ -436,6 +437,7 @@ class toolConfiguration:
     allowedAttributes['long form argument']                   = (str, True, 'longFormArgument')
     allowedAttributes['modify argument name on command line'] = (str, False, 'modifyArgument')
     allowedAttributes['required']                             = (bool, False, 'isRequired')
+    allowedAttributes['required if stream']                   = (bool, False, 'isRequiredIfStream')
     allowedAttributes['short form argument']                  = (str, False, 'shortFormArgument')
     allowedAttributes['terminate if present']                 = (bool, False, 'terminateIfPresent')
     allowedAttributes['include path from argument']           = (str, False, 'pathArgument')

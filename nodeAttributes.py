@@ -256,19 +256,28 @@ class nodeClass:
   # ways.  If any of the edges beginning at the option node correspond to a tool argument that is 
   # listed as required by the tool, or if the node corresponds to a command line argument that is 
   # listed as required.  If the node is a required pipeline argument, set it as required.
-  def setRequiredNodes(self, graph, tools): 
+  def setRequiredNodes(self, graph, tools, workflow): 
+
+    # Keep track of the output of the previous task. If the previous task output to a stream, then
+    # the current task has a stream as input.
+    previousTaskOutputToStream = False
  
-    # Loop over all data nodes. 
-    for nodeID in graph.nodes(data = False): 
-      nodeType = self.getGraphNodeAttribute(graph, nodeID, 'nodeType') 
-      if nodeType == 'option': 
-        for edge in graph.edges(nodeID): 
-          task           = edge[1] 
-          associatedTool = self.getGraphNodeAttribute(graph, task, 'tool') 
-          toolArgument   = self.edgeMethods.getEdgeAttribute(graph, nodeID, task, 'longFormArgument') 
-          isRequired     = self.getGraphNodeAttribute(graph, nodeID, 'isRequired') 
-          if isRequired: self.setGraphNodeAttribute(graph, nodeID, 'isRequired', True) 
-          break
+    # Loop over all of the tasks in the pipeline.
+    for task in workflow:
+      tool           = self.getGraphNodeAttribute(graph, task, 'tool') 
+      isOutputStream = self.getGraphNodeAttribute(graph, task, 'outputStream')
+      isInputStream  = previousTaskOutputToStream
+      previousTaskOutputToStream = True if isOutputStream else False
+      for optionNodeID in self.getPredecessorOptionNodes(graph, task):
+        longFormArgument = self.edgeMethods.getEdgeAttribute(graph, optionNodeID, task, 'longFormArgument') 
+        isRequired       = self.getGraphNodeAttribute(graph, optionNodeID, 'isRequired') 
+
+        # Check if the attribute 'isRequiredIfStream' is set. If so, and this is false, check if the input
+        # is a stream. If so, do not set this node as being required.
+        isRequiredIfStream = None
+        if longFormArgument: isRequiredIfStream = tools.getArgumentAttribute(tool, longFormArgument, 'isRequiredIfStream')
+        if isInputStream and isRequiredIfStream != None: self.setGraphNodeAttribute(graph, optionNodeID, 'isRequired', isRequiredIfStream)
+        elif isRequired: self.setGraphNodeAttribute(graph, optionNodeID, 'isRequired', True) 
 
   # Check if a node exists based on a task and an argument.
   def doesNodeExist(self, graph, task, argument):

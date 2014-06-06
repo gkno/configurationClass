@@ -670,23 +670,25 @@ class configurationMethods:
   # Deterrmine when each intermediate file is last used,
   def setWhenToDeleteFiles(self, graph, intermediates):
     deleteList = {}
-    for nodeID, filename in intermediates:
-
-      # Find the successor task nodes.
-      successorNodeIDs = graph.successors(nodeID)
-
-      # Determine which of these tasks comes last in the workflow.
-      for task in reversed(self.pipeline.workflow):
-        if task in successorNodeIDs: break
-
-      # Store the task when the file can be deleted.
-      if filename in deleteList:
-        # TODO ERROR
-        print('SAME FILENAME', filename, 'appears multiple times in the list of intermediate files - setWhenToDeleteFiles')
-        self.errors.terminate()
-
-      if task not in deleteList: deleteList[task] = []
-      deleteList[task].append(filename)
+    for counter in intermediates:
+      for nodeID, filename in intermediates[counter]:
+  
+        # Find the successor task nodes.
+        successorNodeIDs = graph.successors(nodeID)
+  
+        # Determine which of these tasks comes last in the workflow.
+        for task in reversed(self.pipeline.workflow):
+          if task in successorNodeIDs: break
+  
+        # Store the task when the file can be deleted.
+        if filename in deleteList:
+          # TODO ERROR
+          print('SAME FILENAME', filename, 'appears multiple times in the list of intermediate files - setWhenToDeleteFiles')
+          self.errors.terminate()
+  
+        if task not in deleteList: deleteList[task] = {}
+        if counter not in deleteList[task]: deleteList[task][counter] = []
+        deleteList[task][counter].append(filename)
 
     return deleteList
 
