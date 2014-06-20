@@ -755,16 +755,14 @@ class toolConfiguration:
       # If this has details on how to proceed if the input is a stream, ensure that the accompanying
       # data is valid.
       if inputStream:
-        allowedValues = ['do not include', 'replace']
-
-        # If the instructions are 'do not include', no further information is required
-        if inputStream == 'do not include': pass
+        allowedValues = ['do not include', 'replace', 'omit']
 
         # If the instructions are 'replace', further information is required.
-        elif inputStream == 'replace': self.checkStreamReplace(tool, longFormArgument, isInput = True)
+        if inputStream == 'replace': self.checkStreamReplace(tool, longFormArgument, isInput = True)
 
         # No other values are allowed.
-        else: self.errors.invalidValueArgumentStream(tool, longFormArgument, inputStream, allowedValues, isInput = True)
+        elif inputStream not in allowedValues:
+          self.errors.invalidValueArgumentStream(tool, longFormArgument, inputStream, allowedValues, isInput = True)
 
       # If this has details on how to proceed if the output is a stream, ensure that the accompanying
       # data is valid.

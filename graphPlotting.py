@@ -31,7 +31,7 @@ class drawGraph():
 
   # Plot a dot file. Either the option, file or all nodes are plotted (gkno specific
   # nodes are removed).
-  def drawDot(self, graph, config, filename):
+  def drawDot(self, graph, config, filename, nodes = 'all'):
     graphToDraw = graph.copy()
 
     # Define a dictionary for containing mapping information for the nodes.  This will
@@ -42,97 +42,32 @@ class drawGraph():
     fileNodeIDs   = config.nodeMethods.getNodes(graphToDraw, 'file')
     optionNodeIDs = config.nodeMethods.getNodes(graphToDraw, 'option')
     gknoNodeIDs   = config.nodeMethods.getNodes(graphToDraw, 'general')
-    for nodeID in optionNodeIDs: config.nodeMethods.setGraphNodeAttribute(graphToDraw, nodeID, 'isMarkedForRemoval', True)
+    if nodes == 'file':
+      for nodeID in optionNodeIDs: config.nodeMethods.setGraphNodeAttribute(graphToDraw, nodeID, 'isMarkedForRemoval', True)
 
-    # Find the first file associated with the file node.
-    for nodeID in fileNodeIDs:
-      try: newNodeID = config.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values')[1][0]
-      except: newNodeID = nodeID
+      # Find the first file associated with the file node.
+      for nodeID in fileNodeIDs:
+        try: newNodeID = config.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values')[1][0]
+        except: newNodeID = nodeID
 
-      # Remove the path from the file.
-      if '/' in newNodeID: newNodeID = newNodeID.split('/')[-1]
+        # Remove the path from the file.
+        if '/' in newNodeID: newNodeID = newNodeID.split('/')[-1]
 
-      # Rename the node.
-      if nodeID != newNodeID: config.nodeMethods.renameNode(graphToDraw, config.tools, nodeID, newNodeID, allowNullArgument = True)
+        # Rename the node.
+        if nodeID != newNodeID: config.nodeMethods.renameNode(graphToDraw, config.tools, nodeID, newNodeID, allowNullArgument = True)
+
+    # Modify option nodes.
+    elif nodes == 'option':
+      for nodeID in fileNodeIDs: config.nodeMethods.setGraphNodeAttribute(graphToDraw, nodeID, 'isMarkedForRemoval', True)
+
+    elif nodes != 'all':
+      print('Do not know which nodes to plot - graphPlot')
+      self.errors.terminate()
 
     # Mark gkno specific nodes for removal.
     for nodeID in gknoNodeIDs: config.nodeMethods.setGraphNodeAttribute(graphToDraw, nodeID, 'isMarkedForRemoval', True)
     graphToDraw.remove_node('gkno')
     config.nodeMethods.purgeNodeMarkedForRemoval(graphToDraw)
-
-    # Loop over all of the task nodes and determine the number times this task is executed. If it is
-    # run multiple times, determine if it is first, last or intermediate in a set of tasks running
-    # multiple times.
-    lastTask        = None
-    lastTaskOutputs = 0
-    for task in config.pipeline.workflow:
-      numberOfInputs  = 0
-      numberOfOutputs = 0
-      firstTask       = False
-      lastTask        = False
-      for fileNodeID in config.nodeMethods.getPredecessorFileNodes(graph, task):
-        length         = len(config.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values'))
-        numberOfInputs = length if length > numberOfInputs else numberOfInputs
-      for optionNodeID in config.nodeMethods.getPredecessorOptionNodes(graph, task):
-        length         = len(config.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'values'))
-        numberOfInputs = length if length > numberOfInputs else numberOfInputs
-      for fileNodeID in config.nodeMethods.getSuccessorFileNodes(graph, task):
-        length         = len(config.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values'))
-        numberOfOutputs = length if length > numberOfOutputs else numberOfOutputs
-
-      # If the previous task produced one set of outputs, and this task has multiple inputs, this task is the first
-      # (or only) task in a set of linked parallel tasks.
-      if lastTaskOutputs == 1 and numberOfInputs > 1:
-        for count in range(2, numberOfInputs + 1):
-          name = task + ' set ' + str (count)
-          graphToDraw.add_node(name, attributes = graph.node[task]['attributes'])
-          for fileNodeID in config.nodeMethods.getPredecessorFileNodes(graphToDraw, task):
-            fileNodeName = 'set ' + str (count) + fileNodeID
-            length       = len(config.nodeMethods.getGraphNodeAttribute(graphToDraw, fileNodeID, 'values'))
-            if length == 1: graphToDraw.add_edge(fileNodeID, name, attributes = graphToDraw[fileNodeID][task]['attributes'])
-            else:
-              graphToDraw.add_node(fileNodeName, attributes = graphToDraw.node[fileNodeID]['attributes'])
-              graphToDraw.add_edge(fileNodeName, name, attributes = graphToDraw[fileNodeID][task]['attributes'])
-
-          # Create new successor file nodes.
-          for fileNodeID in config.nodeMethods.getSuccessorFileNodes(graphToDraw, task):
-            fileNodeName = 'set ' + str(count) + ' ' + fileNodeID
-            graphToDraw.add_node(fileNodeName, attributes = graphToDraw.node[fileNodeID]['attributes'])
-            graphToDraw.add_edge(name, fileNodeName, attributes = graphToDraw[task][fileNodeID]['attributes'])
-
-      # Tasks in a set of tasks linked together before being rejoined.
-      elif numberOfInputs > 1 and numberOfOutputs > 1:
-        for count in range(2, numberOfInputs + 1):
-          name = task + ' set ' + str (count)
-          graphToDraw.add_node(name, attributes = graph.node[task]['attributes'])
-          for fileNodeID in config.nodeMethods.getPredecessorFileNodes(graphToDraw, task):
-            fileNodeName = 'set ' + str(count) + ' ' + fileNodeID
-            length       = len(config.nodeMethods.getGraphNodeAttribute(graphToDraw, fileNodeID, 'values'))
-
-            # If the input file has only one set of data, add an edge to this data.
-            if length == 1: graphToDraw.add_edge(fileNodeID, name, attributes = graphToDraw[fileNodeID][task]['attributes'])
-            else:
-              graphToDraw.add_node(fileNodeName, attributes = graphToDraw.node[fileNodeID]['attributes'])
-              graphToDraw.add_edge(fileNodeName, name, attributes = graphToDraw[fileNodeID][task]['attributes'])
-
-          # Create new successor file nodes.
-          for fileNodeID in config.nodeMethods.getSuccessorFileNodes(graphToDraw, task):
-            fileNodeName = 'set ' + str(count) + ' ' + fileNodeID
-            graphToDraw.add_node(fileNodeName, attributes = graphToDraw.node[fileNodeID]['attributes'])
-            graphToDraw.add_edge(name, fileNodeName, attributes = graphToDraw[task][fileNodeID]['attributes'])
-
-      # Tasks that pool together multiple inputs into a single output.
-      elif numberOfInputs > 1 and numberOfOutputs == 1:
-        for fileNodeID in config.nodeMethods.getPredecessorFileNodes(graphToDraw, task):
-          length = len(config.nodeMethods.getGraphNodeAttribute(graphToDraw, fileNodeID, 'values'))
-          if length != 1:
-            for count in range(2, numberOfInputs + 1):
-              fileNodeName = 'set ' + str(count) + ' ' + fileNodeID
-              graphToDraw.add_edge(fileNodeName, task, attributes = graphToDraw[fileNodeID][task]['attributes'])
-
-      # Update the last task.
-      lastTaskOutputs = numberOfOutputs
-      lastTask        = task
 
     # Get all of the categories associated with tools in the pipeline.
     categories = {}
