@@ -353,6 +353,9 @@ class configurationMethods:
     self.nodeMethods.renameNode(graph, self.tools, mergeFileNodeIDs[0], mergeFileNodeIDs[0] + '_1', allowNullArgument = False)
     fileNodeIDs.append(mergeFileNodeIDs[0] + '_1')
 
+    # Update the attributes for the renamed file node.
+    self.nodeMethods.setGraphNodeAttribute(graph, mergeFileNodeIDs[0] + '_1', 'allowedExtensions', outputExtensions[0], True)
+
     # Create the additional file nodes.
     for count in range(2, len(outputExtensions) + 1):
       extension                      = outputExtensions[count - 1]

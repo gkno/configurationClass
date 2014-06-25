@@ -350,7 +350,7 @@ class nodeClass:
 
   # Set an attribute from the nodes data structure.  Check to ensure that the requested attribute is
   # available for the type of node.  If not, terminate with an error.
-  def setGraphNodeAttribute(self, graph, nodeID, attribute, value):
+  def setGraphNodeAttribute(self, graph, nodeID, attribute, value, replace = False):
     try: test = getattr(graph.node[nodeID]['attributes'], attribute)
 
     # If there is an error, determine if the node exists in the graph.  If the node exists, the problem
@@ -377,13 +377,15 @@ class nodeClass:
         elif graph.node[nodeID]['attributes'].nodeType == 'option': nodeType = 'options node'
         self.errors.attributeNotAssociatedWithNodeInSet(nodeID, attribute, nodeType, inTaskNode, inFileNode, inOptionsNode)
 
-    # Set the attribute.  If the attribute points to a list, append the value.
-    if type(getattr(graph.node[nodeID]['attributes'], attribute)) == list:
+    # Set the attribute. If 'replace' is set to true, just set the value as is.
+    if replace or type(getattr(graph.node[nodeID]['attributes'], attribute)) != list:
+      setattr(graph.node[nodeID]['attributes'], attribute, value)
+
+    # If the attribute points to a list, append the value.
+    else:
       valueList = getattr(graph.node[nodeID]['attributes'], attribute)
       valueList.append(value)
       setattr(graph.node[nodeID]['attributes'], attribute, valueList)
-    else:
-      setattr(graph.node[nodeID]['attributes'], attribute, value)
 
   #TODO IS THIS USED?
   # Set an attribute from the nodes data structure.  In this method, the node is not a part of the graph and
