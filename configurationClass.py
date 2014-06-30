@@ -982,7 +982,7 @@ class configurationMethods:
         # If necessary, check if multiple runs/internal loops are being used and the argument is set
         # in the provided file.
         if not isSet and hasMultipleRuns:
-          if longFormArgument in loopData.arguments: isSet = True
+          if longFormArgument in loopData.argumentValues.keys(): isSet = True
 
         # Finally check if instructions were provided for evaluating a command in lieu of values.
         if self.pipeline.nodeAttributes[self.pipeline.pipelineArguments[longFormArgument].configNodeID].evaluateCommand: isSet = True
