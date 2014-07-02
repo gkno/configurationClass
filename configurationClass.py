@@ -668,7 +668,14 @@ class configurationMethods:
     return dependencies
 
   # Determine all of the outputs.  This is essentially all file nodes with no predecessors.
-  def getGraphOutputs(self, graph, taskList, key):
+  def getGraphOutputs(self, graph, taskList, deleteList, key):
+
+    # Collect all the files that are deleted in this phase.
+    filesDeleted = []
+    for task in deleteList:
+      for iteration in deleteList[task]:
+        for filename in deleteList[task][iteration]: filesDeleted.append(filename)
+
     outputs     = []
     for task in taskList:
       for fileNodeID in self.nodeMethods.getSuccessorFileNodes(graph, task):
@@ -676,6 +683,7 @@ class configurationMethods:
         deleteFiles  = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'deleteFiles')
         isStreaming  = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'isStreaming')
         isTemporary  = self.nodeMethods.getGraphNodeAttribute(graph, optionNodeID, 'isTemporary')
+        values       = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values')
 
         # Get the tasks associated with this option node.
         tasks = graph.successors(optionNodeID)
@@ -683,19 +691,22 @@ class configurationMethods:
         # By default, all files produced by the pipeline are kept and so should be listed as
         # outputs. However, some files are listed as to be deleted, so do not include these as
         # outputs.
-        if not deleteFiles and not isStreaming and not isTemporary:
-          values = self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values')
+        #if not deleteFiles and not isStreaming and not isTemporary:
+        if not isStreaming and not isTemporary:
           if key == 'all':
             for iteration in values.keys():
-              for value in values[iteration]: outputs.append((optionNodeID, value))
+              for value in values[iteration]:
+                if value not in filesDeleted: outputs.append((optionNodeID, value))
   
           # Just get values for a particular key.
           elif key in values:
-            for value in values[key]: outputs.append((optionNodeID, value))
+            for value in values[key]:
+              if value not in filesDeleted: outputs.append((optionNodeID, value))
   
           #TODO CHECK
           elif key not in values and key != 1:
-            for value in values[1]: outputs.append((optionNodeID, value))
+            for value in values[1]:
+              if value not in filesDeleted: outputs.append((optionNodeID, value))
 
           # If the key is unknown, fail.
           #TODO Errors.
