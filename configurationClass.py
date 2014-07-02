@@ -117,6 +117,9 @@ class configurationMethods:
     # nodes exist, mark them.
     self.markNodesWithFilesToBeKept(graph)
 
+    # Check that all tasks using files from filename stubs are connected to the correct nodes.
+    self.checkEdges(graph)
+
     # Mark all edges that are greedy. If the input to a particular task is several sets of data, there
     # are two possible ways to handle this. The default is that the task will be run multiple times for
     # each set of data. However, if the task argument accepting the multiple sets of data is listed as
@@ -140,7 +143,7 @@ class configurationMethods:
 
       # If there is only a single node listed, there is no need to proceed, since no merging needs to
       # take place. 
-      optionsToMerge = self.pipeline.commonNodes[configNodeID]
+      optionsToMerge = deepcopy(self.pipeline.commonNodes[configNodeID])
       if len(optionsToMerge) != 1:
 
         # Pick one of the nodes to keep.  If the option picked has not yet been set as a node, choose
@@ -393,6 +396,72 @@ class configurationMethods:
     for configNodeID in self.nodeIDs:
       nodeID = self.nodeIDs[configNodeID]
       if self.pipeline.getNodeAttribute(configNodeID, 'deleteFiles'): self.nodeMethods.setGraphNodeAttribute(graph, nodeID, 'deleteFiles', True)
+
+  # Some file nodes were created for filename stubs. In the merge process, some nodes are renamed that are
+  # connected to subsequent tasks. Consider a task that produces files NODE1 and NODE2 from a single 
+  # filename stub argument. Each of these files is the processed by tasks A and B. Prior to the merge, a
+  # single file node existed, NODE. This was renamed to NODE1 and NODE2 was created. Since tasks A and B
+  # already had edges, both tasks use NODE1 as input, which is incorrect. In this case, task B needs an
+  # edge from NODE2 and the edge from NODE1 needs to be deleted.
+  #
+  # Search for all arguments in the pipeline configuration file that define tasks that link to specified
+  # extensions and check that the nodes are consistent.
+  def checkEdges(self, graph):
+
+    # Loop over all nodes in the pipeline configuration file.
+    for configNodeID in self.pipeline.commonNodes:
+
+      # Only look at configuration file nodes that specify that argument point to a file extension (i.e.
+      # a filename stub produced multiple files with multiple extensions).
+      if configNodeID in self.pipeline.linkedExtension:
+
+        # Loop over all the tasks that are associated with this pipeline configuration file node.
+        for task, taskArgument in self.pipeline.commonNodes[configNodeID]:
+
+          # Only proceed if this task/argument pair are defined as connecting to one of these files.
+          if task in self.pipeline.linkedExtension[configNodeID]:
+            if taskArgument in self.pipeline.linkedExtension[configNodeID][task]:
+
+              # Get the expected extension for this task/argument pair.
+              extension = self.pipeline.linkedExtension[configNodeID][task][taskArgument]
+
+              # Loop over all option nodes for this task.
+              for optionNodeID in self.nodeMethods.getNodeForTaskArgument(graph, task, taskArgument, 'option'):
+                fileNodeIDs   = self.nodeMethods.getAssociatedFileNodeIDs(graph, optionNodeID)
+                isInput       = self.edgeMethods.getEdgeAttribute(graph, optionNodeID, task, 'isInput')
+
+                # Loop over this tasks file nodes.
+                for fileNodeID in fileNodeIDs:
+
+                  # Check if an edge exists between this file node and the task (input or output file).
+                  if isInput: edgeExists = self.edgeMethods.checkIfEdgeExists(graph, fileNodeID, task)
+                  else: edgeExists = self.edgeMethods.checkIfEdgeExists(graph, task, fileNodeID)
+
+                  # If an edge exists, check if the extension associated with the file node matches that
+                  # defined in the pipeline configuration file.
+                  if edgeExists:
+
+                    # If the extensions don't match, delete the existing edge and determine the node to which the
+                    # edge should be attached and create this edge.
+                    if extension != self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'allowedExtensions')[0]:
+
+                      # Search for the file node with the correct extension.
+                      foundCorrectNode = False
+                      for correctFileNodeID in fileNodeIDs:
+                        if extension == self.nodeMethods.getGraphNodeAttribute(graph, correctFileNodeID, 'allowedExtensions')[0]:
+                          foundCorrectNode = True
+                          break
+
+                      # If there is no node with the expected extension, fail.
+                      if not foundCorrectNode: self.errors.noFileNodeIDWithCorrectExtension(task, taskArgument, extension)
+
+                      # Update the edges.
+                      if isInput:
+                        graph.add_edge(correctFileNodeID, task, attributes = graph[fileNodeID][task]['attributes'])
+                        graph.remove_edge(fileNodeID, task)
+                      else:
+                        graph.add_edge(task, correctFileNodeID, attributes = graph[task][fileNodeID]['attributes'])
+                        graph.remove_edge(task, fileNodeID)
 
   # Mark all greedy edges in the graph.
   def markGreedyEdges(self, graph):

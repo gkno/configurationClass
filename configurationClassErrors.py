@@ -1331,9 +1331,9 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
-  ############################################
-  # Errors associated with setting attributes.
-  ############################################
+  ##############################################
+  # Errors associated with setting attributes. #
+  ##############################################
 
   # If the tool attributes for an invalid tool are set.
   def invalidToolInSetToolAttribute(self, tool):
@@ -1354,9 +1354,9 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
-  ####################################################
-  # Errors associated with extracting tool information
-  ####################################################
+  #######################################################
+  # Errors associated with extracting tool information. #
+  #######################################################
 
   #TODO NEEDED?
   # If data about an invalid tool is requested.
@@ -1459,6 +1459,20 @@ class configurationClassErrors:
     self.text.append('No information provided for instance.')
     self.text.append('The \'--export-instance (-ei) command line argument was set, indicating that an instance is to be created. No other ' + \
     'information was provided on the command line, however, so the instance would be empty. Please provide some information for the instance.')
+    self.writeFormattedText()
+    self.terminate()
+
+  #################################################################
+  # Errors with merging the nodes and generating the final graph. #
+  #################################################################
+
+  # Failure to find a node with the required extension.
+  def noFileNodeIDWithCorrectExtension(self, task, argument, extension):
+    self.text.append('Error with file nodes.')
+    self.text.append('The task \'' + task + '\' has the argument \'' + argument + '\' which is linked to other tasks in the pipeline graph. ' + \
+    'The file node is associated with a filename stub. The expected extension \'' + extension + '\' is not associated with any of the files ' + \
+    'from the filename stub, so no edge can be created between this task and the required file. Please check the pipeline configuration file ' + \
+    'for errors associated with this task/argument.')
     self.writeFormattedText()
     self.terminate()
 
