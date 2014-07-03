@@ -162,6 +162,11 @@ class argumentAttributes:
 class commandEvaluation:
   def __init__(self):
 
+    # If the command being evaluated is a replacement command line argument, the command
+    # does not need to be included in '`' in the makefile. Record if the command is just
+    # a replacement command line argument.
+    self.isCommandLineArgument = False
+
     # Store the command.
     self.command = None
 
@@ -844,9 +849,10 @@ class toolConfiguration:
 
   # Check the instructions on evaluating a command.
   def checkCommands(self, tool):
-    allowedAttributes               = {}
-    allowedAttributes['command']    = (str, True)
-    allowedAttributes['add values'] = (list, False)
+    allowedAttributes                          = {}
+    allowedAttributes['command']               = (str, True)
+    allowedAttributes['command line argument'] = (bool, True)
+    allowedAttributes['add values']            = (list, False)
 
     # Keep track of the observed attributes.
     observedAttributes = []
@@ -873,6 +879,10 @@ class toolConfiguration:
         for attribute in allowedAttributes:
           if allowedAttributes[attribute][1] and attribute not in observedAttributes:
             self.errors.missingAttributeInEvaluate(tool, longFormArgument, attribute)
+
+        # Record if this is a command line argument replacement.
+        if 'command line argument' in commandInformation: 
+          self.argumentAttributes[tool][longFormArgument].commandEvaluation.isCommandLineArgument = True
 
         # Set the command and store this argument in the tool attributes.
         self.argumentAttributes[tool][longFormArgument].commandEvaluation.command = commandInformation['command']
