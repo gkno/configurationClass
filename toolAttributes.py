@@ -851,7 +851,7 @@ class toolConfiguration:
   def checkCommands(self, tool):
     allowedAttributes                          = {}
     allowedAttributes['command']               = (str, True)
-    allowedAttributes['command line argument'] = (bool, True)
+    allowedAttributes['command line argument'] = (bool, False)
     allowedAttributes['add values']            = (list, False)
 
     # Keep track of the observed attributes.
