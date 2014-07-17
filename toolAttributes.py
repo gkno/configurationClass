@@ -275,7 +275,7 @@ class toolConfiguration:
     allowedAttributes['hide tool']          = (bool, False, True, 'isHidden')
     allowedAttributes['id']                 = (str, True, True, 'id')
     allowedAttributes['input is stream']    = (bool, False, True, 'inputIsStream')
-    allowedAttributes['instances']          = (list, True, False, None)
+    allowedAttributes['parameter sets']     = (list, True, False, None)
     allowedAttributes['modifier']           = (str, False, True, 'modifier')
     allowedAttributes['path']               = (str, True, True, 'path')
     allowedAttributes['precommand']         = (str, False, True, 'precommand')

@@ -13,8 +13,8 @@ from edgeAttributes import *
 import fileOperations
 from fileOperations import *
 
-import instances
-from instances import *
+import parameterSets
+from parameterSets import *
 
 import nodeAttributes
 from nodeAttributes import *
@@ -39,8 +39,8 @@ class configurationMethods:
     self.edgeMethods = edgeClass()
     self.nodeMethods = nodeClass()
 
-    # Define a class for handling instances.
-    self.instances = instanceConfiguration()
+    # Define a class for handling parameter sets.
+    self.parameterSets = parameterSetConfiguration()
 
     # Define the errors class.
     self.errors = configurationClassErrors()
@@ -157,7 +157,7 @@ class configurationMethods:
           nodeID       = self.nodeMethods.doesNodeExist(graph, task, argument)
 
           # Store the ID of the node being kept along with the value it was given in the common nodes
-          # section of the configuration file.  The instances information will refer to the common
+          # section of the configuration file.  The parameter sets information will refer to the common
           # node value and this needs to point to the nodeID in the graph.
           self.nodeIDs[configNodeID] = nodeID
 
@@ -509,16 +509,16 @@ class configurationMethods:
 
     return workflow
 
-  # Attach the instance arguments to the relevant nodes.
-  def attachPipelineInstanceArgumentsToNodes(self, graph, pipelineName, instanceName):
-    for node in self.instances.instanceAttributes[pipelineName][instanceName].nodes:
+  # Attach the parameter set arguments to the relevant nodes.
+  def attachPipelineParameterSetArgumentsToNodes(self, graph, pipelineName, parameterSetName):
+    for node in self.parameterSets.parameterSetAttributes[pipelineName][parameterSetName].nodes:
 
       # Get the long form of the argument.
       longFormArgument, shortFormArgument = self.pipeline.getLongFormArgument(graph, node.argument)
       configNodeID                        = self.pipeline.pipelineArguments[longFormArgument].configNodeID
 
       # Check all of the available pipeline arguments and find the node ID of the node which
-      # this instance node is trying to set.
+      # this parameter set node is trying to set.
       try: nodeIDToSet = self.nodeIDs[configNodeID]
 
       # If the configuration node ID is not present in the nodeIDs data structure, it may be
@@ -530,33 +530,33 @@ class configurationMethods:
         try: nodeIDToSet = self.nodeMethods.getNodeForTaskArgument(graph, task, argument, 'option')[0]
         except:
           #TODO ERROR
-          print('WOOPS - configurationData.attachPipelineInstanceArgumentsToNodes')
+          print('WOOPS - configurationData.attachPipelineParameterSetArgumentsToNodes')
           self.errors.terminate()
 
-      # All of the values extracted from the instance json file are unicode.  Convert them to strings.
+      # All of the values extracted from the parameter set json file are unicode.  Convert them to strings.
       for counter, value in enumerate(node.values): node.values[counter] = str(value)
       self.nodeMethods.addValuesToGraphNode(graph, nodeIDToSet, node.values, write = 'replace')
 
-  # Attach the instance arguments to the relevant nodes.
-  def attachToolInstanceArgumentsToNodes(self, graph, task, instance):
+  # Attach the paramater set arguments to the relevant nodes.
+  def attachToolParameterSetArgumentsToNodes(self, graph, task, parameterSet):
 
-    # If this is a pipeline adding the tool instance values, ensure that the task and tool are identified.
+    # If this is a pipeline adding the tool parameter set values, ensure that the task and tool are identified.
     if self.isPipeline: tool = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
     else: tool = task
 
-    for node in self.instances.instanceAttributes[tool][instance].nodes:
+    for node in self.parameterSets.parameterSetAttributes[tool][parameterSet].nodes:
       nodeIDToSet = None
 
       # Check all of the nodes set for this tool, determine the associated arguments and find the node ID
-      # of the node for the argument set in the instance.
+      # of the node for the argument set in the parameter set.
       for nodeID in self.nodeMethods.getPredecessorOptionNodes(graph, task):
         argument = self.edgeMethods.getEdgeAttribute(graph, nodeID, task, 'longFormArgument')
         if argument == node.argument: nodeIDToSet = nodeID
 
-      # If the node doesn't exist, check that the argument requested in the instance is valid for this tool.
+      # If the node doesn't exist, check that the argument requested in the parameter set is valid for this tool.
       if not nodeIDToSet:
         if node.argument not in self.tools.longFormArguments[tool] and node.argument not in self.tools.shortFormArguments[tool]:
-          self.errors.invalidArgumentInToolInstance(tool, instance, node.ID, node.argument)
+          self.errors.invalidArgumentInToolParameterSet(tool, parameterSet, node.ID, node.argument)
 
         # Get the long form of the argument to be set.
         longFormArgument  = self.tools.getLongFormArgument(tool, node.argument)
@@ -991,29 +991,29 @@ class configurationMethods:
         if not self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values'):
           self.nodeMethods.addValuesToGraphNode(graph, nodeID, ['unset'], write = 'replace')
 
-  # Export an instance to file.
-  def exportInstance(self, graph, path, runName, isPipeline):
+  # Export a parameter set to file.
+  def exportParameterSet(self, graph, path, runName, isPipeline):
     isVerbose = self.nodeMethods.getGraphNodeAttribute(graph, 'GKNO-VERBOSE', 'values')[1][0]
 
-    # Check that only a single instance was specified and get the requested instance name.
+    # Check that only a single parameter set was specified and get the requested parameter set name.
     if len(self.nodeMethods.getGraphNodeAttribute(graph, 'GKNO-EXPORT-INSTANCE', 'values')[1]) > 1:
-      self.errors.exportInstanceSetMultipleTimes(runName, isVerbose)
+      self.errors.exportParameterSetSetMultipleTimes(runName, isVerbose)
 
-    # Set the filename and the instance name.
-    filename     = runName + '_instances.json'
-    instanceName = self.nodeMethods.getGraphNodeAttribute(graph, 'GKNO-EXPORT-INSTANCE', 'values')[1][0]
+    # Set the filename and the parameter set name.
+    filename     = runName + '_parameterSets.json'
+    parameterSetName = self.nodeMethods.getGraphNodeAttribute(graph, 'GKNO-EXPORT-INSTANCE', 'values')[1][0]
 
-    # If no instance name was provided, or the instance already exists, fail.
-    if instanceName == '': self.errors.noInstanceNameInExport(filename, instanceName, isVerbose)
-    if instanceName in self.instances.instanceAttributes[runName]: self.errors.instanceNameExists(instanceName, isVerbose)
+    # If no parameter set name was provided, or the parameter set already exists, fail.
+    if parameterSetName == '': self.errors.noParameterSetNameInExport(filename, parameterSetName, isVerbose)
+    if parameterSetName in self.parameterSets.paramaterSetAttributes[runName]: self.errors.parameterSetNameExists(parameterSetName, isVerbose)
 
     # Get all of the arguments set by the user.
     if isPipeline: arguments = self.getAllPipelineArguments(graph)
     else: arguments = self.getAllToolArguments(graph, runName)
-    if not arguments: self.errors.noInformationProvidedForInstance(isVerbose)
-    self.instances.writeNewConfigurationFile(arguments, path, filename, runName, instanceName)
+    if not arguments: self.errors.noInformationProvidedForParameterSet(isVerbose)
+    self.parameterSets.writeNewConfigurationFile(arguments, path, filename, runName, parameterSetName)
 
-  # Get all of the argument data ready for sending to the instance file.
+  # Get all of the argument data ready for sending to the parameter set file.
   def getAllPipelineArguments(self, graph):
     arguments = []
     for argument in self.pipeline.pipelineArguments:
@@ -1038,7 +1038,7 @@ class configurationMethods:
     return arguments
 
   # Check that all pipeline arguments listed as required were set.
-  def checkArguments(self, graph, commandLine, runName, instanceName, hasMultipleRuns, loopData):
+  def checkArguments(self, graph, commandLine, runName, parameterSetName, hasMultipleRuns, loopData):
     for longFormArgument in self.pipeline.pipelineArguments:
       isSet             = False
       shortFormArgument = self.pipeline.pipelineArguments[longFormArgument].shortFormArgument
@@ -1048,15 +1048,15 @@ class configurationMethods:
         # Check if this required pipeline argument was set on the command line.
         if longFormArgument in commandLine.argumentDictionary: isSet = True
 
-        # If the argument wasn't set on the command line, check to see if it was set using an instance.
-        # First check the default instance.
+        # If the argument wasn't set on the command line, check to see if it was set using a parameter set.
+        # First check the default parameter set.
         if not isSet:
-          for node in self.instances.instanceAttributes[runName]['default'].nodes:
+          for node in self.parameterSets.parameterSetAttributes[runName]['default'].nodes:
             if longFormArgument == node.argument: isSet = True
 
-        # Then, if necessary, check the requested instance.
-        if not isSet and instanceName != 'default':
-          for node in self.instances.instanceAttributes[runName][instanceName].nodes:
+        # Then, if necessary, check the requested parameter set.
+        if not isSet and parameterSetName != 'default':
+          for node in self.parameterSets.parameterSetAttributes[runName][parameterSetName].nodes:
             if longFormArgument == node.argument: isSet = True
 
         # If necessary, check if multiple runs/internal loops are being used and the argument is set
