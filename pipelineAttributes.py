@@ -187,14 +187,14 @@ class pipelineConfiguration:
     attributes = pipelineAttributes()
 
     # Define the allowed general attributes.
-    allowedAttributes                  = {}
-    allowedAttributes['description']   = (str, True, True, 'description')
-    allowedAttributes['developmental'] = (bool, False, True, 'isDevelopmental')
-    allowedAttributes['help group']    = (str, False, True, 'helpGroup')
-    allowedAttributes['hide in help']  = (bool, False, True, 'isHiddenInHelp')
-    allowedAttributes['instances']     = (list, True, False, None)
-    allowedAttributes['nodes']         = (list, True, False, None)
-    allowedAttributes['tasks']         = (dict, True, False, None)
+    allowedAttributes                   = {}
+    allowedAttributes['description']    = (str, True, True, 'description')
+    allowedAttributes['developmental']  = (bool, False, True, 'isDevelopmental')
+    allowedAttributes['help group']     = (str, False, True, 'helpGroup')
+    allowedAttributes['hide in help']   = (bool, False, True, 'isHiddenInHelp')
+    allowedAttributes['parameter sets'] = (list, True, False, None)
+    allowedAttributes['nodes']          = (list, True, False, None)
+    allowedAttributes['tasks']          = (dict, True, False, None)
 
     # Keep track of the observed required values.
     observedAttributes = {}

@@ -1005,38 +1005,38 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
-  ###########################################################
-  # Errors associated with instances in configuration file. #
-  ###########################################################
+  ################################################################
+  # Errors associated with parameter sets in configuration file. #
+  ################################################################
 
-  # Requested instance does not exist.
-  def missingInstance(self, name, instanceName, isPipeline, availableInstances):
+  # Requested parameter set does not exist.
+  def missingParameterSet(self, name, parameterSetName, isPipeline, availableParameterSets):
     runType = 'pipeline' if isPipeline else 'tool'
-    self.text.append('Requested instance for ' + runType + ' \'' + name + '\' does not exist: ' + instanceName)
-    self.text.append('The instance \'' + instanceName + '\' was requested, but no instance with this name is available in the ' + runType + \
-    ' configuration file or the external instances configuration file for the ' + runType + '. The instances available for this ' + runType + \
+    self.text.append('Requested parameter set for ' + runType + ' \'' + name + '\' does not exist: ' + parameterSetName)
+    self.text.append('The parameter set \'' + parameterSetName + '\' was requested, but no parameter set with this name is available in the ' + runType + \
+    ' configuration file or the external parameter sets configuration file for the ' + runType + '. The parameter sets available for this ' + runType + \
     ' are:')
     self.text.append('\t')
-    for instance in availableInstances: self.text.append(instance)
+    for parameterSet in availableParameterSets: self.text.append(parameterSet)
     self.writeFormattedText()
     self.terminate()
 
-  # Instance has no ID.
-  def noIDForInstance(self, runName, isPipeline):
+  # ParameterSet has no ID.
+  def noIDForParameterSet(self, runName, isPipeline):
     runType = 'pipeline' if isPipeline else 'tool'
-    self.text.append('Instance has no ID')
-    self.text.append('The instances section of the configuration file for ' + runType + ' configuration file \'' + runName + '\' contains ' + \
-    'an instance with no ID. All instances must have a unique identifier. Please check the configuration file and ensure that all instances ' + \
+    self.text.append('ParameterSet has no ID')
+    self.text.append('The parameter sets section of the configuration file for ' + runType + ' configuration file \'' + runName + '\' contains ' + \
+    'an parameter set with no ID. All parameter sets must have a unique identifier. Please check the configuration file and ensure that all parameter sets ' + \
     'are correctly formed with a valid ID.')
     self.writeFormattedText()
     self.terminate()
 
   # Missing attribute.
-  def missingAttributeInInstance(self, runName, attribute, allowedAttributes, instanceID, isPipeline):
+  def missingAttributeInParameterSet(self, runName, attribute, allowedAttributes, parameterSetID, isPipeline):
     runType = 'pipeline' if isPipeline else 'tool'
-    self.text.append('Missing attribute in instances section of ' + runType + ' configuration file: ' + runName)
-    self.text.append('The ' + runType + ' configuration file for \'' + runName + '\' is missing the instances attribute \'' + attribute + \
-    '\' from instance \'' + instanceID + '\'. The following attributes are required in the instances section of the pipeline configuration file:')
+    self.text.append('Missing attribute in parameter sets section of ' + runType + ' configuration file: ' + runName)
+    self.text.append('The ' + runType + ' configuration file for \'' + runName + '\' is missing the parameter sets attribute \'' + attribute + \
+    '\' from parameter set \'' + parameterSetID + '\'. The following attributes are required in the parameter sets section of the pipeline configuration file:')
     self.text.append('\t')
 
     # Create a sorted list of the required attributes.
@@ -1052,12 +1052,12 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
-  # Invalid attribute in instance.
-  def invalidAttributeInInstance(self, pipeline, instance, attribute, allowedAttributes):
-    self.text.append('Invalid attribute in the instances section of the configuration file for pipeline: ' + pipeline)
-    text = 'The \'instances\' section contains information for the instance \'' + instance + '\' in the configuration file for pipeline \'' + \
-    pipeline + '\'. This instance contains the attribute \'' + attribute + '\'. This is an unrecognised attribute which is not permitted. The ' + \
-    'attributes allowed in the instances section of the pipeline configuration file are:'
+  # Invalid attribute in parameter set.
+  def invalidAttributeInParameterSet(self, pipeline, parameterSet, attribute, allowedAttributes):
+    self.text.append('Invalid attribute in the parameter sets section of the configuration file for pipeline: ' + pipeline)
+    text = 'The \'parameter sets\' section contains information for the parameter set \'' + parameterSet + '\' in the configuration file for pipeline \'' + \
+    pipeline + '\'. This parameter set contains the attribute \'' + attribute + '\'. This is an unrecognised attribute which is not permitted. The ' + \
+    'attributes allowed in the parameter sets section of the pipeline configuration file are:'
     self.text.append(text)
     self.text.append('\t')
 
@@ -1074,13 +1074,13 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
-  # Invalid attribute in instance node.
-  def invalidAttributeInInstanceNode(self, runName, instance, attribute, allowedAttributes, isPipeline):
+  # Invalid attribute in parameter set node.
+  def invalidAttributeInParameterSetNode(self, runName, parameterSet, attribute, allowedAttributes, isPipeline):
     runType = 'pipeline' if isPipeline else 'tool'
-    self.text.append('Invalid attribute in a node in the instances section of the configuration file for ' + runType + ': ' + runName)
-    self.text.append('The \'instances\' section in the ' + runType + ' configuration file \'' + runName + '\' contains information for ' + \
-    'the instance \'' + instance + '\'. This instance contains the attribute \'' + attribute + '\' in one of the instance nodes. This is an ' + \
-    'unrecognised attribute which is not permitted. The attributes allowed for each node in the instances section of the ' + runType + \
+    self.text.append('Invalid attribute in a node in the parameter sets section of the configuration file for ' + runType + ': ' + runName)
+    self.text.append('The \'parameter sets\' section in the ' + runType + ' configuration file \'' + runName + '\' contains information for ' + \
+    'the parameter set \'' + parameterSet + '\'. This parameter set contains the attribute \'' + attribute + '\' in one of the parameter set nodes. This is an ' + \
+    'unrecognised attribute which is not permitted. The attributes allowed for each node in the parameter sets section of the ' + runType + \
     ' configuration file are:')
     self.text.append('\t')
 
@@ -1098,12 +1098,12 @@ class configurationClassErrors:
     self.terminate()
 
   # Missing attribute in a node.
-  def missingAttributeInPipelineInstanceNode(self, runName, instance, attribute, allowedAttributes, isPipeline):
+  def missingAttributeInPipelineParameterSetNode(self, runName, parameterSet, attribute, allowedAttributes, isPipeline):
     runType = 'pipeline' if isPipeline else 'tool'
-    self.text.append('Missing attribute in instances section of ' + runType + ' configuration file: ' + runName)
-    self.text.append('The ' + runType + ' configuration file for \'' + runName + '\' contains a section \'instances\' for defining preset ' + \
-    'values for the ' + runType + '. One of the nodes in the instance \'' + instance + '\' is missing the attribute \'' + attribute + '\'. ' + \
-    'The following attributes are required for each node in the \'instances\' section of the ' + runType + ' configuration file:')
+    self.text.append('Missing attribute in parameter sets section of ' + runType + ' configuration file: ' + runName)
+    self.text.append('The ' + runType + ' configuration file for \'' + runName + '\' contains a section \'parameter sets\' for defining preset ' + \
+    'values for the ' + runType + '. One of the nodes in the parameter set \'' + parameterSet + '\' is missing the attribute \'' + attribute + '\'. ' + \
+    'The following attributes are required for each node in the \'parameter sets\' section of the ' + runType + ' configuration file:')
     self.text.append('\t')
 
     # Create a sorted list of the required attributes.
@@ -1119,33 +1119,33 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
-  # Duplicated instance.
-  def duplicateInstance(self, runName, instanceID, isPipeline):
+  # Duplicated parameter set.
+  def duplicateParameterSet(self, runName, parameterSetID, isPipeline):
     runType = 'pipeline' if isPipeline else 'tool'
-    self.text.append('Duplicated instance information for ' + runType + ': ' + runName)
-    self.text.append('Each instance appearing in the instances section of the configuration file must be unique. This includes any ' + \
-    'instances included in the external instance file \'' + runName + '_instances\'. The instance \'' + instanceID + '\' appears multiple ' + \
-    'times for this ' + runType + '. Please ensure that all instance names are unique.')
+    self.text.append('Duplicated parameter set information for ' + runType + ': ' + runName)
+    self.text.append('Each parameter set appearing in the parameter sets section of the configuration file must be unique. This includes any ' + \
+    'parameter sets included in the external parameter set file \'' + runName + '_parameter sets\'. The parameter set \'' + parameterSetID + '\' appears multiple ' + \
+    'times for this ' + runType + '. Please ensure that all parameter set names are unique.')
     self.writeFormattedText()
     self.terminate()
 
-  # Duplicate attribute in instance nodes.
-  def duplicateNodeInInstance(self, runName, instanceID, attributeType, attribute, isPipeline):
+  # Duplicate attribute in parameter set nodes.
+  def duplicateNodeInParameterSet(self, runName, parameterSetID, attributeType, attribute, isPipeline):
     runType = 'pipeline' if isPipeline else 'tool'
-    self.text.append('Duplicated instance attribute for ' + runType + ': ' + runName)
-    self.text.append('Each instance contains a set of nodes defining the values to be given to certain arguments. Within any one instance, ' + \
+    self.text.append('Duplicated parameter set attribute for ' + runType + ': ' + runName)
+    self.text.append('Each parameter set contains a set of nodes defining the values to be given to certain arguments. Within any one parameter set, ' + \
     'each ID and argument must be unique. The ' + attributeType + ' \'' + attribute + '\' appears multiple times in the ' + runType + \
-    ' instance \'' + instanceID + '\'. Please ensure that each node for each instance in the configuration file contains a unique ID and ' + \
+    ' parameter set \'' + parameterSetID + '\'. Please ensure that each node for each parameter set in the configuration file contains a unique ID and ' + \
     'argument.')
     self.writeFormattedText()
     self.terminate()
 
-  # Invalid argument in instance.
-  def invalidArgumentInToolInstance(self, runName, instanceName, argumentID, argument):
-    self.text.append('Invalid argument in instance: ' + instanceName)
-    self.text.append('The configuration file contains the instance \'' + instanceName + '\', which  contains information for the argument \'' + \
+  # Invalid argument in parameter set.
+  def invalidArgumentInToolParameterSet(self, runName, parameterSetName, argumentID, argument):
+    self.text.append('Invalid argument in parameter set: ' + parameterSetName)
+    self.text.append('The configuration file contains the parameter set \'' + parameterSetName + '\', which  contains information for the argument \'' + \
     argument + '\' (ID: \'' + argumentID + '\'). This argument is not a valid argument for the tool. Please ensure that all arguments defined in ' + \
-    'the instances section are valid for the tool.')
+    'the parameter sets section are valid for the tool.')
     self.writeFormattedText()
     self.terminate()
 
@@ -1409,56 +1409,58 @@ class configurationClassErrors:
     self.terminate()
 
   ######################################
-  # Errors with exporting an instance. #
+  # Errors with exporting an parameter set. #
   ######################################
 
-  # If the user is attempting to export an instance and they have supplied a file for performing multiple
+  # If the user is attempting to export an parameter set and they have supplied a file for performing multiple
   # runs, terminate.
-  def exportInstanceForMultipleRuns(self):
+  def exportParameterSetForMultipleRuns(self):
     print(file=sys.stderr)
-    self.text.append('Error in attempting to export instance file.')
-    self.text.append('An instance can only be exported if gkno is being run without the \'--multiple-runs (-mr)\' command line argument. If ' + \
-    'multiple runs are required, export the instance without the arguments included in the multiple runs selection, then use the instance in ' + \
-    'conjuction with the \'--multiple-run (-mr)\' argument.')
+    self.text.append('Error in attempting to export parameter set file.')
+    self.text.append('An parameter set can only be exported if gkno is being run without the \'--multiple-runs (-mr)\' command line argument. If ' + \
+    'multiple runs are required, export the parameter set without the arguments included in the multiple runs selection, then use the parameter ' + \
+    'set in conjuction with the \'--multiple-run (-mr)\' argument.')
     self.writeFormattedText()
     self.terminate()
 
-  # Multiple instance names were provided.
-  def exportInstanceSetMultipleTimes(self, runName, isVerbose):
+  # Multiple parameter set names were provided.
+  def exportParameterSetSetMultipleTimes(self, runName, isVerbose):
     if isVerbose: print(file=sys.stderr)
-    self.text.append('Error in attempting to export instance file.')
-    self.text.append('The command line argument \'--export-instance (-ei)\' was set multiple times on the command line. When outputting an ' + \
-    'instance, all of the supplied arguments and values are stored in the external instance file \'' + runName + '_instances.json\'. Only ' + \
-    'a single instance can be created at a time, so \'--export-instance (-ei)\' can only appear once on the command line.')
+    self.text.append('Error in attempting to export parameter set file.')
+    self.text.append('The command line argument \'--export-parameter-set (-ep)\' was set multiple times on the command line. When outputting an ' + \
+    'parameter set, all of the supplied arguments and values are stored in the external parameter set file \'' + runName + \
+    '_parameter sets.json\'. Only a single parameter set can be created at a time, so \'--export-parameter-set (-ep)\' can only appear once on ' + \
+    'the command line.')
     self.writeFormattedText()
     self.terminate()
 
-  # If the --export-instance argument has no value associated with it.
-  def noInstanceNameInExport(self, filename, value, isVerbose):
+  # If the --export-parameter set argument has no value associated with it.
+  def noParameterSetNameInExport(self, filename, value, isVerbose):
     if isVerbose: print(file=sys.stderr)
-    self.text.append('Error in attempting to export instance file.')
-    self.text.append('The --export-instance (-ei) command line argument requires the desired instance name to be provided.  The provided value (' + \
-    value + ') is either not a string or is missing.  When outputting a new instance, the file \'' + filename + '\' will store the instance ' + \
-    'information with the supplied name.  Please check the command line for errors.')
+    self.text.append('Error in attempting to export parameter set file.')
+    self.text.append('The --export-parameter-set (-ep) command line argument requires the desired parameter set name to be provided.  The ' + \
+    'provided value (' + value + ') is either not a string or is missing.  When outputting a new parameter set, the file \'' + filename + \
+    '\' will store the parameter set information with the supplied name.  Please check the command line for errors.')
     self.writeFormattedText()
     self.terminate()
 
-  # If the --export-instance argument requests an instance name that already exists, terminate.
-  def instanceNameExists(self, instanceName, isVerbose):
+  # If the --export-parameter set argument requests an parameter set name that already exists, terminate.
+  def parameterSetNameExists(self, parameterSetName, isVerbose):
     if isVerbose: print(file=sys.stderr)
-    self.text.append('Requested instance name already exists: ' + instanceName)
-    self.text.append('The command line argument \'--export-instance (-ei)\' sets the name of the instance to be exported.  The requested name \'' + \
-    instanceName + '\' is already defined, either in the configuration file or the instances file.  Please select a different name for the ' + \
-    'instance to be exported.')
+    self.text.append('Requested parameter set name already exists: ' + parameterSetName)
+    self.text.append('The command line argument \'--export-parameter-set (-ep)\' sets the name of the parameter set to be exported.  The ' + \
+    'requested name \'' + parameterSetName + '\' is already defined, either in the configuration file or the parameter sets file.  Please ' + \
+    'select a different name for the parameter set to be exported.')
     self.writeFormattedText()
     self.terminate()
 
-  # If no arguments were provided for the instance.
-  def noInformationProvidedForInstance(self, isVerbose):
+  # If no arguments were provided for the parameter set.
+  def noInformationProvidedForParameterSet(self, isVerbose):
     if isVerbose: print(file=sys.stderr)
-    self.text.append('No information provided for instance.')
-    self.text.append('The \'--export-instance (-ei) command line argument was set, indicating that an instance is to be created. No other ' + \
-    'information was provided on the command line, however, so the instance would be empty. Please provide some information for the instance.')
+    self.text.append('No information provided for parameter set.')
+    self.text.append('The \'--export-parameter-set (-ep) command line argument was set, indicating that an parameter set is to be created. No ' + \
+    'other information was provided on the command line, however, so the parameter set would be empty. Please provide some information for ' + \
+    'the parameter set.')
     self.writeFormattedText()
     self.terminate()
 
