@@ -120,9 +120,11 @@ class argumentAttributes:
 
     # If the argument is an inputList, it must also include information on the tool argument
     # that is set using all the values in the list.
-    self.listValues     = None
-    self.listArgument   = None
-    self.listMode       = None
+    self.isRepeatedArgumentList = False
+    self.isArgumentList         = False
+    self.listValues             = None
+    self.listArgument           = None
+    self.listMode               = None
 
     # For some inputs, the path should not be included on the command line. The path is still
     # required for the dependency list, however. Store those files/directories listed as not
@@ -430,6 +432,8 @@ class toolConfiguration:
 
     # Set attributes that are available to all groups.
     allowedAttributes['allow multiple values']                = (bool, False, 'allowMultipleValues')
+    allowedAttributes['allow list']                           = (bool, False, 'isArgumentList')
+    allowedAttributes['allow list of repeated arguments']     = (bool, False, 'isRepeatedArgumentList')
     allowedAttributes['argument list']                        = (dict, False, 'listValues')
     allowedAttributes['command line argument']                = (str, True, 'commandLineArgument')
     allowedAttributes['data type']                            = (str, True, 'dataType')
@@ -800,6 +804,8 @@ class toolConfiguration:
     if 'value' not in self.argumentAttributes[tool][longFormArgument].replaceArgument:
       self.errors.missingAttributeInReplace(tool, longFormArgument, 'value', isInput = isInput)
 
+  # TODO
+  # IS THIS STILL REQUIRED AFTER LIST UPDATE?
   # Check if there are any list values specified. If so, check the contents.
   def checkListValues(self, tool):
     allowedAttributes                 = {}
