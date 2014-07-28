@@ -22,9 +22,6 @@ from nodeAttributes import *
 import pipelineAttributes
 from pipelineAttributes import *
 
-import graphPlotting
-from graphPlotting import *
-
 import toolAttributes
 from toolAttributes import *
 
@@ -54,9 +51,6 @@ class configurationMethods:
 
     # Define a class for handling tools.
     self.tools = toolConfiguration()
-
-    # Define methods for plotting the pipeline graph.
-    self.drawing = drawGraph()
 
     # If any of the tools have a command to be evaluated at execution time, set
     # hasCommandToEvaluate to True.
