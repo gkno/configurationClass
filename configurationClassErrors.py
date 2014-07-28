@@ -291,6 +291,33 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
+  # If the argument is to be modified using instructions from the 'modify argument values' field, 
+  # the command field must be present.
+  def noCommandInModifyValues(self, tool, argument):
+    self.text.append('Missing field in \'modify argument values\'.')
+    self.text.append('The tool \'' + tool + '\' has an argument \'' + argument + '\' that has instructions on how to modify the argument ' + \
+    'values on the command line. As part of these instructions, the field \'command\' is required, but is missing. This field indicates ' + \
+    'how the value should be written to the command line. Please modify the configuration file to conform to the requirements outlined in ' + \
+    'the documentation.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # If the argument is to be modified using instructions from the 'modify argument values' field
+  # and the modification is only to occur for specific extensions, terminate if any of the supplied
+  # extensions are not valid for this tool argument.
+  def invalidExtensionInModifyValues(self, tool, argument, extension, allowedExtensions):
+    self.text.append('Invalid extension in \'modify argument values\'.')
+    self.text.append('The tool \'' + tool + '\' has an argument \'' + argument + '\' that has instructions on how to modify the argument ' + \
+    'values on the command line. These instructions are only executed for files with specified extensions. The extension \'' + extension + \
+    '\' is included in the list of extensions to trigger this clause, but this extensions is not a valid extension for the tool argument. ' + \
+    'The following extensions are allowed:')
+    self.text.append('\t')
+    for allowedExtension in allowedExtensions: self.text.append('\t' + allowedExtension)
+    self.text.append('\t')
+    self.text.append('Please modify the configuration file to conform to the requirements outlined in the documentation.')
+    self.writeFormattedText()
+    self.terminate()
+
   # If a files path is defined by another argument and that argument is invalid.
   def invalidArgumentInPathArgument(self, tool, longFormArgument, pathArgument):
     self.text.append('Error with configuration file.')

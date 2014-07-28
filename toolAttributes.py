@@ -144,6 +144,10 @@ class argumentAttributes:
     # is the case.
     self.inQuotations = False
 
+    # gkno can modify hopw the argument is written on the command line, depending on the extension
+    # provided. Store this information in the modifyValues structure.
+    self.modifyValues = {}
+
     self.modifyArgument           = None
     self.outputStream             = False
     self.replaceArgument          = None
@@ -237,6 +241,10 @@ class toolConfiguration:
 
     # If filename constuction instructions are provided, check that all is provided.
     if success: success = self.checkConstructionInstructions(tool)
+
+    # If any of the argument values can be modified on the command line, chcck that the
+    # instructiobns are valid.
+    if success: success = self.checkModifyValues(tool)
 
     # If any arguments have the 'if input is stream' or the 'output to stream' fields, check that
     # all accompanying data is valid.
@@ -445,6 +453,7 @@ class toolConfiguration:
     allowedAttributes['include value in quotations']          = (bool, False, 'inQuotations')
     allowedAttributes['long form argument']                   = (str, True, 'longFormArgument')
     allowedAttributes['modify argument name on command line'] = (str, False, 'modifyArgument')
+    allowedAttributes['modify argument values']               = (dict, False, 'modifyValues')
     allowedAttributes['required']                             = (bool, False, 'isRequired')
     allowedAttributes['required if stream']                   = (bool, False, 'isRequiredIfStream')
     allowedAttributes['short form argument']                  = (str, False, 'shortFormArgument')
@@ -568,7 +577,9 @@ class toolConfiguration:
 
         # For each allowed method, check that everything required is present. First get the method.
         instructions = self.argumentAttributes[tool][argument].constructionInstructions
-        if 'method' not in instructions: self.errors.noConstructionMethod(tool, argument, allowedMethods)
+        if 'method' not in instructions: 
+          if self.allowTermination: self.errors.noConstructionMethod(tool, argument, allowedMethods)
+          else: return False
 
         # Now check the specifics of each method.
         method = self.argumentAttributes[tool][argument].constructionInstructions['method']
@@ -577,6 +588,30 @@ class toolConfiguration:
         else:
           if self.allowTermination: self.errors.unknownConstructionMethod(tool, argument, method, allowedMethods)
           else: return False
+
+    return True
+
+  # If argument values are to be modified on the command line, check that the instructions are correct.
+  def checkModifyValues(self, tool):
+
+    # Loop over all arguments in the configuration file.
+    for argument in self.argumentAttributes[tool]:
+      if self.argumentAttributes[tool][argument].modifyValues:
+
+        # For each allowed method, check that everything required is present. First get the method.
+        instructions = self.argumentAttributes[tool][argument].modifyValues
+        if 'command' not in instructions:
+          if self.allowTermination: self.errors.noCommandInModifyValues(tool, argument)
+          else: return False
+
+        # Now check to see if the modification should only take place for specific extensions. If so
+        # check that the specified extensions are valid
+        if 'extensions' in instructions:
+          allowedExtensions = self.argumentAttributes[tool][argument].extensions
+          for extension in instructions['extensions']:
+            if extension not in allowedExtensions:
+              if self.allowTermination: self.errors.invalidExtensionInModifyValues(tool, argument, extension, allowedExtensions)
+              else: return False
 
     return True
 
