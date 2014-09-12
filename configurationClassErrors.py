@@ -122,13 +122,31 @@ class configurationClassErrors:
     # Create a sorted list of the required attributes.
     requiredAttributes = []
     for attribute in allowedAttributes:
-       if allowedAttributes[attribute][1]: requiredAttributes.append(attribute)
+      if allowedAttributes[attribute][1]: requiredAttributes.append(attribute)
 
     # Add the attributes to the text to be written along with the expected type.
     for attribute in sorted(requiredAttributes): self.text.append(attribute + ':\t' + str(allowedAttributes[attribute][0]))
 
     self.text.append('\t')
     self.text.append('Please add the missing attribute to the configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # If the category/help group is invalid.
+  def invalidCategory(self, runName, category, allowedCategories, isPipeline):
+    runType = 'pipeline' if isPipeline else 'tool'
+
+    self.text.append('Invalid category in ' + runType + ' configuration file.')
+    text = 'The configuration file for ' + runType + ' \'' + runName + '\' includes the category \'' + category + '\', but this is not ' + \
+    'a valid category for the ' + runType + '. The valid categories are:'
+    self.text.append(text)
+    self.text.append('\t')
+
+    # Add the attributes to the text to be written along with the expected type.
+    for attribute in sorted(allowedCategories): self.text.append(attribute)
+
+    self.text.append('\t')
+    self.text.append('Please replace the category with a valid value in the configuration file.')
     self.writeFormattedText()
     self.terminate()
 
@@ -1418,6 +1436,12 @@ class configurationClassErrors:
     self.terminate()
 
   def unsetFile(self, longFormArgument, shortFormArgument, description, validAlternatives, isPipeline):
+
+    # If validAlternatives, contains no alternatives, set it to None.
+    if validAlternatives:
+      for counter, (longAlternative, shortAlternative) in enumerate(reversed(validAlternatives)):
+        if not longAlternative and not shortAlternative: del validAlternatives[counter]
+
     self.text.append('The required command line argument ' + longFormArgument + ' (' + shortFormArgument + ') is missing.')
     if validAlternatives:
       self.text.append('This argument is described as \'' + description + '\' and can also be set by using one of the following arguments:')
@@ -1435,9 +1459,9 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
-  ######################################
+  ###########################################
   # Errors with exporting an parameter set. #
-  ######################################
+  ###########################################
 
   # If the user is attempting to export an parameter set and they have supplied a file for performing multiple
   # runs, terminate.

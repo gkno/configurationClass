@@ -30,8 +30,8 @@ class toolAttributes:
     # A description of the tool.
     self.description = None
 
-    # The category to which the tool belongs.
-    self.category = None
+    # The categories to which the tool belongs.
+    self.categories = ['General']
 
     # The tool executable and its path and any modifiers.
     self.executable = None
@@ -58,10 +58,6 @@ class toolAttributes:
     # If the tool is untested, but available, the isExperimental flag can be set. This
     # will ensure that the tool is listed as experimental and urge caution in its use.
     self.isExperimental = False
-
-    # Define the help group. When showing all tools in the help, the tools will be grouped
-    # according to this value. If not set, the tool is in the general group.
-    self.helpGroup = 'General'
 
     # If the tool has any arguments with commands to evaluate, record them.
     self.argumentsWithCommands = []
@@ -193,7 +189,7 @@ class toolConfiguration:
     self.shortFormArguments = {}
 
     # Define the errors class for handling errors.
-    self.errors               = configurationClassErrors()
+    self.errors = configurationClassErrors()
 
     # Define a variable to determine whether termination should result if an error in a
     # configuration file is found.
@@ -205,7 +201,7 @@ class toolConfiguration:
     self.filename             = None
 
   # Process the tool data.
-  def processConfigurationData(self, tool, data, allowTermination):
+  def processConfigurationData(self, tool, data, allowedCategories, allowTermination):
 
     # Set the allowTermination variable. Each of the following subroutines check different
     # aspects of the configuration file. If problems are found, termination will result with
@@ -261,6 +257,9 @@ class toolConfiguration:
     # that they use.
     if success: success = self.connectArguments(tool)
 
+    # Check that the category to which the tool is assigned is valid.
+    if success: success = self.checkCategory(tool, allowedCategories)
+
     return success
 
   # Check and store the top level tool attibutes.
@@ -276,12 +275,11 @@ class toolConfiguration:
     allowedAttributes['arguments']          = (dict, True, False, None)
     allowedAttributes['argument delimiter'] = (str, False, True, 'delimiter')
     allowedAttributes['argument order']     = (list, False, True, 'argumentOrder')
-    allowedAttributes['category']           = (str, True, True, 'category')
+    allowedAttributes['categories']         = (list, True, True, 'categories')
     allowedAttributes['description']        = (str, True, True, 'description')
     allowedAttributes['executable']         = (str, True, True, 'executable')
     allowedAttributes['experimental']       = (bool, False, True, 'isExperimental')
     allowedAttributes['help']               = (str, True, False, None)
-    allowedAttributes['help group']         = (str, False, True, 'helpGroup')
     allowedAttributes['hide tool']          = (bool, False, True, 'isHidden')
     allowedAttributes['id']                 = (str, True, True, 'id')
     allowedAttributes['input is stream']    = (bool, False, True, 'inputIsStream')
@@ -953,6 +951,17 @@ class toolConfiguration:
                 valueDict['argument'] = self.shortFormArguments[tool][valueDict['argument']]
 
             self.argumentAttributes[tool][longFormArgument].commandEvaluation.values[valueDict['ID']] = valueDict['argument']
+
+    return True
+
+  # Check that the defined category and help group are valid.
+  def checkCategory(self, tool, allowedCategories):
+    categories = self.attributes[tool].categories
+
+    for category in categories:
+      if category not in allowedCategories:
+        if self.allowTermination: self.errors.invalidCategory(tool, category, allowedCategories, False)
+        else: return False
 
     return True
 
