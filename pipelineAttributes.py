@@ -35,8 +35,8 @@ class pipelineAttributes:
     # If the pipeline should be hidden in the help.
     self.isHiddenInHelp = False
 
-    # Define the help groups to which pipelines belong.
-    self.helpGroup = 'General'
+    # Define the categories to which pipelines belong.
+    self.categories = []
 
 # Define a class to store task attribtues.
 class taskAttributes:
@@ -147,9 +147,8 @@ class pipelineConfiguration:
     self.filename            = ''
     self.pipelineName        = ''
 
-  #TODO
   # Validate the contents of the tool configuration file.
-  def processConfigurationData(self, data, pipeline, toolFiles, allowTermination):
+  def processConfigurationData(self, data, pipeline, toolFiles, allowedCategories, allowTermination):
 
     # Set the allowTermination variable. Each of the following subroutines check different
     # aspects of the configuration file. If problems are found, termination will result with
@@ -179,6 +178,9 @@ class pipelineConfiguration:
     # From the node data, define which arguments are greedy.
     if success: success = self.getNodeTasks(pipeline)
 
+    # Check that the category to which the pipeline is assigned is valid.
+    if success: success = self.checkCategory(pipeline, allowedCategories)
+
     return success
 
   def checkGeneralAttributes(self, pipeline, data):
@@ -190,7 +192,7 @@ class pipelineConfiguration:
     allowedAttributes                   = {}
     allowedAttributes['description']    = (str, True, True, 'description')
     allowedAttributes['developmental']  = (bool, False, True, 'isDevelopmental')
-    allowedAttributes['help group']     = (str, False, True, 'helpGroup')
+    allowedAttributes['categories']     = (list, True, True, 'categories')
     allowedAttributes['hide in help']   = (bool, False, True, 'isHiddenInHelp')
     allowedAttributes['parameter sets'] = (list, True, False, None)
     allowedAttributes['nodes']          = (list, True, False, None)
@@ -663,6 +665,17 @@ class pipelineConfiguration:
 
             # Store the extension.
             self.linkedExtension[configNodeID] = self.nodeAttributes[configNodeID].extensions
+
+  # Check that the defined category and help group are valid.
+  def checkCategory(self, pipeline, allowedCategories):
+    categories = self.attributes.categories
+
+    for category in categories:
+      if category not in allowedCategories:
+        if self.allowTermination: self.errors.invalidCategory(pipeline, category, allowedCategories, True)
+        else: return False
+
+    return True
 
   # Set the workflow and the taskAttributes for a tool.
   def definePipelineAttributesForTool(self, name):
