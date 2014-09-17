@@ -137,18 +137,32 @@ class configurationMethods:
 
       # If there is only a single node listed, there is no need to proceed, since no merging needs to
       # take place. 
-      optionsToMerge = deepcopy(self.pipeline.commonNodes[configNodeID])
+      optionsToMerge   = deepcopy(self.pipeline.commonNodes[configNodeID])
+      #TODO CHECK
+      linkedExtensions = deepcopy(self.pipeline.linkedExtension[configNodeID]) if configNodeID in self.pipeline.linkedExtension else {}
       if len(optionsToMerge) != 1:
 
         # Pick one of the nodes to keep.  If the option picked has not yet been set as a node, choose
         # again.
         nodeID           = None
         absentNodeValues = []
-        while nodeID == None and optionsToMerge:
-          optionToKeep = optionsToMerge.pop(0)
-          task         = optionToKeep[0]
-          argument     = optionToKeep[1]
+        #TODO CHECK
+        isNodeSet = False
+        #while nodeID == None and optionsToMerge:
+        #while optionsToMerge and not isNodeSet:
+        for counter, (task, argument) in enumerate(optionsToMerge):
+          #TODO CHECK isNodeSet
+          isNodeSet    = True
+          #optionToKeep = optionsToMerge.pop(0)
+          #task         = optionToKeep[0]
+          #argument     = optionToKeep[1]
           nodeID       = self.nodeMethods.doesNodeExist(graph, task, argument)
+
+          #TODO CHECK
+          # Check to see if the node selected also has instructions on connection to an extension. If
+          # so, this node should not be the selected node.
+          if task in linkedExtensions:
+            if argument in linkedExtensions[task]: isNodeSet = False
 
           # Store the ID of the node being kept along with the value it was given in the common nodes
           # section of the configuration file.  The parameter sets information will refer to the common
@@ -157,7 +171,14 @@ class configurationMethods:
 
           # If the node doesn't exist, store the task and argument.  These will be put into the
           # edgesToCreate dictionary once a nodeID has been found.
-          if nodeID == None: absentNodeValues.append((task, argument))
+          if nodeID == None:
+            absentNodeValues.append((task, argument))
+            isNodeSet = False
+
+          # If this is the node to use, remove the node from optionsToMerge and break out of the loop.
+          if isNodeSet:
+            optionsToMerge.pop(counter)
+            break
 
         # If none of the nodes exist, a node needs to be created.  For now, store the edges that
         # need to be created
@@ -179,7 +200,9 @@ class configurationMethods:
           for task, argument in absentNodeValues: edgesToCreate[nodeID].append((None, task, argument))
 
           # Now parse through the nodes remaining in the optionsToMerge structure and mark nodes and store edge
-          # information.
+          # information. Check if any of the nodes being removed are filename stubs. If so, the node being kept
+          # should be listed as a filenamd stub.
+          mergedNodeIsFilenameStub = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'isFilenameStub')
           for task, argument in optionsToMerge:
             nodeIDToRemove = self.nodeMethods.doesNodeExist(graph, task, argument)
 
@@ -248,7 +271,7 @@ class configurationMethods:
         # Only look at options nodes that contain information about files.
         if self.nodeMethods.getGraphNodeAttribute(graph, mergeNodeID, 'isFile'):
           tool                      = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
-          mergedNodeisFilenameStub  = self.nodeMethods.getGraphNodeAttribute(graph, mergeNodeID, 'isFilenameStub')
+          mergedNodeIsFilenameStub  = self.nodeMethods.getGraphNodeAttribute(graph, mergeNodeID, 'isFilenameStub')
 
           # If the argument is 'read json file', create the edge.
           if argument == 'read json file':
@@ -268,15 +291,15 @@ class configurationMethods:
   
             # If the argument is not for a filename stub, then there is a single output file.
             # Generate the edges from the replacement file value to this task.
-            if not mergedNodeisFilenameStub and not removedNodeisFilenameStub:
+            if not mergedNodeIsFilenameStub and not removedNodeisFilenameStub:
               self.linkNonFilenameStubNodes(graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument, isInput)
   
             # If either of the nodes are filename stubs, deal with them.
-            elif mergedNodeisFilenameStub and not removedNodeisFilenameStub:
+            elif mergedNodeIsFilenameStub and not removedNodeisFilenameStub:
               self.createFilenameStubEdgesM(graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument)
-            elif not mergedNodeisFilenameStub and removedNodeisFilenameStub:
+            elif not mergedNodeIsFilenameStub and removedNodeisFilenameStub:
               self.createFilenameStubEdgesR(graph, mergeNodeID, nodeID, task, tool, shortFormArgument, longFormArgument)
-            elif mergedNodeisFilenameStub and removedNodeisFilenameStub:
+            elif mergedNodeIsFilenameStub and removedNodeisFilenameStub:
               self.createFilenameStubEdgesMR(graph, mergeNodeID, nodeID, task, shortFormArgument, longFormArgument, isInput)
 
   # Create the edges for file nodes that are not generated from filename stubs.
