@@ -526,6 +526,58 @@ class configurationMethods:
 
     return workflow
 
+
+  # The topological sort does not always generate the corret order. In this routine, check for
+  # cases where a task is outputting to the stream. It is possible that after this task, the
+  # topological sort could choose from multiple tasks to perform next. This routine exists to
+  # ensure that the task following is the one that expects the stream as its input.
+  def correctWorkflowForStreams(self, graph, workflow):
+    incomplete = True
+    startCount = 0
+    while incomplete:
+      for counter in range(startCount, len(workflow)):
+        task = workflow[counter]
+        if counter == len(workflow) - 1: incomplete = False
+        else:
+          nextTask         = workflow[counter + 1]
+          isOutputToStream = self.nodeMethods.getGraphNodeAttribute(graph, task, 'outputStream')
+  
+          # If this task outputs to the stream, determine what the next task should be.
+          if isOutputToStream:
+            for outputNodeID in graph.successors(task):
+              successorTasks  = []
+              for successorTask in graph.successors(outputNodeID): successorTasks.append(successorTask)
+  
+            # If the next task is not in the list of tasks, modify the workflow to ensure that it is.
+            successorIndex = workflow.index(successorTasks[0])
+            if nextTask not in successorTasks:
+
+              # Store the tasks 
+              workflowMiddle = []
+              workflowMiddle = workflow[counter + 1: successorIndex]
+
+              # Find all the tasks after the successor task. Once tasks have been moved around, these
+              # tasks will all be added to the end.
+              workflowEnd = []
+              workflowEnd = workflow[successorIndex + 1:]
+  
+              # Reconstruct the workflow.
+              updatedWorkflow = []
+              for updateCount in range(0, counter + 1): updatedWorkflow.append(workflow[updateCount])
+              updatedWorkflow.append(successorTasks[0])
+              for updateTask in workflowMiddle: updatedWorkflow.append(updateTask)
+              for updateTask in workflowEnd: updatedWorkflow.append(updateTask)
+ 
+              # Update the workflow.
+              workflow = updatedWorkflow
+
+              # Reset the startCount. There is no need to loop over the entire workflow on the next
+              # pass.
+              startCount = counter
+              break
+
+    return workflow
+
   # Attach the parameter set arguments to the relevant nodes.
   def attachPipelineParameterSetArgumentsToNodes(self, graph, pipelineName, parameterSetName):
     for node in self.parameterSets.parameterSetAttributes[pipelineName][parameterSetName].nodes:

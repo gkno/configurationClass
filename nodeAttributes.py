@@ -103,6 +103,9 @@ class optionNodeAttributes:
     # If the values associated with this node are commands to be evaluated at run time.
     self.isCommandToEvaluate = False
 
+    # Record if the values associated with the node have been modified.
+    self.isValuesModified = False
+
 # Define a class for holding attributes for file nodes.  These are nodes that
 # hold information about files.
 class fileNodeAttributes:
