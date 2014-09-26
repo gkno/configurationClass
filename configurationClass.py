@@ -121,6 +121,53 @@ class configurationMethods:
     # will be used as input to a single run of the task.
     self.markGreedyEdges(graph)
 
+  # Process all of the additional edges included in the pipeline configuration and add them to the
+  # graph.
+  def processOriginatingEdges(self, graph):
+    isEdgesAdded = False
+
+    for task in self.pipeline.originatingEdges:
+      for argument in self.pipeline.originatingEdges[task]:
+
+        # Check that th argument is valid.
+        tool         = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
+        configNodeID = self.pipeline.originatingConfigID[task][argument]
+        if not argument in self.tools.getArguments(tool): self.errors.invalidArgumentInOriginatingEdges(task, tool, argument, configNodeID)
+
+        # Get the node ID for this task/argument.
+        nodeIDs = self.nodeMethods.getNodeForTaskArgument(graph, task, argument, 'option')
+
+        # Loop over all the targets.
+        for targetTask, targetArgument in self.pipeline.originatingEdges[task][argument]:
+
+          # If there are edges to add, update the isEdgesAdded flag.
+          isEdgesAdded = True
+
+          # Loop over all the source node IDs and link to all target node IDs.
+          for sourceNodeID in nodeIDs:
+
+            # Since these are originating edges, the target task argument must be for an input file. Check
+            # that this is the case and terminate if it isn't.
+            targetNodeIDs = self.nodeMethods.getNodeForTaskArgument(graph, targetTask, targetArgument, 'option')
+            for targetNodeID in targetNodeIDs:
+              isInput = self.edgeMethods.getEdgeAttribute(graph, targetNodeID, targetTask, 'isInput')
+              if not isInput: print('ERROR - config.processOriginatingEdges - Not an input.'); exit(0)
+
+            # TODO Handle filename stubs.
+            # Terminate if this is a filename stub. 
+            isFilenameStub = self.edgeMethods.getEdgeAttribute(graph, sourceNodeID, task, 'isFilenameStub')
+            if isFilenameStub: print('ERROR - config.processOriginatingEdges - Not handled target filename stubs'); exit(0)
+
+            self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, sourceNodeID, targetTask, targetArgument, isOriginatingEdge = True)
+
+            # Also link associated file nodes.
+            for fileNodeID in self.nodeMethods.getAssociatedFileNodeIDs(graph, sourceNodeID):
+              attributes                   = deepcopy(graph[targetNodeIDs[0]][targetTask]['attributes'])
+              attributes.isOriginatingEdge = True
+              graph.add_edge(fileNodeID, targetTask, attributes = attributes)
+
+    return isEdgesAdded
+
   # Parse through the 'nodes' section of the pipeline configuration file and identify which nodes can be
   # removed (i.e. merged with another node).  The nodes to be removed are tagged as to be removed and the
   # node that will replace them is also stored.
@@ -667,8 +714,8 @@ class configurationMethods:
         if not self.nodeMethods.getGraphNodeAttribute(graph, fileNodeID, 'values') and isRequired:
 
           # Get the long and short form of the argument.
-          taskLongFormArgument                                = self.edgeMethods.getEdgeAttribute(graph, fileNodeID, task, 'longFormArgument')
-          taskShortFormArgument                               = self.edgeMethods.getEdgeAttribute(graph, fileNodeID, task, 'shortFormArgument')
+          taskLongFormArgument  = self.edgeMethods.getEdgeAttribute(graph, fileNodeID, task, 'longFormArgument')
+          taskShortFormArgument = self.edgeMethods.getEdgeAttribute(graph, fileNodeID, task, 'shortFormArgument')
 
           # CHeck to see if this argument can be constructed.
           tool                                  = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
@@ -680,21 +727,44 @@ class configurationMethods:
           # Check if there are pipeline arguments for the missing argument.
           pipelineLongFormArgument, pipelineShortFormArgument = self.pipeline.getPipelineArgument(task, taskLongFormArgument)
 
-          if not self.isPipeline or not pipelineLongFormArgument:
-            description       = self.tools.getArgumentAttribute(tool, taskLongFormArgument, 'description')
-            validAlternatives = self.tools.getArgumentAttribute(tool, taskLongFormArgument, 'canBeSetByArgument')
-            alternatives      = []
-            for alternative in validAlternatives:
-              alternatives.append((alternative, self.tools.longFormArguments[tool][alternative]))
-            self.errors.unsetFile(taskLongFormArgument, taskShortFormArgument, description, alternatives, self.isPipeline)
+          # Check for other nodes using that use this argument. If edges were defined in the configuration file, it
+          # is possible that the task has all of the required arguments, even though this node is empty.
+          isAlternativeSet = False
+          for testNodeID in self.nodeMethods.getPredecessorFileNodes(graph, task):
+            testArgument = self.edgeMethods.getEdgeAttribute(graph, testNodeID, task, 'longFormArgument')
+
+            # If this test node is not the current node, uses the same argument and has values, terminate the
+            # loop since an alternative argument exists and is set.
+            if (testNodeID != fileNodeID) and (testArgument == taskLongFormArgument):
+              if self.nodeMethods.getGraphNodeAttribute(graph, testNodeID, 'values'):
+                isAlternativeSet = True
+                break
+
+          # If no values are set for this argument, terminate.
+          if not isAlternativeSet:
+            if not self.isPipeline or not pipelineLongFormArgument:
+              description       = self.tools.getArgumentAttribute(tool, taskLongFormArgument, 'description')
+              validAlternatives = self.tools.getArgumentAttribute(tool, taskLongFormArgument, 'canBeSetByArgument')
+              alternatives      = []
+              for alternative in validAlternatives: alternatives.append((alternative, self.tools.longFormArguments[tool][alternative]))
+              self.errors.unsetFile(taskLongFormArgument, taskShortFormArgument, description, alternatives, self.isPipeline)
+            else:
+              description       = self.pipeline.pipelineArguments[pipelineLongFormArgument].description
+              validAlternatives = self.tools.getArgumentAttribute(tool, taskLongFormArgument, 'canBeSetByArgument')
+              alternatives      = []
+              for alternative in validAlternatives:
+                pipelineLongFormAlternative, pipelineShortFormAlternative = self.pipeline.getPipelineArgument(task, alternative)
+                alternatives.append((pipelineLongFormAlternative, pipelineShortFormAlternative))
+              self.errors.unsetFile(pipelineLongFormArgument, pipelineShortFormArgument, description, alternatives, False)
+
+          # If the node has no values, but alternative nodes for this argument exist and have values, remove these
+          # empty nodes from the graph.
           else:
-            description       = self.pipeline.pipelineArguments[pipelineLongFormArgument].description
-            validAlternatives = self.tools.getArgumentAttribute(tool, taskLongFormArgument, 'canBeSetByArgument')
-            alternatives      = []
-            for alternative in validAlternatives:
-              pipelineLongFormAlternative, pipelineShortFormAlternative = self.pipeline.getPipelineArgument(task, alternative)
-              alternatives.append((pipelineLongFormAlternative, pipelineShortFormAlternative))
-            self.errors.unsetFile(pipelineLongFormArgument, pipelineShortFormArgument, description, alternatives, False)
+            self.nodeMethods.setGraphNodeAttribute(graph, optionNodeID, 'isMarkedForRemoval', True)
+            self.nodeMethods.setGraphNodeAttribute(graph, fileNodeID, 'isMarkedForRemoval', True)
+
+    # Purge all nodes that have been marked for removal.
+    self.nodeMethods.purgeNodeMarkedForRemoval(graph)
 
   # Determine all of the graph dependencies.  This is essentially
   def getGraphDependencies(self, graph, taskList, key):

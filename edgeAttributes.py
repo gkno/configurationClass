@@ -41,12 +41,16 @@ class edgeAttributes:
     # If a command uses the values from a different task in evaluating a command.
     self.evaluateCommand = False
 
+    # If this was an edge added using the 'originating edges' field in the configuration
+    # file, store this information.
+    self.isOriginatingEdge = False
+
 class edgeClass:
   def __init__(self):
     self.errors      = configurationClassErrors()
 
   # Define all of the edge attributes and add an edge to the graph.
-  def addEdge(self, graph, nodeMethods, tools, sourceNodeID, targetNodeID, argument):
+  def addEdge(self, graph, nodeMethods, tools, sourceNodeID, targetNodeID, argument, isOriginatingEdge = False):
  
     # Determine which of the nodeIDs corresponds to a task node and then determine
     # the tool.
@@ -92,6 +96,9 @@ class edgeClass:
     # Define how to handle streaming files.
     attributes.ifOutputIsStream = tools.getArgumentAttribute(tool, attributes.longFormArgument, 'outputStream')
     attributes.ifInputIsStream  = tools.getArgumentAttribute(tool, attributes.longFormArgument, 'inputStream')
+
+    # Store if this edge was listed as an originating edge in the configuration file.
+    attributes.isOriginatingEdge = isOriginatingEdge
 
     # Add the edge to the graph.
     graph.add_edge(sourceNodeID, targetNodeID, attributes = attributes)
