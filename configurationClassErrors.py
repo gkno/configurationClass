@@ -132,6 +132,24 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
+  # A task included in the 'originating edges' section is invalid.
+  def invalidTaskInOriginatingEdges(self, configNodeID, task):
+    self.text.append('Invalid task in originating edges section.')
+    self.text.append('The pipeline configuration file contains a node with ID \'' + configNodeID + '\' with a set of edges defined in the \'' + \
+    'originating edges\' section. The task \'' + task + '\' appears in this list, but this is not a valid task in the pipeline. Please correct ' + \
+    'the pipeline configuration file to fix this problem.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # A task included in the 'originating edges' section is associated with an invalid argument.
+  def invalidArgumentInOriginatingEdges(self, task, tool, argument, configNodeID):
+    self.text.append('Invalid argument in originating edges section.')
+    self.text.append('The pipeline configuration file contains a node (ID: ' + configNodeID + ') with a set of edges defined in the \'' + \
+    'originating edges\' section. Contained in this list is the task \'' + task + '\' associated with the argument \'' + argument + '\', but ' + \
+    'this in an invalid arguent for the tool \'' + tool + '\' used by this task. Please check and fix the pipeline configutaion file.')
+    self.writeFormattedText()
+    self.terminate()
+
   # If the category/help group is invalid.
   def invalidCategory(self, runName, category, allowedCategories, isPipeline):
     runType = 'pipeline' if isPipeline else 'tool'
@@ -859,7 +877,8 @@ class configurationClassErrors:
     for nodeID in nodeIDs: self.text.append(nodeID)
     self.text.append('\t')
     self.text.append('These configuration file nodes should be compressed into a single node. If the argument is for an argument stub, ensure ' + \
-    'that the extensions are specified for linked arguments.')
+    'that the extensions are specified for linked arguments. Alternatively, task arguments can be defined in other configuration nodes as edges. ' + \
+    'Please see the documentation for further information on this subject.')
     self.writeFormattedText()
     self.terminate()
 

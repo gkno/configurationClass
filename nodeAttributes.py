@@ -103,6 +103,9 @@ class optionNodeAttributes:
     # If the values associated with this node are commands to be evaluated at run time.
     self.isCommandToEvaluate = False
 
+    # Record if the values associated with the node have been modified.
+    self.isValuesModified = False
+
 # Define a class for holding attributes for file nodes.  These are nodes that
 # hold information about files.
 class fileNodeAttributes:
@@ -244,11 +247,12 @@ class nodeClass:
         isRequired            = pipeline.pipelineArguments[pipelineLongFormArgument].isRequired
         attributes.isRequired = isRequired
 
+      # TODO IS THIS NECESSARY
       # If the task argument is linked to another argument in the pipeline, it is required.
-      if task in pipeline.linkedTaskArguments:
-        if argument in pipeline.linkedTaskArguments[task]:
-          isRequired = True
-          attributes.isRequired = isRequired
+      #if task in pipeline.linkedTaskArguments:
+      #  if argument in pipeline.linkedTaskArguments[task]:
+      #    isRequired = True
+      #    attributes.isRequired = isRequired
 
       if isRequired: self.buildOptionNode(graph, tools, task, tool, argument, attributes)
 
@@ -641,22 +645,18 @@ class nodeClass:
 
     return fileNodeIDs
 
-  # From a list of node IDs, find the node with a predecessor node. If more than one such node
-  # is present in the list, terminate. If there are none, return a random node ID from the list.
+  # From a list of node IDs, find a node with a predecessor node. If more than one such node
+  # is present in the list, return the first node ID encountered. If there are none, return 
+  # a random node ID from the list.
   def getNodeIDWithPredecessor(self, graph, nodeIDs, task):
-    foundNodeIDWithPredecessor = False
     for nodeID in nodeIDs:
       fileNodeIDs = self.getAssociatedFileNodeIDs(graph, nodeID)
       for fileNodeID in fileNodeIDs:
         predecessorNodeIDs = graph.predecessors(fileNodeID)
         if predecessorNodeIDs:
-          if foundNodeIDWithPredecessor:
-            # TODO SORT ERROR
-            print('Multiple nodeIDs with predecessor - config.nodeMethods.getNodeIDWithPredecessor')
-            self.errors.terminate()
-          else:
-            returnNodeID               = nodeID
-            foundNodeIDWithPredecessor = True
+          returnNodeID               = nodeID
+          foundNodeIDWithPredecessor = True
+          break
 
     # If no nodes with a predecessor were found, return a random node ID.
     if not foundNodeIDWithPredecessor: return nodeIDs[0]

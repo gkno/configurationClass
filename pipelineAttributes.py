@@ -47,15 +47,37 @@ class taskAttributes:
 # Define a class to store information on pipeline nodes.
 class pipelineNodeAttributes:
   def __init__(self):
-    self.description       = None
-    self.extensions        = None
-    self.deleteFiles       = False
-    self.ID                = None
-    self.greedyTasks       = None
-    self.isRequired        = False
+
+    # Store a description of the configuration node.
+    self.description = None
+
+    # Store information on extensions used by the different arguments.
+    # This is used to link arguments to filename stub arguments.
+    self.extensions = None
+
+    # Store whether files created should be deleted after being used.
+    self.deleteFiles = False
+
+    # Provide a unique ID for the configuration node.
+    self.ID = None
+
+    # Store a list of greedy tasks. These are tasks which will consume all
+    # iterations of values from predecessor nodes.
+    self.greedyTasks = None
+
+    # Store if the argument is required. This will supercede instructions from the
+    # tool configuration files.
+    self.isRequired = False
+
+    # The long and short forms of the pipeline arguments.
     self.longFormArgument  = None
     self.shortFormArgument = None
-    self.tasks             = None
+
+    # Store the task/arguments associated with the configuration node.
+    self.tasks = None
+
+    # Store information on additional edges.
+    self.originatingEdges = None
 
     # Store information about evaluating a command.
     self.evaluateCommand = None
@@ -80,7 +102,7 @@ class argumentAttributes:
     # If the argument is required by the pipeline, even if not by the tool.
     self.isRequired = False
 
-    #
+    # Store the ID for the argument.
     self.ID = None
 
     # The node ID in the configuration file.
@@ -116,6 +138,10 @@ class pipelineConfiguration:
     # greedy tasks in their own data structure,
     self.commonNodes = {}
     self.greedyTasks = {}
+
+    # Store information on additional edges to be created in the pipeline graph.
+    self.originatingEdges    = {}
+    self.originatingConfigID = {}
 
     # Define the pipeline workflow.
     self.workflow = []
@@ -177,6 +203,9 @@ class pipelineConfiguration:
 
     # From the node data, define which arguments are greedy.
     if success: success = self.getNodeTasks(pipeline)
+
+    # Check any of the configuration file nodes for information on additional edges.
+    if success: success = self.checkOriginatingEdges(pipeline)
 
     # Check that the category to which the pipeline is assigned is valid.
     if success: success = self.checkCategory(pipeline, allowedCategories)
@@ -300,6 +329,7 @@ class pipelineConfiguration:
     allowedAttributes                        = {}
     allowedAttributes['ID']                  = (str, True, True, 'ID')
     allowedAttributes['description']         = (str, True, True, 'description')
+    allowedAttributes['originating edges']   = (dict, False, True, 'originatingEdges')
     allowedAttributes['evaluate command']    = (dict, False, True, 'evaluateCommand')
     allowedAttributes['extensions']          = (dict, False, True, 'extensions')
     allowedAttributes['greedy tasks']        = (dict, False, True, 'greedyTasks')
@@ -592,16 +622,14 @@ class pipelineConfiguration:
             if task not in self.linkedTaskArguments: self.linkedTaskArguments[task] = []
             if taskArgument not in self.linkedTaskArguments[task]: self.linkedTaskArguments[task].append(taskArgument)
 
-    # TODO THIS CHECK WAS REMOVED FOR FASTQ-TANGRAM AS TWO ARGUMENTS ARE REQUIRED TO POINT TO THE
-    # SAME ARGUMENT. MAYBE ONLY PERFORM THIS CHECK IF THE TOOL ARGUMENT ALLOWS MULTIPLE VALUES.
     # Each node in the pipeline configuration file contains a list of task/argument pairs that take the
     # same value and can thus be merged into a single node in the pipeline graph. If a task/argument pair
     # appears in multiple nodes, the results can be unexpected, so this isn't permitted.
-    #for task in observedArguments:
-    #  for argument in observedArguments[task]:
-    #    if len(observedArguments[task][argument]) > 1:
-    #      if self.allowTermination: self.errors.repeatedArgumentInNode(task, argument, observedArguments[task][argument])
-    #      else: return False
+    for task in observedArguments:
+      for argument in observedArguments[task]:
+        if len(observedArguments[task][argument]) > 1:
+          if self.allowTermination: self.errors.repeatedArgumentInNode(task, argument, observedArguments[task][argument])
+          else: return False
 
     return True
 
@@ -666,10 +694,47 @@ class pipelineConfiguration:
             # Store the extension.
             self.linkedExtension[configNodeID] = self.nodeAttributes[configNodeID].extensions
 
+  # A task argument is only permitted in a single 'tasks' section in the configuration file. The reason for this
+  # is that if the argument appears in multiple configuration file nodes, the pipeline graph node containing the
+  # attributes of this argument will be merged with all other nodes appearing in the coniguration file node. If the
+  # argument then appears in another configuration file node, all pipeline graph nodes listed here will be merged
+  # with the already merged set. This is not desired behaviour. All nodes that should be merged will appear in the
+  # same configuration file node. If the argument appears again, it is because the node is to be connected to another
+  # task, but independent of the previous definitions. This case is handled by allowing edges to be defined. These
+  # edges will be included in the pipeline graph, but after all node merging has been completed.
+  def checkOriginatingEdges(self, pipeline):
+
+    # Loop over all of the configuration nodes.
+    for configNodeID in self.nodeAttributes:
+
+      # Take all 'originating edges' and store information on the task/argument pairs that should be connected
+      # with an edge.
+      if self.nodeAttributes[configNodeID].originatingEdges:
+        for task in self.nodeAttributes[configNodeID].originatingEdges:
+          argument = self.nodeAttributes[configNodeID].originatingEdges[task]
+
+          # Check that the task is valid. The validity of the argument will be checked at a later time.
+          if task not in self.taskAttributes.keys():
+            if self.allowTermination: self.errors.invalidTaskInOriginatingEdges(configNodeID, task)
+
+          # Store the values keyed on the originating task, then argument.
+          if task not in self.originatingEdges:
+            self.originatingEdges[str(task)]    = {}
+            self.originatingConfigID[str(task)] = {}
+          if argument not in self.originatingEdges:
+            self.originatingEdges[task][str(argument)]    = []
+            self.originatingConfigID[task][str(argument)] = configNodeID
+
+          # Loop over all of the arguments in the nodes tasks and store information on the required edge.
+          for targetTask in self.nodeAttributes[configNodeID].tasks:
+            targetArgument = self.nodeAttributes[configNodeID].tasks[targetTask]
+            self.originatingEdges[task][argument].append((str(targetTask), str(targetArgument)))
+
+    return True
+
   # Check that the defined category and help group are valid.
   def checkCategory(self, pipeline, allowedCategories):
     categories = self.attributes.categories
-
     for category in categories:
       if category not in allowedCategories:
         if self.allowTermination: self.errors.invalidCategory(pipeline, category, allowedCategories, True)
