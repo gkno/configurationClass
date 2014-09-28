@@ -51,7 +51,7 @@ class parameterSetConfiguration:
     self.fileOperations = fileOperations()
 
   # Check the parameter set data.
-  def checkParameterSets(self, runName, parameterSets, isPipeline, isExternal):
+  def checkParameterSets(self, graph, runName, parameterSets, isPipeline, isExternal):
 
     # Define the allowed attributes.
     allowedAttributes                = {}
@@ -152,6 +152,29 @@ class parameterSetConfiguration:
           for counter, value in enumerate(node.values):
             if isinstance(value, unicode): self.parameterSetAttributes[runName][parameterSet].nodes[nodeCount].values[counter] = str(value)
 
+  # Check that all the supplied arguments have their long forms.
+  def getLongFormArguments(self, graph, edgeMethods, tools, pipeline, runName, isPipeline):
+    for parameterSet in self.parameterSetAttributes[runName]:
+      for nodeCount, node in enumerate(self.parameterSetAttributes[runName][parameterSet].nodes):
+
+        # Get the long form of gkno specific arguments.
+        isGknoArgument = False
+        for nodeID in graph.predecessors('gkno'):
+          longFormArgument  = edgeMethods.getEdgeAttribute(graph, nodeID, 'gkno', 'longFormArgument')
+          shortFormArgument = edgeMethods.getEdgeAttribute(graph, nodeID, 'gkno', 'shortFormArgument')
+          if node.argument == longFormArgument:
+            isGknoArgument = True
+            break
+          elif node.argument == shortFormArgument:
+            node.argument  = longFormArgument
+            isGknoArgument = True
+            break
+
+        # Get the long form of pipeline arguments.
+        if not isGknoArgument:
+          if isPipeline: node.argument = str(pipeline.getLongFormArgument(graph, node.argument, False)[0])
+          else: node.argument = str(tools.getLongFormArgument(runName, node.argument, False))
+
   # Check for parameterSets in external parameterSets file.
   def checkExternalParameterSets(self, fileOperations, filename, runName, tools, isPipeline):
     filename = filename.replace('.json', '_parameterSets.json')
@@ -197,9 +220,10 @@ class parameterSetConfiguration:
     # Define the available parameterSets depending on whether this is a tool or pipeline.
     availableParameterSets = parameterSetFiles['pipeline parameter sets'] if isPipeline else parameterSetFiles['tool parameter sets']
     path                   = path + 'pipes/' if isPipeline else path + 'tools/'
-    # If the defined parameter set is in the configuration file, nothing needs to be done. 
 
+    # If the defined parameter set is in the configuration file, nothing needs to be done. 
     if parameterSetName in self.parameterSetAttributes[name]: return
+
     # All parameterSets from the extenal file have now been added to the data structure. If the parameter set still does
     # not exist, the the parameter set isn't defined.
     if parameterSetName not in self.parameterSetAttributes[name]:
