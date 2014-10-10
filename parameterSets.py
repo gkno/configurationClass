@@ -176,13 +176,13 @@ class parameterSetConfiguration:
           else: node.argument = str(tools.getLongFormArgument(runName, node.argument, False))
 
   # Check for parameterSets in external parameterSets file.
-  def checkExternalParameterSets(self, fileOperations, filename, runName, tools, isPipeline):
+  def checkExternalParameterSets(self, graph, fileOperations, filename, runName, tools, isPipeline):
     filename = filename.replace('.json', '_parameterSets.json')
 
     # Check if the file exists (it's existence is not necessary).
     if os.path.exists(filename):
       configurationData = fileOperations.readConfigurationFile(filename)
-      self.checkParameterSets(runName, configurationData['parameterSets'], isPipeline, isExternal = True)
+      self.checkParameterSets(graph, runName, configurationData['parameterSets'], isPipeline, isExternal = True)
 
   # Set a value in the toolAttributes.
   def setAttribute(self, attributes, attribute, value):
