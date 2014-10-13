@@ -172,8 +172,13 @@ class parameterSetConfiguration:
 
         # Get the long form of pipeline arguments.
         if not isGknoArgument:
+          originalArgument = node.argument
           if isPipeline: node.argument = str(pipeline.getLongFormArgument(graph, node.argument, False)[0])
           else: node.argument = str(tools.getLongFormArgument(runName, node.argument, False))
+
+        # If the long form argument is listed as 'None', the argument in the configuration file is not
+        # valid. In this case, terminatem with a request that the configuration file is fixed.
+        if node.argument == 'None': self.errors.invalidArgumentInParameterSet(runName, parameterSet, node.ID, originalArgument, isPipeline)
 
   # Check for parameterSets in external parameterSets file.
   def checkExternalParameterSets(self, graph, fileOperations, filename, runName, tools, isPipeline):

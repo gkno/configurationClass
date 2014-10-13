@@ -1213,6 +1213,17 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
+  # Invalid argument in 
+  def invalidArgumentInParameterSet(self, runName, parameterSet, ID, originalArgument, isPipeline):
+    runType = 'tool' if not isPipeline else 'pipeline'
+    self.text.append('Invalid argument in parameter set.')
+    self.text.append('The configuration file for the ' + runType + ' \'' + runName + '\' contains information for a parameter set with ' + \
+    'the name \'' + parameterSet + '\'. This parameter set contains a node with ID \'' + ID + '\' that defines values for the argument \'' + \
+    originalArgument + '\'. This is not a valid argument for this ' + runType + ', however. Please check the configuration file and ensure ' + \
+    'that all supplied parameter set arguments are valid.')
+    self.writeFormattedText()
+    self.terminate()
+
   ###################################################
   # Errors associated with getting node attributes. *
   ###################################################
