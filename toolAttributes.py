@@ -140,6 +140,10 @@ class argumentAttributes:
     # is the case.
     self.inQuotations = False
 
+    # Some arguments require that spaces are placed around mathematical operators. Record if this is
+    # the case.
+    self.inSpaces = False
+
     # gkno can modify hopw the argument is written on the command line, depending on the extension
     # provided. Store this information in the modifyValues structure.
     self.modifyValues = {}
@@ -452,6 +456,7 @@ class toolConfiguration:
     allowedAttributes['long form argument']                   = (str, True, 'longFormArgument')
     allowedAttributes['modify argument name on command line'] = (str, False, 'modifyArgument')
     allowedAttributes['modify argument values']               = (dict, False, 'modifyValues')
+    allowedAttributes['place spaces around operator']         = (bool, False, 'inSpaces')
     allowedAttributes['required']                             = (bool, False, 'isRequired')
     allowedAttributes['required if stream']                   = (bool, False, 'isRequiredIfStream')
     allowedAttributes['short form argument']                  = (str, False, 'shortFormArgument')
