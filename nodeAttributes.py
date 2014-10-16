@@ -298,9 +298,35 @@ class nodeClass:
   # Determine which graph node each pipeline argument points to.
   def getPipelineArgumentNodes(self, graph, config):
     for argument in config.pipeline.pipelineArguments:
-      configNodeID   = config.pipeline.pipelineArguments[argument].configNodeID
-      task           = config.pipeline.commonNodes[configNodeID][0][0]
-      taskArgument   = config.pipeline.commonNodes[configNodeID][0][1]
+      configNodeID = config.pipeline.pipelineArguments[argument].configNodeID
+      task         = None
+
+      # Get the task, if one is given.
+      try: task = config.pipeline.commonNodes[configNodeID][0][0]
+      except: task = None
+
+      # If no task was defined, look for tasks in the greedy tasks.
+      if task == None:
+        try: task = config.pipeline.nodeAttributes[configNodeID].greedyTasks
+        except: task = None
+
+      # If no greedy tasks were defined, look for originating edges.
+      if task == None:
+        try: task = str(config.pipeline.nodeAttributes[configNodeID].originatingEdges.keys()[0])
+        except: task = None
+
+        if task != None: taskArgument = str(config.pipeline.nodeAttributes[configNodeID].originatingEdges[task])
+
+      # If there were also no originating edges, this configuration node deals with additional nodes'. These
+      # are not handled in this routine, so skip this argument.
+      if task == None:
+        config.pipeline.unassignedArguments.append((str(configNodeID), str(argument)))
+        continue
+
+      # If task is not None, a task from the 'tasks' or 'greedy tasks' was found. The common
+      # nodes structure can then be used to find thei task argument.
+      else: taskArgument = config.pipeline.commonNodes[configNodeID][0][1]
+
       tool           = config.pipeline.taskAttributes[task].tool
       foundArgument  = False
       for predecessorNodeID in self.getPredecessorOptionNodes(graph, task):
@@ -317,7 +343,7 @@ class nodeClass:
         if not config.tools.getArgumentAttribute(tool, taskArgument, 'listValues'):
           attributes        = self.buildNodeFromToolConfiguration(config.tools, tool, taskArgument)
           predecessorNodeID = self.buildOptionNode(graph, config.tools, task, tool, taskArgument, attributes)
-
+ 
       # Set the nodeID to a graph nodeID.
       config.pipeline.pipelineArguments[argument].ID = predecessorNodeID
 
