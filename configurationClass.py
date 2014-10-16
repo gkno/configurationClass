@@ -1217,16 +1217,16 @@ class configurationMethods:
     isVerbose = self.nodeMethods.getGraphNodeAttribute(graph, 'GKNO-VERBOSE', 'values')[1][0]
 
     # Check that only a single parameter set was specified and get the requested parameter set name.
-    if len(self.nodeMethods.getGraphNodeAttribute(graph, 'GKNO-EXPORT-INSTANCE', 'values')[1]) > 1:
+    if len(self.nodeMethods.getGraphNodeAttribute(graph, 'GKNO-EXPORT-PARAMETER-SET', 'values')[1]) > 1:
       self.errors.exportParameterSetSetMultipleTimes(runName, isVerbose)
 
     # Set the filename and the parameter set name.
-    filename     = runName + '_parameterSets.json'
-    parameterSetName = self.nodeMethods.getGraphNodeAttribute(graph, 'GKNO-EXPORT-INSTANCE', 'values')[1][0]
+    filename         = runName + '_parameterSets.json'
+    parameterSetName = self.nodeMethods.getGraphNodeAttribute(graph, 'GKNO-EXPORT-PARAMETER-SET', 'values')[1][0]
 
     # If no parameter set name was provided, or the parameter set already exists, fail.
     if parameterSetName == '': self.errors.noParameterSetNameInExport(filename, parameterSetName, isVerbose)
-    if parameterSetName in self.parameterSets.paramaterSetAttributes[runName]: self.errors.parameterSetNameExists(parameterSetName, isVerbose)
+    if parameterSetName in self.parameterSets.parameterSetAttributes[runName]: self.errors.parameterSetNameExists(parameterSetName, isVerbose)
 
     # Get all of the arguments set by the user.
     if isPipeline: arguments = self.getAllPipelineArguments(graph)
