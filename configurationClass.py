@@ -625,6 +625,77 @@ class configurationMethods:
 
     return workflow
 
+  # Process any 'additional nodes' for this pipeline.
+  def processAdditionalNodes(self, graph):
+    if self.pipeline.hasAdditionalNodes:
+      for configNodeID in self.pipeline.additionalNodes:
+
+        # Get the ID of a new node to be created.
+        nodeID = 'OPTION_' + str(self.nodeMethods.optionNodeID)
+        self.nodeMethods.optionNodeID += 1
+
+        # Use the first task in the list to generate the option node details.
+        task       = self.pipeline.additionalNodes[configNodeID].keys()[0]
+        tool       = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
+        argument   = self.pipeline.additionalNodes[configNodeID][task][0]
+        attributes = self.nodeMethods.buildNodeFromToolConfiguration(self.tools, tool, argument)
+        isInput    = self.tools.getArgumentAttribute(tool, argument, 'isInput')
+        isOutput   = self.tools.getArgumentAttribute(tool, argument, 'isOutput')
+        isFile = True if (isInput or isOutput) else False
+        graph.add_node(nodeID, attributes = attributes)
+
+        # If this argument points to a file, also create a file node.
+        if isFile:
+          isFilenameStub = self.tools.getArgumentAttribute(tool, argument, 'isFilenameStub')
+
+          # Deal with filename stubs.
+          if isFilenameStub: print('config.processAdditionalNodes - Not handled stubs'); exit(0)
+
+          # Deal with non-filename stubs.
+          else:
+            attributes                     = fileNodeAttributes()
+            fileNodeID                     = nodeID + '_FILE'
+            attributes.description         = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'description')
+            attributes.allowMultipleValues = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'allowMultipleValues')
+            attributes.allowedExtensions   = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'allowedExtensions')
+            graph.add_node(fileNodeID, attributes = attributes)
+
+        # Loop over all the task/argument pairs and add edges to the new node.
+        for task in self.pipeline.additionalNodes[configNodeID]:
+          for argument in self.pipeline.additionalNodes[configNodeID][task]:
+            self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, nodeID, task, argument, False)
+            if isFile:
+              tool    = self.nodeMethods.getGraphNodeAttribute(graph, task, 'tool')
+              isInput = self.tools.getArgumentAttribute(tool, argument, 'isInput')
+              if not isFilenameStub:
+                if isInput: self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, fileNodeID, task, argument, False)
+                else: self.edgeMethods.addEdge(graph, self.nodeMethods, self.tools, task, fileNodeID, argument, False)
+          
+  # Having added the 'additional nodes' to the graph, attach unassigned pipeline arguments.
+  def connectPipelineArgumentsFromAdditionalNodes(self, graph):
+
+    # Loop over all the pipeline arguments that are unassigned.
+    for configNodeID, pipelineArgument in self.pipeline.unassignedArguments:
+
+      # If the pipeline configuration node does not have additional nodes, this argument cannot be
+      # connected to a node since no tool arguments are associated with it.
+      #TODO ERROR
+      if configNodeID not in self.pipeline.additionalNodes: print('ERROR: config.connectPipelineArgumentsFromAdditionalNodes'); exit(0)
+
+      # Get the first task/tool argument pair from the additional nodes.
+      task         = self.pipeline.additionalNodes[configNodeID].keys()[0]
+      tool         = self.pipeline.taskAttributes[task].tool
+      taskArgument = self.pipeline.additionalNodes[configNodeID][task][0]
+      foundArgument  = False
+      for predecessorNodeID in self.nodeMethods.getPredecessorOptionNodes(graph, task):
+        testArgument = self.edgeMethods.getEdgeAttribute(graph, predecessorNodeID, task, 'longFormArgument')
+        if taskArgument == testArgument:
+          foundArgument = True
+          break
+
+      # Set the nodeID to a graph nodeID.
+      self.pipeline.pipelineArguments[pipelineArgument].ID = predecessorNodeID
+
   # Attach the parameter set arguments to the relevant nodes.
   def attachPipelineParameterSetArgumentsToNodes(self, graph, pipelineName, parameterSetName):
     for node in self.parameterSets.parameterSetAttributes[pipelineName][parameterSetName].nodes:
@@ -984,13 +1055,22 @@ class configurationMethods:
   # For each task, determine the maximum number of datasets associated with any option.
   def getNumberOfDataSets(self, graph):
     for task in self.pipeline.workflow:
-      totalNumber = 0
-      isGreedy    = False
-      hasMultipleInputFiles = False
+      totalNumber                  = 0
+      isGreedy                     = False
+      hasMultipleInputFiles        = False
+      hasMultipleNonFileParameters = False
       for nodeID in self.nodeMethods.getPredecessorOptionNodes(graph, task):
         numberOfDataSets = len(self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'values'))
         isInput          = self.edgeMethods.getEdgeAttribute(graph, nodeID, task, 'isInput')
+        isFile           = self.nodeMethods.getGraphNodeAttribute(graph, nodeID, 'isFile')
+
+        # Record if this task has multiple input files.
         if isInput and numberOfDataSets > 1: hasMultipleInputFiles = True
+
+        # Record if this task has multiple iterations of a non filename parameter.
+        if not isFile and numberOfDataSets > 1: hasMultipleNonFileParameters = True
+
+        # Update the number of data sets.
         if numberOfDataSets > totalNumber: totalNumber = numberOfDataSets
 
         # Check if this option is greedy. If the task has a greedy argument, then the number
@@ -999,9 +1079,11 @@ class configurationMethods:
         # be multiple output files, even though the task is greedy.
         if self.edgeMethods.getEdgeAttribute(graph, nodeID, task, 'isGreedy'): isGreedy = True
 
+      #TODO Check the inclusion of hasMultipleNonFileParameters does not break things.
       # If the task is greedy, check which argument has multiple values. If it is a file, then
-      # the number of data sets is one.
-      if isGreedy and hasMultipleInputFiles: self.nodeMethods.setGraphNodeAttribute(graph, task, 'numberOfDataSets', 1)
+      # the number of data sets is one. If there are multiple
+      if isGreedy and hasMultipleInputFiles and not hasMultipleNonFileParameters:
+        self.nodeMethods.setGraphNodeAttribute(graph, task, 'numberOfDataSets', 1)
       else: self.nodeMethods.setGraphNodeAttribute(graph, task, 'numberOfDataSets', totalNumber)
 
   # Set commands to evaluate at run time.

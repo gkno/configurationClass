@@ -79,6 +79,10 @@ class pipelineNodeAttributes:
     # Store information on additional edges.
     self.originatingEdges = None
 
+    # Store information on additional nodes. These are included in the pipeline configuration
+    # file and are used to essentially create a new node for an argument that already exists.
+    self.additionalNodes = {}
+
     # Store information about evaluating a command.
     self.evaluateCommand = None
 
@@ -130,7 +134,8 @@ class pipelineConfiguration:
     self.errors = configurationClassErrors()
 
     # Define a structure to store pipeline argument information.
-    self.pipelineArguments = {}
+    self.pipelineArguments   = {}
+    self.unassignedArguments = []
 
     # Define a structure to store which tasks and arguments are common to a node. For
     # example, if two tasks use the same input file, they appear in the configuration
@@ -142,6 +147,11 @@ class pipelineConfiguration:
     # Store information on additional edges to be created in the pipeline graph.
     self.originatingEdges    = {}
     self.originatingConfigID = {}
+
+    # Store information on additional nodes. These are included in the pipeline configuration
+    # file and are used to essentially create a new node for an argument that already exists.
+    self.hasAdditionalNodes = False
+    self.additionalNodes    = {}
 
     # Define the pipeline workflow.
     self.workflow = []
@@ -206,6 +216,14 @@ class pipelineConfiguration:
 
     # Check any of the configuration file nodes for information on additional edges.
     if success: success = self.checkOriginatingEdges(pipeline)
+
+    # Check if any additional nodes have been defined.
+    if success: success = self.checkAdditionalNodes(pipeline)
+
+    # Check that some edges can be defined for the node. It is permitted that the 'tasks'
+    # field is empty, for example, but 'greedy tasks' or 'originating edges' must then be
+    # populated.
+    if success: success = self.checkEdgesCanBeConstructed(pipeline)
 
     # Check that the category to which the pipeline is assigned is valid.
     if success: success = self.checkCategory(pipeline, allowedCategories)
@@ -327,14 +345,15 @@ class pipelineConfiguration:
 
     # Define the allowed nodes attributes.
     allowedAttributes                        = {}
+    allowedAttributes['additional nodes']    = (dict, False, True, 'additionalNodes')
     allowedAttributes['ID']                  = (str, True, True, 'ID')
     allowedAttributes['description']         = (str, True, True, 'description')
-    allowedAttributes['originating edges']   = (dict, False, True, 'originatingEdges')
     allowedAttributes['evaluate command']    = (dict, False, True, 'evaluateCommand')
     allowedAttributes['extensions']          = (dict, False, True, 'extensions')
     allowedAttributes['greedy tasks']        = (dict, False, True, 'greedyTasks')
     allowedAttributes['delete files']        = (bool, False, True, 'deleteFiles')
     allowedAttributes['long form argument']  = (str, False, True, 'longFormArgument')
+    allowedAttributes['originating edges']   = (dict, False, True, 'originatingEdges')
     allowedAttributes['required']            = (bool, False, True, 'isRequired')
     allowedAttributes['short form argument'] = (str, False, True, 'shortFormArgument')
     allowedAttributes['tasks']               = (dict, True, True, 'tasks')
@@ -723,12 +742,58 @@ class pipelineConfiguration:
             self.originatingConfigID[str(task)] = {}
           if argument not in self.originatingEdges:
             self.originatingEdges[task][str(argument)]    = []
-            self.originatingConfigID[task][str(argument)] = configNodeID
+            self.originatingConfigID[task][str(argument)] = str(configNodeID)
 
           # Loop over all of the arguments in the nodes tasks and store information on the required edge.
           for targetTask in self.nodeAttributes[configNodeID].tasks:
             targetArgument = self.nodeAttributes[configNodeID].tasks[targetTask]
             self.originatingEdges[task][argument].append((str(targetTask), str(targetArgument)))
+
+    return True
+
+  # Check for additional nodes defined in the configuration file.
+  def checkAdditionalNodes(self, pipeline):
+
+    # Loop over all of the configuration nodes.
+    for configNodeID in self.nodeAttributes:
+
+      # Take all 'additional nodes' and store information on the task/argument pairs that required a new node.
+      if self.nodeAttributes[configNodeID].additionalNodes:
+
+        # Record that the pipeline has additional nodes.
+        self.hasAdditionalNodes = True
+
+        # Loop over all the task/argument pairs.
+        for task in self.nodeAttributes[configNodeID].additionalNodes:
+          argument = self.nodeAttributes[configNodeID].additionalNodes[task]
+
+          # Check that the task is valid. The validity of the argument will be checked at a later time.
+          if task not in self.taskAttributes.keys():
+            if self.allowTermination: self.errors.invalidTaskInAdditionalNodes(configNodeID, task)
+
+          # Store the information.
+          if str(configNodeID) not in self.additionalNodes: self.additionalNodes[str(configNodeID)] = {}
+          if str(task) not in self.additionalNodes[str(configNodeID)]: self.additionalNodes[str(configNodeID)][str(task)] = []
+          self.additionalNodes[str(configNodeID)][str(task)].append(str(argument))
+
+    return True
+
+  # Check that each node can have some edges defined.
+  def checkEdgesCanBeConstructed(self, pipeline):
+
+    # Loop over all of the configuration nodes.
+    for configNodeID in self.nodeAttributes:
+      numberOfGreedyTasks      = 0
+      numberOfOriginatingEdges = 0
+      numberOfAdditionalNodes  = 0
+      numberOfTasks            = len(self.nodeAttributes[configNodeID].tasks)
+      if self.nodeAttributes[configNodeID].originatingEdges: numberOfOriginatingEdges = len(self.nodeAttributes[configNodeID].originatingEdges)
+      if self.nodeAttributes[configNodeID].greedyTasks: numberOfGreedyTasks = len(self.nodeAttributes[configNodeID].greedyTasks)
+      if self.nodeAttributes[configNodeID].additionalNodes: numberOfAdditionalNodes = len(self.nodeAttributes[configNodeID].additionalNodes)
+
+      # If no edges can be created, terminate.
+      if (numberOfTasks + numberOfGreedyTasks + numberOfOriginatingEdges + numberOfAdditionalNodes) == 0:
+        if self.allowTermination: self.errors.nodeHasNoConnections(configNodeID)
 
     return True
 

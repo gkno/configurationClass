@@ -141,6 +141,33 @@ class configurationClassErrors:
     self.writeFormattedText()
     self.terminate()
 
+  # A task included in the 'additional nodes' section is invalid.
+  def invalidTaskInAdditionalNodes(self, configNodeID, task):
+    self.text.append('Invalid task in additional nodes section.')
+    self.text.append('The pipeline configuration file contains a node with ID \'' + configNodeID + '\' with a set of nodes defined in the \'' + \
+    'additional nodes\' section. The task \'' + task + '\' appears in this list, but this is not a valid task in the pipeline. Please correct ' + \
+    'the pipeline configuration file to fix this problem.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # A task included in the 'additional nodes' section has tis invalid.
+  def repeatedArgumentInAdditionalNodes(self, configNodeID, task, argument):
+    self.text.append('Invalid task in additional nodes section.')
+    self.text.append('The pipeline configuration file contains a node with ID \'' + configNodeID + '\' with a set of nodes defined in the \'' + \
+    'additional nodes\' section. The task \'' + task + '\' appears in this list, but this is not a valid task in the pipeline. Please correct ' + \
+    'the pipeline configuration file to fix this problem.')
+    self.writeFormattedText()
+    self.terminate()
+
+  # A pipeline node has no connections.
+  def nodeHasNoConnections(self, configNodeID):
+    self.text.append('Pipeline node has no connections.')
+    self.text.append('The pipeline configuration file contains a node with ID \'' + configNodeID + '\'. This node does not contain any ' + \
+    'connections. All pipeline nodes must be connected to at least one graph node, defined using either the \'tasks\', \'greedy tasks\' or ' + \
+    'the \'originating edges\' fields. Please see the documentation on pipeline configuration files and repair the pipeline configuration file.')
+    self.writeFormattedText()
+    self.terminate()
+
   # A task included in the 'originating edges' section is associated with an invalid argument.
   def invalidArgumentInOriginatingEdges(self, task, tool, argument, configNodeID):
     self.text.append('Invalid argument in originating edges section.')
