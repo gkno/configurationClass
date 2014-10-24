@@ -97,6 +97,9 @@ class argumentAttributes:
     # Record the argument group to which the argument belongs.
     self.argumentGroup = None
 
+    # If the values are to be written as a comma separated list.
+    self.isCommaSeparatedList = False
+
     # Record if the argument is for an input or output file.
     self.isInput     = False
     self.isOutput    = False
@@ -446,6 +449,7 @@ class toolConfiguration:
     allowedAttributes['allow list of repeated arguments']     = (bool, False, 'isRepeatedArgumentList')
     allowedAttributes['argument list']                        = (dict, False, 'listValues')
     allowedAttributes['command line argument']                = (str, True, 'commandLineArgument')
+    allowedAttributes['comma separated list']                 = (bool, False, 'isCommaSeparatedList')
     allowedAttributes['data type']                            = (str, True, 'dataType')
     allowedAttributes['description']                          = (str, True, 'description')
     allowedAttributes['directory']                            = (bool, False, 'isDirectory')
