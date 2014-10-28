@@ -573,7 +573,6 @@ class configurationMethods:
 
     return workflow
 
-
   # The topological sort does not always generate the corret order. In this routine, check for
   # cases where a task is outputting to the stream. It is possible that after this task, the
   # topological sort could choose from multiple tasks to perform next. This routine exists to
@@ -1289,4 +1288,4 @@ class configurationMethods:
         if self.pipeline.nodeAttributes[self.pipeline.pipelineArguments[longFormArgument].configNodeID].evaluateCommand: isSet = True
 
         # If the argument was not set, terminate.
-        if not isSet: self.errors.unsetFile(longFormArgument, shortFormArgument, description, [])
+        if not isSet: self.errors.unsetFile(longFormArgument, shortFormArgument, description, [], True)
